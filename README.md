@@ -23,7 +23,8 @@ python3 -m http.server 8000
 - `index.html` — 페이지 구조
 - `style.css` — 스타일 (라이트/다크 모드 자동 대응)
 - `app.js` — 검색, API 호출, 렌더링 로직
-- `icon.ico` — 바탕화면 바로가기용 아이콘
+- `icon.ico` — 바탕화면 바로가기용 아이콘 (Windows)
+- `manifest.json`, `icon-192.png`, `icon-512.png`, `apple-touch-icon.png` — 모바일 홈 화면 추가(PWA)용 아이콘/설정
 
 > `index.html`은 반드시 `style.css`, `app.js`와 같은 폴더 안에 있어야 정상 동작합니다. 이 파일만 따로 복사/이동하면 검색이 동작하지 않습니다.
 
@@ -34,3 +35,19 @@ python3 -m http.server 8000
 3. 생성된 바로 가기 파일을 바탕화면으로 이동
 4. 바로 가기 우클릭 → **속성** → **바로 가기** 탭 → **아이콘 변경** → **찾아보기**에서 이 폴더의 `icon.ico` 선택 → 확인 → 적용
 5. (선택) 바로 가기 이름에서 " - 바로 가기" 부분을 지워서 원하는 이름으로 변경
+
+## 모바일에서 홈 화면에 추가하기
+
+모바일은 파일을 다운로드해서 여는 방식이 아니라, 이 저장소를 **GitHub Pages로 호스팅**한 뒤 그 주소를 홈 화면에 추가하는 방식을 씁니다.
+
+### 1) GitHub Pages 켜기 (한 번만, 저장소 소유자가 직접)
+1. GitHub 저장소 → **Settings** → 왼쪽 메뉴 **Pages**
+2. **Build and deployment → Source**를 **Deploy from a branch**로 설정
+3. Branch에서 `claude/author-book-search-app-rjdj2o` (또는 병합됐다면 `main`) 선택, 폴더는 `/ (root)` 선택 → **Save**
+4. 잠시 후 `https://vmo940417.github.io/vmo/` 형태의 주소가 생깁니다 (Pages 화면에 표시됨)
+
+### 2) 홈 화면에 추가하기
+- **iPhone (Safari)**: 위 주소로 접속 → 공유 버튼(⬆️) → **홈 화면에 추가**
+- **Android (Chrome)**: 위 주소로 접속 → 우측 상단 점 3개 메뉴 → **홈 화면에 추가** (또는 "앱 설치")
+
+책+돋보기 아이콘으로 홈 화면에 추가되고, 탭하면 주소창 없이 앱처럼 전체화면으로 열립니다.
