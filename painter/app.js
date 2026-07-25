@@ -4,13 +4,14 @@ const statusEl = document.getElementById("status");
 const emptyState = document.getElementById("emptyState");
 const artistPanel = document.getElementById("artistPanel");
 const artistName = document.getElementById("artistName");
+const artistDescription = document.getElementById("artistDescription");
 const artistWorkCount = document.getElementById("artistWorkCount");
 const worksSection = document.getElementById("worksSection");
 const worksGrid = document.getElementById("worksGrid");
 const workCount = document.getElementById("workCount");
 
-const API_BASE = "https://api.artic.edu/api/v1";
-const FALLBACK_IIIF_URL = "https://www.artic.edu/iiif/2";
+const WIKIDATA_API = "https://www.wikidata.org/w/api.php";
+const SPARQL_ENDPOINT = "https://query.wikidata.org/sparql";
 
 const NO_IMAGE =
   "data:image/svg+xml;utf8," +
@@ -44,6 +45,10 @@ function clearSuggestions() {
   activeIndex = -1;
 }
 
+function isPainterDescription(desc) {
+  return desc && /화가|painter/i.test(desc) ? 1 : 0;
+}
+
 function renderSuggestions(artists) {
   currentSuggestions = artists;
   activeIndex = -1;
@@ -59,11 +64,11 @@ function renderSuggestions(artists) {
 
     const nameSpan = document.createElement("span");
     nameSpan.className = "suggestion-name";
-    nameSpan.textContent = artist.title;
+    nameSpan.textContent = artist.label;
 
     const metaSpan = document.createElement("span");
     metaSpan.className = "suggestion-meta";
-    metaSpan.textContent = artist.is_artist ? "작가" : "";
+    metaSpan.textContent = artist.description || "";
 
     item.appendChild(nameSpan);
     item.appendChild(metaSpan);
@@ -83,48 +88,78 @@ function highlightActive() {
 async function searchArtists(query) {
   if (searchAbort) searchAbort.abort();
   searchAbort = new AbortController();
+  const { signal } = searchAbort;
 
-  const url = `${API_BASE}/agents/search?q=${encodeURIComponent(query)}&fields=id,title,is_artist&limit=10`;
-  const res = await fetch(url, { signal: searchAbort.signal });
-  if (!res.ok) throw new Error(`검색 요청 실패 (${res.status})`);
-  const data = await res.json();
-  const results = (data.data || []).map((doc) => ({
-    id: doc.id,
-    title: doc.title,
-    is_artist: doc.is_artist,
-  }));
-  results.sort((a, b) => (b.is_artist === true) - (a.is_artist === true));
-  return results;
+  const buildUrl = (lang) =>
+    `${WIKIDATA_API}?action=wbsearchentities&search=${encodeURIComponent(query)}` +
+    `&language=${lang}&uselang=${lang}&type=item&limit=8&format=json&origin=*`;
+
+  const [koRes, enRes] = await Promise.all([
+    fetch(buildUrl("ko"), { signal }),
+    fetch(buildUrl("en"), { signal }),
+  ]);
+
+  if (!koRes.ok && !enRes.ok) throw new Error("검색 요청 실패");
+
+  const koData = koRes.ok ? await koRes.json() : { search: [] };
+  const enData = enRes.ok ? await enRes.json() : { search: [] };
+
+  const merged = new Map();
+  [...(koData.search || []), ...(enData.search || [])].forEach((item) => {
+    if (!merged.has(item.id)) {
+      merged.set(item.id, {
+        id: item.id,
+        label: item.label || item.id,
+        description: item.description || "",
+      });
+    }
+  });
+
+  const results = [...merged.values()];
+  results.sort((a, b) => isPainterDescription(b.description) - isPainterDescription(a.description));
+  return results.slice(0, 10);
 }
 
-async function loadArtistWorks(artistId) {
-  const url =
-    `${API_BASE}/artworks/search?query[term][artist_id]=${encodeURIComponent(artistId)}` +
-    `&fields=id,title,image_id,date_display,artist_title&limit=50`;
-  const res = await fetch(url);
+async function loadArtistWorks(qid) {
+  const query = `SELECT ?work ?workLabel ?image ?inception WHERE {
+    ?work wdt:P170 wd:${qid} .
+    OPTIONAL { ?work wdt:P18 ?image . }
+    OPTIONAL { ?work wdt:P571 ?inception . }
+    SERVICE wikibase:label { bd:serviceParam wikibase:language "ko,en". }
+  } LIMIT 60`;
+
+  const url = `${SPARQL_ENDPOINT}?query=${encodeURIComponent(query)}&format=json`;
+  const res = await fetch(url, { headers: { Accept: "application/sparql-results+json" } });
   if (!res.ok) throw new Error(`작품 목록 요청 실패 (${res.status})`);
   const data = await res.json();
-  return {
-    works: data.data || [],
-    total: data.pagination ? data.pagination.total : (data.data || []).length,
-    iiifUrl: (data.config && data.config.iiif_url) || FALLBACK_IIIF_URL,
-  };
+  const rows = (data.results && data.results.bindings) || [];
+
+  return rows.map((row) => ({
+    id: row.work.value.split("/").pop(),
+    title: row.workLabel ? row.workLabel.value : "제목 없음",
+    image: row.image ? row.image.value : null,
+    inception: row.inception ? row.inception.value : null,
+  }));
 }
 
 function renderArtist(artist, total) {
   artistPanel.hidden = false;
-  artistName.textContent = artist.title;
-  artistWorkCount.textContent = typeof total === "number" ? `소장 작품 ${total}점` : "";
-  artistWorkCount.hidden = typeof total !== "number";
+  artistName.textContent = artist.label;
+
+  artistDescription.textContent = artist.description || "";
+  artistDescription.hidden = !artist.description;
+
+  artistWorkCount.textContent = `Wikidata에 등록된 작품 ${total}점`;
+  artistWorkCount.hidden = false;
 }
 
-function extractYear(dateDisplay) {
-  if (!dateDisplay) return null;
-  const match = String(dateDisplay).match(/\d{3,4}/);
+function extractYear(inception) {
+  if (!inception) return null;
+  const match = String(inception).match(/^-?\d{1,4}/);
   return match ? parseInt(match[0], 10) : null;
 }
 
-function renderWorks(works, iiifUrl) {
+function renderWorks(works) {
   worksGrid.innerHTML = "";
 
   if (!works.length) {
@@ -138,20 +173,20 @@ function renderWorks(works, iiifUrl) {
   works
     .slice()
     .sort((a, b) => {
-      const ay = extractYear(a.date_display);
-      const by = extractYear(b.date_display);
+      const ay = extractYear(a.inception);
+      const by = extractYear(b.inception);
       return (ay ?? 9999) - (by ?? 9999);
     })
     .forEach((work) => {
       const card = document.createElement("a");
       card.className = "book-card";
-      card.href = `https://www.artic.edu/artworks/${work.id}`;
+      card.href = `https://www.wikidata.org/wiki/${work.id}`;
       card.target = "_blank";
       card.rel = "noopener";
 
       const cover = document.createElement("img");
       cover.className = "book-cover";
-      cover.src = work.image_id ? `${iiifUrl}/${work.image_id}/full/400,/0/default.jpg` : NO_IMAGE;
+      cover.src = work.image ? `${work.image.replace(/^http:/, "https:")}?width=400` : NO_IMAGE;
       cover.alt = work.title || "";
       cover.loading = "lazy";
       cover.onerror = () => {
@@ -168,7 +203,7 @@ function renderWorks(works, iiifUrl) {
 
       const year = document.createElement("p");
       year.className = "book-year";
-      year.textContent = work.date_display || "";
+      year.textContent = extractYear(work.inception) ?? "";
 
       info.appendChild(title);
       info.appendChild(year);
@@ -180,19 +215,19 @@ function renderWorks(works, iiifUrl) {
 
 async function selectArtist(artist) {
   clearSuggestions();
-  input.value = artist.title;
+  input.value = artist.label;
   showEmptyState(false);
   artistPanel.hidden = true;
   worksSection.hidden = true;
   setStatus("작품을 불러오는 중...");
 
   try {
-    const { works, total, iiifUrl } = await loadArtistWorks(artist.id);
-    renderArtist(artist, total);
-    renderWorks(works, iiifUrl);
+    const works = await loadArtistWorks(artist.id);
+    renderArtist(artist, works.length);
+    renderWorks(works);
     setStatus(null);
     if (!works.length) {
-      setStatus("이 화가의 소장 작품을 찾지 못했어요.");
+      setStatus("Wikidata에 등록된 이 화가의 작품을 찾지 못했어요.");
     }
   } catch (err) {
     console.error(err);

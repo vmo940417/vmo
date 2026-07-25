@@ -64,7 +64,7 @@ python3 -m http.server 8000
 # 화가 검색 · 작품 한눈에 보기
 
 `painter/` 폴더에 있는 앱입니다. 화가 이름을 검색하면 그 화가의 작품을 이미지와 함께 바로 보여줍니다.
-[Art Institute of Chicago](https://www.artic.edu/collection) 공개 API를 사용하며 별도 API 키나 서버가 필요 없습니다.
+[Wikidata](https://www.wikidata.org) + [Wikimedia Commons](https://commons.wikimedia.org)를 사용하며 별도 API 키나 서버가 필요 없습니다. 국가/시대에 관계없이 이름(한글/영문 모두)으로 검색할 수 있어서 김환기 같은 한국 화가도 검색됩니다.
 
 ## 실행 방법
 
@@ -77,11 +77,11 @@ GitHub Pages를 켰다면 `https://vmo940417.github.io/vmo/painter/` 로 바로 
 
 ## 사용 방법
 
-1. 검색창에 화가 이름을 입력합니다 (한글/영문 모두 가능, 예: `반 고흐`, `Claude Monet`).
+1. 검색창에 화가 이름을 입력합니다 (한글/영문 모두 가능, 예: `반 고흐`, `Claude Monet`, `김환기`).
 2. 자동완성 목록에서 원하는 화가를 클릭(또는 방향키 + Enter)합니다.
-3. 화가 이름과 소장 작품 수, 작품 목록(이미지, 제작연도)이 바로 표시됩니다. 작품 카드를 클릭하면 Art Institute of Chicago 상세 페이지로 이동합니다.
+3. 화가 정보와 작품 목록(이미지, 제작연도)이 바로 표시됩니다. 작품 카드를 클릭하면 Wikidata 상세 페이지로 이동합니다.
 
-> Art Institute of Chicago가 소장한 작품만 검색됩니다 — 그 미술관에 없는 작가/작품은 나오지 않을 수 있습니다.
+> Wikidata에 "이 화가가 그렸다(creator)"고 기록된 작품만 나옵니다. 유명한 화가라도 아직 Wikidata에 작품이 등록/연결되지 않았으면 안 나올 수 있습니다. 또한 비교적 최근에 작고한 화가는 저작권이 남아있어 작품 이미지가 없는 경우가 많습니다(그럴 땐 "이미지 없음"으로 표시되고 제목/연도만 보여줍니다).
 
 ## 파일 구성
 

@@ -157,7 +157,8 @@ body {
   font-size: 1.4rem;
 }
 
-.author-dates {
+.author-dates,
+.author-topwork {
   margin: 2px 0;
   color: var(--text-muted);
   font-size: 0.9rem;
