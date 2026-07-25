@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>화가 검색 · 작품 한눈에 보기</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="icon-192.png" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+  <meta name="theme-color" content="#a44a3f" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="화가검색" />
+</head>
+<body>
+  <div class="app">
+    <header class="hero">
+      <h1>화가를 검색하면, 작품이 바로 보여요</h1>
+      <p class="subtitle">화가 이름을 입력하고 목록에서 선택하면 그 화가의 작품들을 확인할 수 있어요.</p>
+
+      <div class="search-box">
+        <input
+          id="artistInput"
+          type="text"
+          placeholder="예: 반 고흐, Claude Monet, 김환기..."
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <div id="suggestions" class="suggestions" hidden></div>
+      </div>
+    </header>
+
+    <main id="main">
+      <div id="status" class="status" hidden></div>
+
+      <section id="artistPanel" class="author-panel" hidden>
+        <div class="author-meta">
+          <h2 id="artistName"></h2>
+          <p id="artistWorkCount" class="author-dates"></p>
+        </div>
+      </section>
+
+      <section id="worksSection" hidden>
+        <h3 class="books-heading">작품 <span id="workCount"></span></h3>
+        <div id="worksGrid" class="books-grid"></div>
+      </section>
+
+      <div id="emptyState" class="empty-state">
+        <p>🎨 화가 이름을 검색해보세요.</p>
+      </div>
+    </main>
+
+    <footer class="footer">
+      데이터 제공: <a href="https://www.artic.edu/collection" target="_blank" rel="noopener">Art Institute of Chicago</a>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
