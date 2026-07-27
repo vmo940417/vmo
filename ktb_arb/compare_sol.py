@@ -181,9 +181,30 @@ def main():
                    ("B35", "순 만기손익"), ("B36", "바스켓 1단위당")]:
         print(f"   손익!{c} {lab:12s} = {float(G('손익', c)):>14,.2f}원")
 
-    print("\n시나리오 헤지 유효성 (순 만기손익):")
-    for row in [4, 9, 14, 19, 24]:
-        print(f"   shift {float(G('시나리오', f'A{row}')):+6.0f}bp → {float(G('시나리오', f'G{row}')):>14,.0f}원")
+    print("\n시나리오 (순 만기손익)  ― 엑셀 vs 파이썬 정밀 재평가:")
+    Fm = fmkt
+    cost = float(G("설정", "B53")) * float(G("설정", "B40"))
+    Qn = float(G("설정", "B40"))
+    binfo = []
+    for col in "CDE":
+        issue = to_date(bs[f"{col}6"].value); mat = to_date(bs[f"{col}7"].value)
+        cpn = bs[f"{col}8"].value / 100
+        binfo.append((issue, mat, cpn, float(G("바스켓", f"{col}37"))/100,
+                      float(G("바스켓", f"{col}36")), float(G("바스켓", f"{col}49"))))
+    worst = 0.0
+    for row in range(4, 25):
+        sh = float(G("시나리오", f"A{row}"))
+        xlv = float(G("시나리오", f"G{row}"))
+        fut = (Fm - std_price(ybar + sh/1e4, n_std)) * mult * Qn
+        cash = sum((kr_price(yf + sh/1e4, H, i, m, c) - tg)/100*n
+                   for i, m, c, yf, tg, n in binfo)
+        pyv = fut + cash - cost
+        worst = max(worst, abs(pyv - xlv))
+        if row in (4, 9, 14, 19, 24):
+            print(f"   shift {sh:+6.0f}bp  xl={xlv:>13,.0f}  py={pyv:>13,.0f}  diff={pyv-xlv:>10,.2f}")
+    print(f"   21개 shift 전체 최대오차 = {worst:,.4f}원")
+    if worst > 1.0:
+        ok = False
     print(f"   변동폭(잔여리스크) = {float(G('시나리오','B29')):,.0f}원")
     print(f"   shift0 기준손익    = {float(G('시나리오','B31')):,.0f}원")
 
