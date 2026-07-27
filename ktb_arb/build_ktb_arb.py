@@ -60,6 +60,13 @@ N_DATE = 'yyyy-mm-dd'
 N_INT = '#,##0'
 
 
+def as_text(cell):
+    """'='로 시작하는 예시/설명 문자열을 수식이 아닌 텍스트로 저장한다."""
+    if isinstance(cell.value, str) and cell.value.startswith("="):
+        cell.data_type = "s"
+    return cell
+
+
 def title(ws, text, width=8):
     ws["A1"] = text
     ws["A1"].font = F_TITLE
@@ -201,7 +208,7 @@ for row, name, sym, val, ex, note in LIVE_ROWS:
         c.font, c.fill = F_LIVE, FILL_LIVE
     c.number_format = N_PX if row <= 8 else N_YLD
     c.border = BOX
-    lv.cell(row=row, column=4, value=ex).font = F_NOTE
+    as_text(lv.cell(row=row, column=4, value=ex)).font = F_NOTE
     lv.cell(row=row, column=5, value=note).font = F_NOTE
 
 lv["A21"] = "갱신시각"
@@ -527,7 +534,7 @@ brow(33, "보유일수 (S0→H)", "일", "=설정!$B$28", N_INT)
 brow(34, "기간중 쿠폰 재투자FV", "", lambda col, i: f"=현금흐름!${CFV[col]}$100", "0.0000")
 brow(35, "조달이자", "", lambda col, i: f"=현금흐름!${CFV[col]}$102", "0.0000")
 brow(36, "▶ 선도 목표단가 (더티)", "", lambda col, i: f"=현금흐름!${CFV[col]}$103", "0.0000", "key",
-     note="= 현물단가 + 조달이자 − 쿠폰FV")
+     note="현물단가 + 조달이자 − 쿠폰FV")
 brow(37, "▶ 선도 수익률", "%", lambda col, i: f"=현금흐름!${CFV[col]}$111*100", N_YLD, "key")
 brow(38, "수렴 잔차 (0에 근접해야 정상)", "", lambda col, i: f"=현금흐름!${CFV[col]}$113", "0.00E+00")
 brow(39, "선도 BPV", "포인트/1bp", lambda col, i: f"=현금흐름!${CFV[col]}$116", "0.000000")
@@ -821,11 +828,11 @@ for kind, a, b in rows:
             c = gd.cell(row=r, column=cc, value=txt)
             c.font, c.fill, c.border = F_HDR, FILL_HDR, BOX
     elif kind == "n":
-        gd.cell(row=r, column=3, value=b).font = F_NOTE
+        as_text(gd.cell(row=r, column=3, value=b)).font = F_NOTE
     else:
         gd.cell(row=r, column=2, value=a).font = F_LBL
         gd.cell(row=r, column=2).border = BOX
-        c = gd.cell(row=r, column=3, value=b)
+        c = as_text(gd.cell(row=r, column=3, value=b))
         c.font, c.border = F_LBL, BOX
         c.alignment = Alignment(wrap_text=True, vertical="top")
     r += 1
@@ -834,6 +841,14 @@ for kind, a, b in rows:
 wb.move_sheet("README", offset=0)
 wb._sheets = [wb["README"], wb["실시간"], wb["설정"], wb["바스켓"],
               wb["이론가"], wb["손익"], wb["시나리오"], wb["현금흐름"], wb["연동가이드"]]
+
+# 최종 안전망: 설명·예시 영역에 남은 '='로 시작하는 문자열을 텍스트로 강제
+for _ws, _cols in ((lv, (4, 5)), (gd, (2, 3)), (bs, (7,)), (cf, (4,)),
+                   (th, (4,)), (pl, (4,)), (wb["README"], (2,))):
+    for _row in _ws.iter_rows():
+        for _c in _row:
+            if _c.column in _cols:
+                as_text(_c)
 
 wb.save(OUT)
 print("saved:", OUT)
