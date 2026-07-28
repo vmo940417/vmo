@@ -168,8 +168,7 @@ def main():
               f"{resid/100*float(G('메인', f'{col}58')):>10,.0f}원  "
               f"(엑셀 표시 잔차 {float(G('메인', f'{col}51')):.3e})\n")
         fw.append(y1); ws_.append(w); tgts.append(tgt); bpvs.append(bpv)
-        infos.append((issue, mat, cpn, float(G("메인", f"{col}50")) / 100,
-                      float(G("메인", f"{col}49"))))
+        infos.append((issue, mat, cpn, y, float(G("메인", f"{col}49"))))  # y = 현물수익률
 
     ybar = sum(a * b for a, b in zip(fw, ws_)) / sum(ws_)
     pth = std_price(ybar, n_std)
@@ -198,7 +197,9 @@ def main():
                    ("B88", "거래비용"), ("B89", "순 만기손익"), ("B90", "계약당")]:
         print(f"   메인!{c} {lab:11s} = {float(G('메인', c)):>16,.2f}")
 
-    print("\n시나리오 — 엑셀 vs 파이썬 정밀 재할인:")
+    ysp = sum(float(G("메인", f"{c}41")) * float(G("메인", f"{c}39")) for c in "CD") \
+        / sum(float(G("메인", f"{c}39")) for c in "CD")
+    print(f"\n시나리오 — 엑셀 vs 파이썬 정밀 재할인  (shift 기준 = 현물평균 {ysp*100:.4f}%):")
     Fm = float(G("메인", "B21"))
     cost = float(G("메인", "B22")) * Q
     faces = [float(G("메인", f"{c}58")) for c in "CD"]
@@ -207,9 +208,9 @@ def main():
         R = 96 + i
         sh = float(G("메인", f"A{R}"))
         xlv = float(G("메인", f"F{R}"))
-        fut = (Fm - std_price(ybar + sh / 1e4, n_std)) * mult * Q
-        cash = sum((kr_price(y1 + sh / 1e4, H, iss, mt, cp) - tg) / 100 * fc
-                   for (iss, mt, cp, y1, tg), fc in zip(infos, faces))
+        fut = (Fm - std_price(ysp + sh / 1e4, n_std)) * mult * Q
+        cash = sum((kr_price(ys + sh / 1e4, H, iss, mt, cp) - tg) / 100 * fc
+                   for (iss, mt, cp, ys, tg), fc in zip(infos, faces))
         pyv = fut + cash - cost
         worst = max(worst, abs(pyv - xlv))
         print(f"   {sh:+6.0f}bp  xl={xlv:>15,.0f}  py={pyv:>15,.0f}  diff={pyv-xlv:>9,.2f}")

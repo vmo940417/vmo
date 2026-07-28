@@ -251,7 +251,8 @@ put(73, "권장 포지션",
     "", None, "key")
 put(74, "판정", '=IF(B71>0,"차익거래 가능","비용 미달 — 관망")', "", None, "key")
 
-put(76, "[참고] 현물금리 평균", "=SUMPRODUCT(C40:D40,C39:D39)/SUM(C39:D39)", "%", YLD)
+put(76, "▶ 바스켓 평균 현물수익률", "=SUMPRODUCT(C40:D40,C39:D39)/SUM(C39:D39)", "%", YLD,
+    "만기손익·시나리오의 shift 기준선")
 put(77, "[참고] 현물금리 기준 이론가", stdp("$B$76/100"), "", PX, "calc",
     "◀ 원본 파일 방식. 아래 차이만큼 캐리가 이미 들어있음")
 put(78, "[참고] 위 둘의 차이 = 캐리", "=(B77-B66)*$B$16", "원/계약", WON, "calc",
@@ -261,8 +262,10 @@ put(80, "[참고] 인포맥스 − 자체", '=IFERROR(B79-B66,"")', "포인트",
 
 # ── [5] 만기 손익 ───────────────────────────────────────────
 sec(82, "[5] 만기 손익   ◆ 바스켓 1단위 = 선물 1계약")
-put(83, "만기 수익률 shift", 0, "bp", BP, "in", "만기시점 바스켓 수익률 평행이동")
-put(84, "만기 바스켓 평균수익률", "=B64+B83/100", "%", YLD)
+put(83, "만기 수익률 shift (현재 현물금리 대비)", 0, "bp", BP, "in",
+    "0 = 현물금리 무변동.  선도수익률로 수렴하는 경우는 +(선도−현물) bp 를 넣는다")
+put(84, "만기 바스켓 평균수익률", "=B76+B83/100", "%", YLD,
+    "현물 평균(B76) + shift.  shift 0 이면 오늘 금리 그대로 만기를 맞는 경우")
 put(85, "▶ 최종결제기준가격", stdp("$B$84/100"), "", PX, "key")
 put(86, "선물 leg", "=($B$21-B85)*$B$19*$B$16*$B$17", "원", WON)
 put(87, "현물 leg",
@@ -273,6 +276,8 @@ put(89, "▶ 순 만기손익", "=B86+B87+B88", "원", WON, "key")
 put(90, "▶ 바스켓 1단위당", "=IFERROR(B89/$B$17,0)", "원/계약", WON, "key")
 put(91, "바스켓 투자금액", "=SUMPRODUCT(C44:D44,C58:D58)/100", "원", WON)
 put(92, "연환산 수익률", '=IF(AND(B91>0,B11>0),B89/B91*365/B11*100,"")', "%", "0.000", "key")
+put(93, "참고: 선도수익률 수렴 시 shift", "=(B64-B76)*100", "bp", BP, "calc",
+    "이 값을 B83 에 넣으면 결제가가 이론 선물가격(B66)과 같아진다")
 
 # ── [6] 시나리오 ────────────────────────────────────────────
 sec(94, "[6] 시나리오 — 헤지 유효성 (정밀 재할인)")
@@ -287,7 +292,7 @@ for i, sh in enumerate(SHIFTS):
     R = 96 + i
     m.cell(row=R, column=1, value=sh).number_format = BP
     m.cell(row=R, column=1).font = F_IN
-    m.cell(row=R, column=2, value=f"=$B$64+$A{R}/100").number_format = YLD
+    m.cell(row=R, column=2, value=f"=$B$76+$A{R}/100").number_format = YLD
     m.cell(row=R, column=3,
            value=stdp(f"$B{R}/100").replace("=", "", 1)).value = (
         "=" + stdp(f"$B{R}/100")[1:])
@@ -390,8 +395,9 @@ for bi, s in enumerate(BLOCKS):
                 f'${g[2]}{R}*(1+${v}$9*(${v}$7-{g[1]}{R})/365),0)',
         }
         for j, src in enumerate(shift_src):
+            # 만기 수익률 = 현물수익률(${v}$8) + shift.  선도수익률이 아니다.
             vals[18 + j] = (f'=IF({g[8]}{R}=1,${g[2]}{R}/'
-                            f'(1+(${v}$109+{src}/10000)/2)^({g[9]}{R}-1),0)')
+                            f'(1+(${v}$8+{src}/10000)/2)^({g[9]}{R}-1),0)')
         for o, val in vals.items():
             cc = e.cell(row=R, column=s + o, value=val)
             cc.font = F_CALC
@@ -451,7 +457,7 @@ for bi, s in enumerate(BLOCKS):
         row = 114 + j
         as_text(e.cell(row=row, column=s, value=f"만기단가 — {lab}")).font = F_LBL
         cc = e.cell(row=row, column=s + 1,
-                    value=f"=SUM({rng(18+j)})/(1+({v}109+{src}/10000)/2*{v}93/{v}94)")
+                    value=f"=SUM({rng(18+j)})/(1+({v}8+{src}/10000)/2*{v}93/{v}94)")
         cc.font, cc.number_format, cc.border = F_CALC, "0.000000", BOX
 
 e.freeze_panes = "A15"
