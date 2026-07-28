@@ -222,6 +222,26 @@ def main():
     TMP.unlink(missing_ok=True)
 
     # 방향 전환 시 금리가 바뀌는지 확인
+    print("\n■ 헤지 정합성 셀 (자동 헤지액면 상태 → 이론상 B75=Q, B81=0)")
+    b75 = float(G("메인", "B75")); b81 = float(G("메인", "B81"))
+    d81 = str(G("메인", "D81"))
+    ok75, ok81 = abs(b75 - Q) < 1e-9, abs(b81) < 1e-6
+    if not (ok75 and ok81):
+        ok = False
+    print(f"   B75 필요계약수 = {b75:.6f}   (Q={Q:.0f})  {'OK' if ok75 else '★FAIL★'}")
+    print(f"   B81 순BPV노출  = {b81:.6e} 원/bp        {'OK' if ok81 else '★FAIL★'}")
+    print(f"   D81 판정       = {d81}")
+
+    print("\n■ 액면을 직접 넣어 계약수가 어긋난 경우 (100억+100억, Q=169)")
+    s3 = evaluate({"C57": 10_000_000_000, "D57": 10_000_000_000, "B17": 169})
+    i3 = {k.upper().replace("'", ""): v for k, v in s3.items()}
+    g3 = lambda sh, cd: next(v for k, v in i3.items() if k.endswith(f"]{sh.upper()}!{cd}"))
+    print(f"   B75 필요계약수 = {float(g3('메인','B75')):.2f}")
+    print(f"   B81 순BPV노출  = {float(g3('메인','B81')):,.0f} 원/bp"
+          f"  → ±100bp 시 {abs(float(g3('메인','B81')))*100:,.0f}원")
+    print(f"   D81 판정       = {g3('메인','D81')}")
+    TMP.unlink(missing_ok=True)
+
     print("\n■ 포지션 방향별 적용금리")
     for d, fee, expect in (("매수차익 (바스켓매수+선물매도)", 0.0, 2.60),
                            ("매도차익 (바스켓매도+선물매수)", 0.0, 2.90),
