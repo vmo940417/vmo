@@ -4,3 +4,6 @@ __pycache__/
 .~lock.*
 ktb_arb/cmp.txt
 ktb_arb/sol.pkl
+ktb_arb/simple_cmp.txt
+ktb_arb/fresh_cmp.txt
+ktb_arb/_간소_eval.xlsx
