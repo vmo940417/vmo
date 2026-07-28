@@ -72,10 +72,10 @@ def fwd_2step(y, S0, H, issue, mat, cpn, r):
     return P0, tgt, y2, bpv, (lo + hi) / 2
 
 
-def evaluate():
+def evaluate(extra=None):
     shutil.copy(XL, TMP)
     wb = load_workbook(TMP)
-    for coord, val in LIVE.items():
+    for coord, val in {**LIVE, **(extra or {})}.items():
         wb["메인"][coord] = val
     wb.save(TMP)
     import warnings
@@ -126,7 +126,7 @@ def main():
         return x.date() if isinstance(x, dt.datetime) else x
 
     S0, H = to_date(G("메인", "B10")), to_date(G("메인", "B8"))
-    r = float(G("메인", "B13"))
+    r = float(G("메인", "B23")) / 100
     n_std = int(float(G("메인", "B14")))
     mult = float(G("메인", "B16"))
     Q = float(G("메인", "B17"))
@@ -219,6 +219,30 @@ def main():
     print(f"   변동폭(잔여리스크) = {float(G('메인','B108')):,.0f}원")
 
     TMP.unlink(missing_ok=True)
+
+    # 방향 전환 시 금리가 바뀌는지 확인
+    print("\n■ 포지션 방향별 적용금리")
+    for d, expect in (("선물매도+현물매수", 2.60), ("선물매수+현물매도", 2.90)):
+        s2 = evaluate({"B18": d})
+        idx2 = {k.upper().replace("'", ""): v for k, v in s2.items()}
+
+        def G2(sheet, coord):
+            for k, v in idx2.items():
+                if k.endswith(f"]{sheet.upper()}!{coord}"):
+                    return v
+        got = float(G2("메인", "B23"))
+        eng = float(G2("엔진", "B9"))
+        sign = float(G2("메인", "B19"))
+        good = abs(got - expect) < 1e-9 and abs(eng - expect / 100) < 1e-12
+        if not good:
+            ok = False
+        print(f"   {d}  방향계수={sign:+.0f}  적용금리={got:.4f}%  "
+              f"엔진!B9={eng:.6f}  기대 {expect:.2f}%  {'OK' if good else '★FAIL★'}")
+        print(f"      → 선도수익률 종목1 {float(G2('메인','C50')):.6f}%  "
+              f"종목2 {float(G2('메인','D50')):.6f}%   "
+              f"이론가 {float(G2('메인','B66')):.4f}")
+        TMP.unlink(missing_ok=True)
+
     print("\n=== 판정:", "PASS" if (ok and not errs) else "★확인 필요★", "===")
 
 
