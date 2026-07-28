@@ -3,8 +3,9 @@
 import datetime as dt
 from dateutil.relativedelta import relativedelta
 from openpyxl import load_workbook
+from pathlib import Path
 
-XL = "/home/user/vmo/ktb_arb/국채선물_차익거래.xlsx"
+XL = str(Path(__file__).resolve().parent / "국채선물_차익거래.xlsx")
 
 
 def edate(d, months):

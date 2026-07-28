@@ -6,8 +6,9 @@ LibreOffice가 동작하지 않는 환경에서의 수식 검증 경로.
 import datetime as dt
 from dateutil.relativedelta import relativedelta
 from openpyxl import load_workbook
+from pathlib import Path
 
-XL = "/home/user/vmo/ktb_arb/국채선물_차익거래.xlsx"
+XL = str(Path(__file__).resolve().parent / "국채선물_차익거래.xlsx")
 
 
 def evaluate():

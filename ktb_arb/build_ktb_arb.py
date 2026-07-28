@@ -24,8 +24,9 @@ from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.comments import Comment
 import datetime as dt
+from pathlib import Path
 
-OUT = "/home/user/vmo/ktb_arb/국채선물_차익거래.xlsx"
+OUT = str(Path(__file__).resolve().parent / "국채선물_차익거래.xlsx")
 
 # ──────────────────────────── 스타일 ────────────────────────────
 FONT = "Arial"

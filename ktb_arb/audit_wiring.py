@@ -13,8 +13,9 @@ import re
 from collections import defaultdict
 from openpyxl import load_workbook
 from openpyxl.utils import column_index_from_string
+from pathlib import Path
 
-XL = "/home/user/vmo/ktb_arb/국채선물_차익거래.xlsx"
+XL = str(Path(__file__).resolve().parent / "국채선물_차익거래.xlsx")
 
 REF = re.compile(
     r"(?:(?P<sheet>'[^']+'|[가-힣A-Za-z_][가-힣A-Za-z0-9_]*)!)?"
