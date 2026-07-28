@@ -126,7 +126,7 @@ def main():
         return x.date() if isinstance(x, dt.datetime) else x
 
     S0, H = to_date(G("메인", "B10")), to_date(G("메인", "B8"))
-    r = float(G("메인", "B23")) / 100
+    r = float(G("메인", "B31")) / 100
     n_std = int(float(G("메인", "B14")))
     mult = float(G("메인", "B16"))
     Q = float(G("메인", "B17"))
@@ -222,21 +222,24 @@ def main():
 
     # 방향 전환 시 금리가 바뀌는지 확인
     print("\n■ 포지션 방향별 적용금리")
-    for d, expect in (("선물매도+현물매수", 2.60), ("선물매수+현물매도", 2.90)):
-        s2 = evaluate({"B18": d})
+    for d, fee, expect in (("선물매도+현물매수", 0.0, 2.60),
+                           ("선물매수+현물매도", 0.0, 2.90),
+                           ("선물매수+현물매도", 20.0, 2.70),
+                           ("선물매도+현물매수", 20.0, 2.40)):
+        s2 = evaluate({"B18": d, "B23": fee})
         idx2 = {k.upper().replace("'", ""): v for k, v in s2.items()}
 
         def G2(sheet, coord):
             for k, v in idx2.items():
                 if k.endswith(f"]{sheet.upper()}!{coord}"):
                     return v
-        got = float(G2("메인", "B23"))
+        got = float(G2("메인", "B31"))
         eng = float(G2("엔진", "B9"))
         sign = float(G2("메인", "B19"))
         good = abs(got - expect) < 1e-9 and abs(eng - expect / 100) < 1e-12
         if not good:
             ok = False
-        print(f"   {d}  방향계수={sign:+.0f}  적용금리={got:.4f}%  "
+        print(f"   {d}  수수료={fee:>4.0f}bp  방향계수={sign:+.0f}  적용금리={got:.4f}%  "
               f"엔진!B9={eng:.6f}  기대 {expect:.2f}%  {'OK' if good else '★FAIL★'}")
         print(f"      → 선도수익률 종목1 {float(G2('메인','C50')):.6f}%  "
               f"종목2 {float(G2('메인','D50')):.6f}%   "

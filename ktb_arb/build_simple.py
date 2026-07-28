@@ -56,6 +56,13 @@ SCH1 = SCH0 + NPER - 1          # 76
 BLOCKS = [1, 31]                # 종목1: A~AB(1..28), 종목2: AE~BF(31..58)
 NCOL = 28
 
+def as_text(cell):
+    """'='로 시작하는 설명·비고 문자열을 수식이 아닌 텍스트로 저장한다."""
+    if isinstance(cell.value, str) and cell.value.startswith("="):
+        cell.data_type = "s"
+    return cell
+
+
 wb = Workbook()
 
 # ═══════════════════════════════════════════════════════════
@@ -79,7 +86,7 @@ def sec(row, text):
 
 
 def put(row, label, value, unit="", fmt=None, style="calc", note=""):
-    m.cell(row=row, column=1, value=label).font = F_LBL
+    as_text(m.cell(row=row, column=1, value=label)).font = F_LBL
     c = m.cell(row=row, column=2, value=value)
     c.font = {"in": F_IN, "live": F_LIVE, "key": F_KEY}.get(style, F_CALC)
     fill = {"in": FILL_IN, "live": FILL_LIVE, "key": FILL_KEY}.get(style)
@@ -89,9 +96,9 @@ def put(row, label, value, unit="", fmt=None, style="calc", note=""):
         c.number_format = fmt
     c.border = BOX
     if unit:
-        m.cell(row=row, column=3, value=unit).font = F_NOTE
+        as_text(m.cell(row=row, column=3, value=unit)).font = F_NOTE
     if note:
-        m.cell(row=row, column=6, value=note).font = F_NOTE
+        as_text(m.cell(row=row, column=6, value=note)).font = F_NOTE
     return c
 
 
@@ -121,8 +128,8 @@ put(20, "선물 진입가", None, "", "0.00", "in", "빈칸이면 현재가 사�
 put(21, "▶ 적용 진입가", '=IF(B20="",B25,B20)', "", "0.00", "key")
 put(22, "거래비용", 13000, "원/계약", WON, "in", "선물수수료 + 채권 스프레드 + 슬리피지")
 
-put(23, "▶ 적용금리 (방향 반영)", "=IF($B$19=1,$B$12,$B$13)", "%", YLD, "key",
-    "캐리 계산과 쿠폰 재투자에 모두 이 금리를 쓴다")
+put(23, "대차수수료 / 조달조정", 0.0, "bp", BP, "in",
+    "현물매도 시 대차수수료(양수 입력) / 현물매수 시 special 프리미엄(양수 입력). 적용금리에서 차감")
 
 dv = DataValidation(type="list", formula1='"선물매도+현물매수,선물매수+현물매도"', allow_blank=True)
 m.add_data_validation(dv)
@@ -139,7 +146,10 @@ put(29, "인포맥스 이론가 (참고)", '=_xll.IMDP("FUT",$B$26,"이론가")'
     "B26과 같은 종목코드를 써야 비교가 유효")
 m["A30"] = ("※ 종목1을 실시간으로 못 받으면 B27 을  =B28-2.6/100  처럼 스프레드 파생식으로 바꾸십시오 "
             "(원본 파일 방식). 단 스프레드는 수동 갱신이 필요합니다.")
-m["A30"].font = F_NOTE
+as_text(m["A30"]).font = F_NOTE
+
+put(31, "▶ 적용금리 (방향·조정 반영)", "=IF($B$19=1,$B$12,$B$13)-$B$23/100", "%", YLD, "key",
+    "IF(방향=매수, 조달금리 B12, 담보운용금리 B13) − 대차수수료 B23 → 캐리·쿠폰 재투자에 적용")
 
 # ── [3] 바스켓 ──────────────────────────────────────────────
 sec(32, "[3] 바스켓 (2종목)")
@@ -153,8 +163,8 @@ EV = {"C": "B", "D": "AF"}      # 메인 열 → 엔진 스칼라 값 열
 
 
 def brow(row, label, unit, fn, fmt=None, style="calc", total=None, note=""):
-    m.cell(row=row, column=1, value=label).font = F_LBL
-    m.cell(row=row, column=2, value=unit).font = F_NOTE
+    as_text(m.cell(row=row, column=1, value=label)).font = F_LBL
+    as_text(m.cell(row=row, column=2, value=unit)).font = F_NOTE
     for i, col in enumerate("CD"):
         c = m[f"{col}{row}"]
         c.value = fn(col, i) if callable(fn) else fn
@@ -171,7 +181,7 @@ def brow(row, label, unit, fn, fmt=None, style="calc", total=None, note=""):
         if fmt:
             c.number_format = fmt
     if note:
-        m.cell(row=row, column=6, value=note).font = F_NOTE
+        as_text(m.cell(row=row, column=6, value=note)).font = F_NOTE
 
 
 brow(34, "종목코드", "", lambda c, i: BOND[i][1], None, "in")
@@ -298,10 +308,10 @@ put(R2 + 2, "변동폭 (헤지 잔여리스크)", f"=B{R2}-B{R2+1}", "원", WON,
 m[f"A{R2+4}"] = ("※ BPV 헤지가 정확하면 순 만기손익이 shift와 무관하게 평평해야 합니다. "
                  "남는 변동은 표준물(5% 쿠폰)과 바스켓(저쿠폰)의 컨벡시티 차이이며 "
                  "BPV 헤지로는 제거되지 않는 구조적 잔여리스크입니다.")
-m[f"A{R2+4}"].font = F_NOTE
+as_text(m[f"A{R2+4}"]).font = F_NOTE
 m[f"A{R2+5}"] = ("※ 현재 종목코드·수익률은 원본 파일에서 가져온 값입니다. "
                  "결제월이 바뀌면 [1] 결제월과 [3] 바스켓 종목을 KRX 공시 기준으로 갱신하십시오.")
-m[f"A{R2+5}"].font = F_NOTE
+as_text(m[f"A{R2+5}"]).font = F_NOTE
 m.freeze_panes = "A2"
 
 # ═══════════════════════════════════════════════════════════
@@ -333,10 +343,10 @@ for bi, s in enumerate(BLOCKS):
         (2, "만기일", f"=메인!{mc}38"), (3, "발행일", f"=메인!{mc}37"),
         (4, "표면금리(소수)", f"=메인!{mc}36/100"), (5, "반기쿠폰", f"={v}4*100/2"),
         (6, "현물결제일 S0", "=메인!$B$10"), (7, "정산기준일 H", "=메인!$B$8"),
-        (8, "현물수익률(소수)", f"=메인!{mc}41"), (9, "적용금리(소수)", "=메인!$B$23/100"),
+        (8, "현물수익률(소수)", f"=메인!{mc}41"), (9, "적용금리(소수)", "=메인!$B$31/100"),
         (10, "손익 shift(bp)", "=메인!$B$83"),
     ]:
-        e.cell(row=row, column=s, value=lab).font = F_LBL
+        as_text(e.cell(row=row, column=s, value=lab)).font = F_LBL
         cc = e.cell(row=row, column=s + 1, value=f)
         cc.font, cc.border = F_CALC, BOX
         cc.number_format = DATE if row in (2, 3, 6, 7) else "0.000000"
@@ -420,7 +430,7 @@ for bi, s in enumerate(BLOCKS):
         (113, "── 만기 재평가 ──", None, None),
     ]
     for row, lab, f, fmt in scal:
-        c0 = e.cell(row=row, column=s, value=lab)
+        c0 = as_text(e.cell(row=row, column=s, value=lab))
         if f is None:
             c0.font = Font(name=FONT, size=9, bold=True, color="1F3864")
             continue
@@ -433,7 +443,7 @@ for bi, s in enumerate(BLOCKS):
     srcs = [f"${v}$10"] + [f"메인!$A${96+j}" for j in range(len(SHIFTS))]
     for j, (lab, src) in enumerate(zip(labels, srcs)):
         row = 114 + j
-        e.cell(row=row, column=s, value=f"만기단가 — {lab}").font = F_LBL
+        as_text(e.cell(row=row, column=s, value=f"만기단가 — {lab}")).font = F_LBL
         cc = e.cell(row=row, column=s + 1,
                     value=f"=SUM({rng(18+j)})/(1+({v}109+{src}/10000)/2*{v}93/{v}94)")
         cc.font, cc.number_format, cc.border = F_CALC, "0.000000", BOX
