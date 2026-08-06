@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- WebView 가 화면 전체를 그리므로 액션바는 없앤다. -->
+    <style name="Theme.StockWhy" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="android:statusBarColor">#0E1116</item>
+        <item name="android:navigationBarColor">#0E1116</item>
+        <item name="android:windowBackground">#0E1116</item>
+    </style>
+</resources>

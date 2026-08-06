@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>왜 움직여 — 연결 확인</title>
+<style>
+  :root { --bg:#0e1116; --panel:#161b22; --line:#262d38; --fg:#e6edf3;
+          --dim:#8b98a5; --faint:#5c6773; --ok:#5ec98a; --bad:#f0616d; --accent:#d6a44c; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); line-height:1.6;
+         font-family:-apple-system,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;
+         padding: calc(env(safe-area-inset-top,0px) + 20px) 16px 40px;
+         -webkit-text-size-adjust:100%; }
+  h1 { font-size:18px; margin:0 0 4px; }
+  .sub { color:var(--dim); font-size:13px; margin-bottom:20px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:12px;
+          padding:16px; margin-bottom:12px; }
+  .row { display:flex; gap:10px; padding:7px 0; border-top:1px solid var(--line);
+         font-size:14px; align-items:flex-start; }
+  .row:first-child { border-top:0; }
+  .name { flex:0 0 96px; color:var(--dim); }
+  .val { flex:1; word-break:break-all; }
+  .ok { color:var(--ok); } .bad { color:var(--bad); }
+  button { width:100%; padding:14px; font-size:16px; font-weight:600; border:0;
+           border-radius:10px; background:var(--accent); color:#1a1205; margin-bottom:14px; }
+  pre { background:var(--bg); border:1px solid var(--line); border-radius:8px;
+        padding:12px; font-size:11.5px; overflow-x:auto; color:var(--dim);
+        white-space:pre-wrap; word-break:break-all; max-height:240px; }
+  .foot { color:var(--faint); font-size:11.5px; margin-top:20px; line-height:1.7; }
+</style>
+</head>
+<body>
+  <h1>왜 움직여 — 연결 확인</h1>
+  <div class="sub">분석 기능을 넣기 전에, 폰에서 네이버가 열리는지 먼저 확인합니다.</div>
+
+  <button id="run">다시 확인</button>
+  <div id="out"></div>
+
+  <div class="foot">
+    이 화면이 전부 초록색이면 폰에서 시세 수집이 가능하다는 뜻입니다.<br>
+    빨간 줄이 있으면 그 내용을 그대로 알려주세요.
+  </div>
+
+<script>
+const out = document.getElementById('out');
+const esc = s => String(s ?? '').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+// 네이티브 브리지로 HTTP 를 대신 친다. 브라우저 fetch 는 CORS 에 막히지만
+// 네이티브에는 그 제약이 없다.
+function httpGet(url, headers = {}) {
+  if (typeof Native === 'undefined') {
+    return { ok: false, status: 0, error: 'Native 브리지 없음 (브라우저에서 연 경우)' };
+  }
+  try {
+    return JSON.parse(Native.httpGet(url, JSON.stringify(headers)));
+  } catch (e) {
+    return { ok: false, status: 0, error: 'bridge: ' + e.message };
+  }
+}
+
+const CHECKS = [
+  {
+    name: '브리지',
+    run: () => typeof Native !== 'undefined'
+      ? { ok: true, detail: 'Kotlin ↔ JS 연결됨' }
+      : { ok: false, detail: 'Native 를 찾을 수 없음' },
+  },
+  {
+    name: '인터넷',
+    run: () => {
+      const r = httpGet('https://www.naver.com/');
+      return { ok: r.ok, detail: r.ok ? `HTTP ${r.status}` : (r.error || `HTTP ${r.status}`) };
+    },
+  },
+  {
+    name: '종목 검색',
+    run: () => {
+      const r = httpGet('https://ac.stock.naver.com/ac?q=' + encodeURIComponent('삼성전자') +
+                        '&target=stock&st=111');
+      if (!r.ok) return { ok: false, detail: r.error || `HTTP ${r.status}` };
+      return { ok: /005930/.test(r.body), detail: r.body.slice(0, 120) };
+    },
+  },
+  {
+    name: '시세',
+    run: () => {
+      const r = httpGet('https://m.stock.naver.com/api/stock/005930/integration');
+      if (!r.ok) return { ok: false, detail: r.error || `HTTP ${r.status}` };
+      try {
+        const d = JSON.parse(r.body);
+        const price = d.closePrice, rate = d.fluctuationsRatio;
+        return { ok: !!price, detail: `${d.stockName || '?'} ${price} (${rate}%)`, raw: r.body };
+      } catch (e) {
+        return { ok: false, detail: 'JSON 파싱 실패: ' + r.body.slice(0, 100) };
+      }
+    },
+  },
+  {
+    name: '지수',
+    run: () => {
+      const r = httpGet('https://m.stock.naver.com/api/index/KOSPI/basic');
+      if (!r.ok) return { ok: false, detail: r.error || `HTTP ${r.status}` };
+      try {
+        const d = JSON.parse(r.body);
+        return { ok: !!d.closePrice, detail: `KOSPI ${d.closePrice} (${d.fluctuationsRatio}%)` };
+      } catch (e) { return { ok: false, detail: r.body.slice(0, 100) }; }
+    },
+  },
+  {
+    name: '뉴스',
+    run: () => {
+      const r = httpGet('https://m.stock.naver.com/api/news/stock/005930?pageSize=3&page=1');
+      if (!r.ok) return { ok: false, detail: r.error || `HTTP ${r.status}` };
+      try {
+        const d = JSON.parse(r.body);
+        const items = (d[0] && d[0].items) || [];
+        return { ok: items.length > 0, detail: `${items.length}건 · ` +
+                 (items[0] ? items[0].title.replace(/<[^>]+>/g, '').slice(0, 40) : '') };
+      } catch (e) { return { ok: false, detail: r.body.slice(0, 100) }; }
+    },
+  },
+];
+
+function render() {
+  out.innerHTML = '<div class="card">' +
+    CHECKS.map(c => `<div class="row"><span class="name">${c.name}</span>
+      <span class="val" id="r-${esc(c.name)}">확인 중…</span></div>`).join('') +
+    '</div>';
+
+  // 순차 실행 — 한 줄씩 결과가 채워지는 게 보여야 어디서 멈췄는지 안다.
+  let i = 0, raw = null, failed = 0;
+  (function step() {
+    if (i >= CHECKS.length) {
+      const summary = failed === 0
+        ? '<div class="card"><span class="ok">전부 통과 — 폰에서 시세 수집이 됩니다.</span></div>'
+        : `<div class="card"><span class="bad">${failed}개 실패 — 위 빨간 줄 내용을 알려주세요.</span></div>`;
+      out.insertAdjacentHTML('beforeend', summary);
+      if (raw) out.insertAdjacentHTML('beforeend', `<pre>${esc(raw.slice(0, 1200))}</pre>`);
+      return;
+    }
+    const c = CHECKS[i++];
+    let r;
+    try { r = c.run(); } catch (e) { r = { ok: false, detail: e.message }; }
+    if (!r.ok) failed++;
+    if (r.raw) raw = r.raw;
+    const el = document.getElementById('r-' + c.name);
+    el.className = 'val ' + (r.ok ? 'ok' : 'bad');
+    el.textContent = (r.ok ? '✓ ' : '✗ ') + r.detail;
+    setTimeout(step, 30);
+  })();
+}
+
+document.getElementById('run').addEventListener('click', render);
+render();
+</script>
+</body>
+</html>
