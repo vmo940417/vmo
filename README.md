@@ -245,12 +245,12 @@ app/
       sw.js                    서비스 워커 (시세는 캐시 안 함)
       icons/                   앱 아이콘
   tools/make_icons.py          아이콘 생성 (Pillow 필요, 실행에는 불필요)
-  tests/                       99개
+  tests/                       100개
 .claude/skills/stock-why/      대화창용 스킬
 ```
 
 ```bash
-cd app && python -m pytest    # 99 passed
+cd app && python -m pytest    # 100 passed
 ```
 
 테스트는 2026-08-06 실제 장중 시세를 픽스처로 쓰고, 네이버 응답은

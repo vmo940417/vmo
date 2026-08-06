@@ -155,8 +155,25 @@ class TestOther:
             assert await p.resolve("005930") == ("005930", "삼성전자")
 
     async def test_resolve_by_name(self):
+        """ac.stock 이 죽어도 search/all 폴백으로 해결돼야 한다."""
         async with make_provider() as p:
             assert await p.resolve("삼성전자") == ("005930", "삼성전자")
+
+    async def test_resolve_prefers_ac_stock(self):
+        """실동작 확인된 ac.stock 을 먼저 쓴다. 페이로드는 실제 응답 형태."""
+        def ac_only(request: httpx.Request) -> httpx.Response:
+            if "ac.stock" in str(request.url):
+                return httpx.Response(200, json={
+                    "query": ["삼성전자"],
+                    "items": [[[["005930"], ["삼성전자"], ["KOSPI"]]]],
+                })
+            return httpx.Response(404)
+
+        async with make_provider(ac_only) as p:
+            assert await p.resolve("삼성전자") == ("005930", "삼성전자")
+            # search/all 을 아예 때리지 않아야 한다.
+            assert not any(e == "search/all" for e in p.report.ok)
+            assert not any(n == "search/all" for n, _ in p.report.failed)
 
     async def test_resolve_unknown_returns_none(self):
         async with make_provider(lambda r: httpx.Response(200, json={})) as p:

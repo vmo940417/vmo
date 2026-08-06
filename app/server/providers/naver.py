@@ -122,9 +122,11 @@ class NaverProvider:
             name = await self._name_of(query)
             return query, name or query
 
+        # ac.stock 이 실동작 확인된 경로다. search/all 은 404 라 뒤로 뺐지만,
+        # ac.stock 이 바뀔 때를 대비해 폴백으로는 남겨둔다.
         for name, url in (
-            ("search/all", f"https://m.stock.naver.com/api/search/all?query={query}"),
             ("ac.stock", f"https://ac.stock.naver.com/ac?q={query}&target=stock&st=111"),
+            ("search/all", f"https://m.stock.naver.com/api/search/all?query={query}"),
         ):
             data = await self._get_json(name, url)
             hit = self._extract_hit(data)
