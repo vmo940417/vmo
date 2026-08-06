@@ -16,7 +16,7 @@ import os
 from typing import Any, Optional
 
 from ..models import MarketContext, Quote
-from .attribution import Attribution
+from .attribution import INVESTOR_LABEL, Attribution, to_eok
 
 DEFAULT_MODEL = os.getenv("STOCKWHY_MODEL", "claude-sonnet-5")
 
@@ -35,7 +35,10 @@ SYSTEM = """\
 3. 시장이 주도한 하락에 개별 종목 재료를 억지로 갖다 붙이지 마라. 반대도 마찬가지다.
 4. 뉴스 제목의 시각과 주가가 움직인 시각(장중/개장전)이 맞는지 따져라. 장중 급락인데
    장 시작 전 기사를 원인으로 대면 틀린 답이다.
-5. 한국어로, 결론부터, 군더더기 없이. 투자 권유나 매수/매도 의견은 내지 마라.
+5. 수급(외국인/기관/개인)과 공매도는 시세와 달리 실시간이 아니다. 장중 수급은 잠정치이고
+   공매도는 장 마감 후에 공시된다. 주어진 기준 날짜를 확인하고, 오늘 것이 아니면
+   "직전 거래일 기준"이라고 밝혀라. 어제 수급으로 오늘 급락을 설명하지 마라.
+6. 한국어로, 결론부터, 군더더기 없이. 투자 권유나 매수/매도 의견은 내지 마라.
 """
 
 RESPONSE_TOOL: dict[str, Any] = {
@@ -79,6 +82,52 @@ RESPONSE_TOOL: dict[str, Any] = {
 }
 
 
+def _supply_lines(quote: Quote, ctx: MarketContext) -> list[str]:
+    """수급·공매도 근거. 기준 날짜를 반드시 함께 적는다.
+
+    LLM 이 어제 수급으로 오늘을 설명하는 것이 여기서 가장 흔한 실패다. 그래서
+    숫자만 주지 않고 '언제 것인지', '잠정인지 확정인지'를 문장으로 붙여준다.
+    """
+    supply = ctx.supply
+    if supply is None:
+        return []
+
+    lines: list[str] = []
+    flow = supply.today
+    if flow is not None:
+        fresh = supply.is_fresh()
+        stamp = f"{flow.date or '날짜 미상'}" + (" · 장중 잠정치" if flow.provisional else " · 확정")
+        lines.append("")
+        lines.append(f"[수급] {stamp}" + ("" if fresh else " (오늘 것이 아님 — 오늘 수급은 아직 집계 전)"))
+        for key in ("foreign", "institution", "individual"):
+            value = getattr(flow, key)
+            if value is None:
+                continue
+            eok = to_eok(value, flow.unit, quote.price)
+            shown = f"{eok:+,.0f}억원" + ("(수량x현재가 환산 추정)" if flow.unit == "주" else "")
+            lines.append(f"  {INVESTOR_LABEL[key]} {shown}")
+        days, total = supply.streak("foreign")
+        if days >= 2:
+            side = "순매수" if total > 0 else "순매도"
+            lines.append(f"  외국인 {days}일 연속 {side}")
+
+    short = supply.short
+    if short is not None:
+        lines.append("")
+        when = "당일" if supply.short_is_fresh() else f"{short.date or '날짜 미상'} (직전 거래일)"
+        lines.append(f"[공매도] {when}")
+        if short.ratio is not None:
+            baseline = supply.short_ratio_baseline()
+            extra = f" / 직전 평균 {baseline:.1f}%" if baseline else ""
+            lines.append(f"  거래 대비 비중 {short.ratio:.2f}%{extra}")
+        if short.balance_ratio is not None:
+            lines.append(f"  잔고 비중 {short.balance_ratio:.2f}%")
+        if not supply.short_is_fresh():
+            lines.append("  ※ 한국은 당일 공매도를 장중에 공개하지 않는다. "
+                         "위 수치를 오늘 움직임의 원인으로 단정하지 마라.")
+    return lines
+
+
 def build_evidence(quote: Quote, ctx: MarketContext, attr: Attribution,
                    news: list[dict], max_news: int = 12) -> str:
     """LLM 에 넘길 증거 묶음. 숫자는 이미 해석된 형태로 준다."""
@@ -105,6 +154,8 @@ def build_evidence(quote: Quote, ctx: MarketContext, attr: Attribution,
         lines.append(f"[업종] {ctx.sector_name or '동종'} 평균 {ctx.sector_rate:+.2f}%")
     if ctx.peers:
         lines.append("  동종 종목: " + ", ".join(f"{p.name} {p.change_rate:+.2f}%" for p in ctx.peers))
+
+    lines.extend(_supply_lines(quote, ctx))
 
     lines.append("")
     lines.append("[등락률 분해 — 산술적 사실, 합계는 종목 등락률과 일치]")

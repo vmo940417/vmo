@@ -13,7 +13,7 @@ import json
 import shutil
 import subprocess
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -21,10 +21,39 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from server.analysis.attribution import analyze, score_news  # noqa: E402
-from server.models import MarketContext, NewsItem, Quote  # noqa: E402
+from server.models import (  # noqa: E402
+    InvestorFlow, MarketContext, NewsItem, Quote, ShortSale, SupplyDemand,
+)
 
 HARNESS = Path(__file__).parent / "js" / "parity_harness.mjs"
 NOW = datetime(2026, 8, 6, 14, 53)
+
+# 수급 신선도는 실행 시점의 오늘 날짜로 판정한다(파이썬·JS 모두). 픽스처 날짜를
+# 2026-08-06 으로 굳혀두면 항상 '옛날 데이터'가 되어 정작 확인하려는 경로를
+# 못 밟는다. 그래서 오늘 기준으로 만든다.
+TODAY = datetime.now().strftime("%Y-%m-%d")
+D1 = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+D2 = (datetime.now() - timedelta(days=2)).strftime("%Y-%m-%d")
+
+FLOWS_TODAY = [
+    dict(date=TODAY, foreign=-3_000_000, institution=300_000, individual=2_700_000,
+         unit="주", provisional=True),
+    dict(date=D1, foreign=-800_000, institution=-100_000, individual=900_000, unit="주"),
+    dict(date=D2, foreign=-500_000, institution=200_000, individual=300_000, unit="주"),
+]
+SHORTS = [
+    dict(date=D1, ratio=12.4, balance_ratio=1.85),
+    dict(date=D2, ratio=6.0),
+    dict(date="2026-07-31", ratio=5.0),
+]
+
+SUPPLY_FRESH = dict(today=FLOWS_TODAY[0], history=FLOWS_TODAY,
+                    short=SHORTS[0], short_history=SHORTS)
+SUPPLY_STALE = dict(today=dict(FLOWS_TODAY[1], provisional=False),
+                    history=FLOWS_TODAY[1:], short=SHORTS[0], short_history=SHORTS)
+SUPPLY_AMOUNT = dict(today=dict(date=TODAY, foreign=-274_000_000_000, institution=None,
+                                individual=None, unit="원", provisional=True),
+                     history=[], short=None, short_history=[])
 
 pytestmark = pytest.mark.skipif(shutil.which("node") is None, reason="node 없음")
 
@@ -87,6 +116,31 @@ CASES: list[dict] = [
         "context": dict(index_name="KOSPI", index_rate=-3.0, sector_rate=-6.0,
                         avg_volume_20d=1500000, beta=1.5),
     },
+    {
+        "name": "수급 — 오늘 외국인 대량 순매도",
+        "quote": dict(code="005930", name="삼성전자", price=228500, change=-17500,
+                      change_rate=-7.11, open=241500, high=246000, low=228000,
+                      volume=21854734, trading_value=5112648725750),
+        "context": dict(index_name="KOSPI", index_rate=-4.97, sector_name="전기·전자",
+                        sector_rate=-8.65, avg_volume_20d=12000000, beta=1.0,
+                        supply=SUPPLY_FRESH),
+    },
+    {
+        "name": "수급 — 직전 거래일 것만 있음",
+        "quote": dict(code="005930", name="삼성전자", price=228500, change=-17500,
+                      change_rate=-7.11, open=241500, high=246000, low=228000,
+                      volume=21854734, trading_value=5112648725750),
+        "context": dict(index_name="KOSPI", index_rate=-4.97, sector_rate=-8.65,
+                        avg_volume_20d=12000000, beta=1.0, supply=SUPPLY_STALE),
+    },
+    {
+        "name": "수급 — 금액 단위",
+        "quote": dict(code="000660", name="SK하이닉스", price=1498000, change=-170000,
+                      change_rate=-10.19, open=1600000, high=1606000, low=1494000,
+                      volume=4177590),
+        "context": dict(index_name="KOSPI", index_rate=-4.97, sector_rate=-8.65,
+                        avg_volume_20d=2000000, beta=1.0, supply=SUPPLY_AMOUNT),
+    },
 ]
 
 NEWS = [
@@ -113,9 +167,21 @@ def run_js(payload: dict) -> dict:
     return json.loads(proc.stdout)
 
 
+def py_supply(raw: dict | None) -> SupplyDemand | None:
+    """JSON 픽스처를 파이썬 데이터클래스로. JS 쪽은 같은 dict 를 그대로 쓴다."""
+    if raw is None:
+        return None
+    return SupplyDemand(
+        today=InvestorFlow(**raw["today"]) if raw.get("today") else None,
+        history=[InvestorFlow(**r) for r in raw.get("history") or []],
+        short=ShortSale(**raw["short"]) if raw.get("short") else None,
+        short_history=[ShortSale(**r) for r in raw.get("short_history") or []],
+    )
+
+
 def py_analyze(case: dict):
     quote = Quote(**case["quote"])
-    ctx = MarketContext(**case["context"])
+    ctx = MarketContext(**{**case["context"], "supply": py_supply(case["context"].get("supply"))})
     return quote, ctx, analyze(quote, ctx)
 
 

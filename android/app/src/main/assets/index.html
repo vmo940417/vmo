@@ -232,6 +232,9 @@ function render(d) {
       ${d.context.peers.map((p) => `<span class="tag">${esc(p.name)} ${sgn(p.change_rate)}%</span>`).join('')}
     </div></div>`);
 
+  const supplyCard = renderSupply(d);
+  if (supplyCard) parts.push(supplyCard);
+
   if (a.signals.length) {
     parts.push(`<div class="card"><h2>정황</h2><ul class="signals">
       ${a.signals.map((s) => `<li>${esc(s.text)}</li>`).join('')}</ul></div>`);
@@ -245,12 +248,61 @@ function render(d) {
   }
 
   const failed = d.diagnostics.failed || [];
-  if (failed.length) {
+  const samples = d.diagnostics.samples || {};
+  if (failed.length || Object.keys(samples).length) {
     parts.push(`<div class="card"><h2>수집 실패</h2><ul class="signals">
-      ${failed.map((x) => `<li>${esc(x.endpoint)}: ${esc(x.error)}</li>`).join('')}</ul></div>`);
+      ${failed.map((x) => `<li>${esc(x.endpoint)}: ${esc(x.error)}</li>`).join('')}
+      ${Object.keys(samples).map((k) => `<li>${esc(k)}: 응답은 왔지만 형태가 달라 읽지 못했습니다
+        <br><span style="font-size:11px;word-break:break-all">${esc(samples[k])}</span></li>`).join('')}
+    </ul></div>`);
   }
 
   out.innerHTML = parts.join('');
+}
+
+/**
+ * 수급·공매도 카드.
+ *
+ * 숫자보다 '언제 기준인지'를 먼저 보여준다. 오늘 수급은 잠정치이고 공매도는
+ * 장 마감 후에 나오므로, 날짜 없이 숫자만 띄우면 어제 값을 오늘 원인으로 읽게 된다.
+ */
+function renderSupply(d) {
+  const s = d.context.supply;
+  if (!s || (!s.today && !s.short)) return '';
+  const A = Attribution;
+  const price = d.quote.price;
+  const rows = [];
+
+  if (s.today) {
+    const f = s.today;
+    const fresh = A.isFresh(s);
+    for (const key of ['foreign', 'institution', 'individual']) {
+      if (f[key] == null) continue;
+      const eok = A.toEok(f[key], f.unit, price);
+      rows.push(`<div class="lrow"><span class="lname">${A.INVESTOR_LABEL[key]}</span>
+        <span class="lval ${cls(eok)}">${eok == null ? '-' : sgn(eok, 0) + '억'}</span></div>`);
+    }
+    const st = A.streak(s, 'foreign');
+    const stamp = fresh
+      ? (f.provisional ? '오늘 · 장중 잠정치' : '오늘 · 확정')
+      : `${f.date || '날짜 미상'} 기준 (오늘 수급은 아직 집계 전)`;
+    rows.push(`<div class="meta"><span class="tag">${esc(stamp)}</span>
+      ${f.unit === '주' ? '<span class="tag">수량x현재가 환산</span>' : ''}
+      ${st.days >= 2 ? `<span class="tag">외국인 ${st.days}일 연속 ${st.total > 0 ? '순매수' : '순매도'}</span>` : ''}
+      ${f.foreign_hold_ratio != null ? `<span class="tag">외국인 보유율 ${f.foreign_hold_ratio.toFixed(2)}%</span>` : ''}
+    </div>`);
+  }
+
+  if (s.short && s.short.ratio != null) {
+    const base = A.shortBaseline(s);
+    rows.push(`<div class="lrow"><span class="lname">공매도 비중</span>
+      <span class="lval">${s.short.ratio.toFixed(2)}%</span>
+      <span class="lshare">${base ? '평균 ' + base.toFixed(1) + '%' : ''}</span></div>`);
+    rows.push(`<div class="meta"><span class="tag">${A.shortIsFresh(s) ? '당일'
+      : esc(s.short.date || '날짜 미상') + ' 기준 · 당일 공매도는 장 마감 후 공시'}</span></div>`);
+  }
+
+  return rows.length ? `<div class="card"><h2>수급 · 공매도</h2>${rows.join('')}</div>` : '';
 }
 
 function costLabel(c) {

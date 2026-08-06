@@ -23,7 +23,7 @@ from typing import Any, Optional
 
 import httpx
 
-from ..models import MarketContext, NewsItem, Quote
+from ..models import InvestorFlow, MarketContext, NewsItem, Quote, ShortSale, SupplyDemand
 
 UA = ("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) "
       "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1")
@@ -43,6 +43,9 @@ class ProviderReport:
 
     ok: list[str] = field(default_factory=list)
     failed: list[tuple[str, str]] = field(default_factory=list)
+    # 200 은 받았는데 파싱 결과가 비었을 때의 응답 앞부분. 스키마가 예상과
+    # 다를 때 화면(또는 스크린샷) 하나로 바로 고칠 수 있게 남긴다.
+    samples: dict[str, str] = field(default_factory=dict)
 
     def note_ok(self, name: str) -> None:
         self.ok.append(name)
@@ -50,8 +53,16 @@ class ProviderReport:
     def note_fail(self, name: str, err: str) -> None:
         self.failed.append((name, err[:200]))
 
+    def note_sample(self, name: str, raw: Any) -> None:
+        text = raw if isinstance(raw, str) else json.dumps(raw, ensure_ascii=False)
+        self.samples[name] = text[:400]
+
     def as_dict(self) -> dict:
-        return {"ok": self.ok, "failed": [{"endpoint": n, "error": e} for n, e in self.failed]}
+        return {
+            "ok": self.ok,
+            "failed": [{"endpoint": n, "error": e} for n, e in self.failed],
+            "samples": self.samples,
+        }
 
 
 def _f(value: Any) -> Optional[float]:
@@ -77,6 +88,45 @@ def _first(d: dict, *keys: str) -> Any:
         if isinstance(d, dict) and d.get(k) not in (None, ""):
             return d[k]
     return None
+
+
+# 시장 구분은 어느 지수와 비교할지를 정한다(코스닥 종목을 코스피와 비교하면
+# 분해 자체가 틀린다). 그런데 네이버는 이 값을 문자열로 주기도 하고
+# {code}/{name}/{text} 를 가진 객체로 주기도 해서, 키 하나만 보면 놓친다.
+# 그래서 이름에 exchange/market 이 들어간 필드를 전부 훑어 토큰을 찾는다.
+MARKET_TOKENS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("KOSDAQ", ("KOSDAQ", "코스닥")),
+    ("KONEX", ("KONEX", "코넥스")),
+    ("KOSPI", ("KOSPI", "코스피", "유가증권")),
+)
+
+
+def _texts(value: Any, depth: int = 0) -> Any:
+    """중첩 구조 안의 문자열만 훑는다."""
+    if isinstance(value, str):
+        yield value
+    elif depth < 3 and isinstance(value, dict):
+        for v in value.values():
+            yield from _texts(v, depth + 1)
+    elif depth < 3 and isinstance(value, list):
+        for v in value[:8]:
+            yield from _texts(v, depth + 1)
+
+
+def market_of(payload: dict) -> str:
+    """시세 응답에서 KOSPI / KOSDAQ / KONEX 를 뽑는다. 못 찾으면 UNKNOWN."""
+    if not isinstance(payload, dict):
+        return "UNKNOWN"
+    for key, value in payload.items():
+        low = key.lower()
+        if "exchange" not in low and "market" not in low:
+            continue
+        for text in _texts(value):
+            up = text.upper()
+            for market, tokens in MARKET_TOKENS:
+                if any(t in up for t in tokens):
+                    return market
+    return "UNKNOWN"
 
 
 class NaverProvider:
@@ -208,11 +258,10 @@ class NaverProvider:
             sector_name = industry
         sector_name = sector_name or _first(merged, "industryName", "upjongName", "industryGroupKor")
 
-        market_raw = str(_first(merged, "stockExchangeType", "marketType", "market") or "")
-        if isinstance(merged.get("stockExchangeType"), dict):
-            market_raw = str(merged["stockExchangeType"].get("code", ""))
-        market = "KOSPI" if "KOSPI" in market_raw.upper() else \
-                 "KOSDAQ" if "KOSDAQ" in market_raw.upper() else "UNKNOWN"
+        market = market_of(merged)
+        if market == "UNKNOWN":
+            self.report.note_sample("market", {k: v for k, v in merged.items()
+                                               if "market" in k.lower() or "exchange" in k.lower()})
 
         return Quote(
             code=code,
@@ -276,6 +325,78 @@ class NaverProvider:
         window = vols[-(days + 1):-1] or vols[-days:]
         return sum(window) / len(window) if window else None
 
+    # -- 수급 / 공매도 -----------------------------------------------------
+
+    async def _get_text(self, name: str, url: str) -> Optional[str]:
+        assert self._client is not None
+        try:
+            r = await self._client.get(url)
+            r.raise_for_status()
+            self.report.note_ok(name)
+            return r.text
+        except Exception as e:  # noqa: BLE001
+            self.report.note_fail(name, f"{type(e).__name__}: {e}")
+            return None
+
+    async def supply_demand(self, code: str, days: int = 10,
+                            now: Optional[datetime] = None) -> SupplyDemand:
+        """투자자별 매매동향 + 공매도.
+
+        둘 다 시세와 달리 실시간이 아니다. 장중 수급은 잠정치고 공매도는 장이
+        끝나야 나온다. 여기서는 '언제 기준 데이터인지'를 반드시 같이 담아서
+        돌려주고, 해석(오늘 것이냐 어제 것이냐)은 분석 단계에서 한다.
+        """
+        flows, shorts = await asyncio.gather(
+            self._investor_flows(code, days, now),
+            self._short_sales(code, days),
+        )
+        return SupplyDemand(
+            today=flows[0] if flows else None,
+            history=flows,
+            short=shorts[0] if shorts else None,
+            short_history=shorts,
+        )
+
+    async def _investor_flows(self, code: str, days: int,
+                              now: Optional[datetime]) -> list[InvestorFlow]:
+        for name, url in (
+            ("trend", f"https://m.stock.naver.com/api/stock/{code}/trend?pageSize={days}&page=1"),
+            ("investorTrend", f"https://m.stock.naver.com/api/stock/{code}/investorTrend?pageSize={days}&page=1"),
+        ):
+            data = await self._get_json(name, url)
+            rows = parse_flow_rows(data, days, now)
+            if rows:
+                return rows
+            if data is not None:
+                self.report.note_sample(name, data)
+
+        # JSON 이 안 되면 오래된 HTML 화면을 긁는다. 15년 넘게 같은 주소라
+        # JSON 엔드포인트보다 오히려 잘 버틴다.
+        html = await self._get_text("frgn.naver", f"https://finance.naver.com/item/frgn.naver?code={code}")
+        rows = parse_frgn_html(html or "", days, now)
+        if not rows and html:
+            self.report.note_sample("frgn.naver", html)
+        return rows
+
+    async def _short_sales(self, code: str, days: int) -> list[ShortSale]:
+        for name, url in (
+            ("shortSellingTrend", f"https://m.stock.naver.com/api/stock/{code}/shortSellingTrend?pageSize={days}&page=1"),
+            ("shortStockTrend", f"https://m.stock.naver.com/api/stock/{code}/shortStockTrend?pageSize={days}&page=1"),
+        ):
+            data = await self._get_json(name, url)
+            rows = parse_short_rows(data, days)
+            if rows:
+                return rows
+            if data is not None:
+                self.report.note_sample(name, data)
+
+        html = await self._get_text(
+            "short_trade.naver", f"https://finance.naver.com/item/short_trade.naver?code={code}")
+        rows = parse_short_html(html or "", days)
+        if not rows and html:
+            self.report.note_sample("short_trade.naver", html)
+        return rows
+
     # -- 뉴스 -------------------------------------------------------------
 
     async def news(self, code: str, limit: int = 25) -> list[NewsItem]:
@@ -320,6 +441,183 @@ class NaverProvider:
         return out
 
 
+# --------------------------------------------------------------------------
+# 수급 / 공매도 파서
+#
+# 응답 스키마를 확정할 수 없어서(비공식 엔드포인트) 키 이름 후보를 넓게 잡고,
+# 하나도 못 읽으면 빈 리스트를 준다. 빈 결과는 report.samples 에 응답 앞부분이
+# 남으므로 실제 응답을 보고 키를 맞추면 된다.
+# --------------------------------------------------------------------------
+
+# 수량(주) 기준 키와 금액(원) 기준 키. 단위를 섞으면 안 되므로 따로 본다.
+FLOW_QUANT_KEYS: dict[str, tuple[str, ...]] = {
+    "foreign": ("foreignerPureBuyQuant", "frgnPureBuyQuant", "foreignPureBuyQuant",
+                "foreignerNetBuyQuant", "foreignerPureBuyVolume"),
+    "institution": ("organPureBuyQuant", "institutionPureBuyQuant", "organNetBuyQuant",
+                    "organPureBuyVolume"),
+    "individual": ("individualPureBuyQuant", "personPureBuyQuant", "individualNetBuyQuant",
+                   "individualPureBuyVolume"),
+}
+FLOW_AMOUNT_KEYS: dict[str, tuple[str, ...]] = {
+    "foreign": ("foreignerPureBuyAmount", "frgnPureBuyAmount", "foreignPureBuyAmount",
+                "foreignerNetBuyAmount"),
+    "institution": ("organPureBuyAmount", "institutionPureBuyAmount", "organNetBuyAmount"),
+    "individual": ("individualPureBuyAmount", "personPureBuyAmount", "individualNetBuyAmount"),
+}
+
+_TR_RE = re.compile(r"<tr[^>]*>(.*?)</tr>", re.S | re.I)
+_TD_RE = re.compile(r"<td[^>]*>(.*?)</td>", re.S | re.I)
+_TAG_RE = re.compile(r"<[^>]+>")
+_DATE_CELL_RE = re.compile(r"^(\d{4})[.\-/](\d{2})[.\-/](\d{2})$")
+
+
+def _norm_date(raw: Any) -> str:
+    """네이버가 주는 온갖 날짜 표기를 YYYY-MM-DD 로 통일한다."""
+    if raw in (None, ""):
+        return ""
+    s = str(raw).strip()
+    m = re.match(r"^(\d{4})[.\-/]?(\d{2})[.\-/]?(\d{2})", s)
+    return f"{m.group(1)}-{m.group(2)}-{m.group(3)}" if m else ""
+
+
+def _is_provisional(date: str, now: Optional[datetime]) -> bool:
+    """오늘 날짜의 수급은 장이 끝나기 전까지 잠정치다."""
+    now = now or datetime.now()
+    return bool(date) and date == now.strftime("%Y-%m-%d") and now.hour < 18
+
+
+def _rows_of(data: Any) -> list:
+    if isinstance(data, list):
+        return [r for r in data if isinstance(r, dict)]
+    if isinstance(data, dict):
+        for key in ("trends", "items", "result", "datas", "list", "stockTrends", "trendList"):
+            bucket = data.get(key)
+            if isinstance(bucket, dict):
+                bucket = bucket.get("items") or bucket.get("list")
+            if isinstance(bucket, list):
+                return [r for r in bucket if isinstance(r, dict)]
+    return []
+
+
+def parse_flow_rows(data: Any, limit: int = 10,
+                    now: Optional[datetime] = None) -> list[InvestorFlow]:
+    out: list[InvestorFlow] = []
+    for row in _rows_of(data)[:limit]:
+        date = _norm_date(_first(row, "bizdate", "localTradedAt", "localDate",
+                                 "tradeDate", "date", "dt"))
+        quant = {k: _f(_first(row, *keys)) for k, keys in FLOW_QUANT_KEYS.items()}
+        amount = {k: _f(_first(row, *keys)) for k, keys in FLOW_AMOUNT_KEYS.items()}
+
+        if any(v is not None for v in quant.values()):
+            values, unit = quant, "주"
+        elif any(v is not None for v in amount.values()):
+            values, unit = amount, "원"
+        else:
+            continue
+
+        out.append(InvestorFlow(
+            date=date,
+            foreign=values["foreign"],
+            institution=values["institution"],
+            individual=values["individual"],
+            unit=unit,  # type: ignore[arg-type]
+            foreign_hold_ratio=_f(_first(row, "foreignerHoldRatio", "frgnHoldRatio",
+                                         "foreignHoldRatio", "foreignerExhaustRate")),
+            provisional=_is_provisional(date, now),
+        ))
+    return out
+
+
+def _cells(row_html: str) -> list[str]:
+    out = []
+    for raw in _TD_RE.findall(row_html):
+        text = _TAG_RE.sub(" ", raw).replace("&nbsp;", " ").replace("&amp;", "&")
+        out.append(" ".join(text.split()))
+    return out
+
+
+def parse_frgn_html(html: str, limit: int = 10,
+                    now: Optional[datetime] = None) -> list[InvestorFlow]:
+    """finance.naver.com/item/frgn.naver 의 일별 표.
+
+    열 순서: 날짜 | 종가 | 전일비 | 등락률 | 거래량 | 기관 순매매량 |
+             외국인 순매매량 | 보유주수 | 보유율
+    """
+    out: list[InvestorFlow] = []
+    for row_html in _TR_RE.findall(html):
+        cells = _cells(row_html)
+        if len(cells) < 7 or not _DATE_CELL_RE.match(cells[0]):
+            continue
+        institution, foreign = _f(cells[5]), _f(cells[6])
+        if institution is None and foreign is None:
+            continue   # 열 위치가 예상과 다르면 조용히 버린다(틀린 숫자보다 없는 게 낫다)
+        date = _norm_date(cells[0])
+        out.append(InvestorFlow(
+            date=date,
+            institution=institution,
+            foreign=foreign,
+            unit="주",
+            foreign_hold_ratio=_f(cells[8]) if len(cells) > 8 else None,
+            provisional=_is_provisional(date, now),
+        ))
+        if len(out) >= limit:
+            break
+    return out
+
+
+SHORT_VOLUME_KEYS = ("shortSellingQuant", "shortSellingVolume", "shortQuant",
+                     "shortSellingTradingVolume", "quant")
+SHORT_VALUE_KEYS = ("shortSellingAmount", "shortSellingValue", "shortAmount",
+                    "shortSellingTradingValue", "amount")
+SHORT_RATIO_KEYS = ("shortSellingRatio", "shortSellingWeight", "shortRatio", "ratio", "weight")
+SHORT_BALANCE_QTY_KEYS = ("shortSellingBalanceQuant", "balanceQuant", "remainQuant")
+SHORT_BALANCE_RATIO_KEYS = ("shortSellingBalanceRatio", "balanceRatio", "remainRatio")
+
+
+def parse_short_rows(data: Any, limit: int = 10) -> list[ShortSale]:
+    out: list[ShortSale] = []
+    for row in _rows_of(data)[:limit]:
+        volume = _f(_first(row, *SHORT_VOLUME_KEYS))
+        value = _f(_first(row, *SHORT_VALUE_KEYS))
+        ratio = _f(_first(row, *SHORT_RATIO_KEYS))
+        if volume is None and value is None and ratio is None:
+            continue
+        out.append(ShortSale(
+            date=_norm_date(_first(row, "bizdate", "localTradedAt", "tradeDate", "date", "dt")),
+            volume=volume, value=value, ratio=ratio,
+            balance_qty=_f(_first(row, *SHORT_BALANCE_QTY_KEYS)),
+            balance_ratio=_f(_first(row, *SHORT_BALANCE_RATIO_KEYS)),
+        ))
+    return out
+
+
+def parse_short_html(html: str, limit: int = 10) -> list[ShortSale]:
+    """finance.naver.com/item/short_trade.naver 의 일별 표.
+
+    HTML 표에서는 '비중(%)' 칸만 읽는다. 공매도 거래량은 같은 행의 종가·거래량과
+    자릿수가 비슷해서 열 위치를 확신하지 못하면 구분할 방법이 없고, 그걸 찍어서
+    맞히려다 틀리면 없는 숫자를 사실처럼 보여주게 된다. 비중은 소수점이 붙은
+    100 이하 값이라 오인할 여지가 없으므로 이것만 취한다.
+    """
+    out: list[ShortSale] = []
+    for row_html in _TR_RE.findall(html):
+        cells = _cells(row_html)
+        if len(cells) < 3 or not _DATE_CELL_RE.match(cells[0]):
+            continue
+        ratio = None
+        for cell in cells[1:]:
+            value = _f(cell)
+            if value is not None and ("." in cell or "%" in cell) and 0 <= value <= 100:
+                ratio = value
+                break
+        if ratio is None:
+            continue
+        out.append(ShortSale(date=_norm_date(cells[0]), ratio=ratio))
+        if len(out) >= limit:
+            break
+    return out
+
+
 async def build_context(provider: NaverProvider, quote: Quote,
                         peer_codes: Optional[list[str]] = None) -> MarketContext:
     """지수 + 피어를 모아 분석에 넣을 시장 환경을 구성한다.
@@ -340,7 +638,10 @@ async def build_context(provider: NaverProvider, quote: Quote,
         peers = [q for q in results if isinstance(q, Quote)]
 
     sector_rate = _weighted_sector_rate([quote, *peers])
-    avg_vol = await provider.avg_volume(quote.code)
+    avg_vol, supply = await asyncio.gather(
+        provider.avg_volume(quote.code),
+        provider.supply_demand(quote.code),
+    )
 
     return MarketContext(
         index_name=index_name,
@@ -350,6 +651,7 @@ async def build_context(provider: NaverProvider, quote: Quote,
         sector_rate=sector_rate,
         peers=peers,
         avg_volume_20d=avg_vol,
+        supply=supply,
     )
 
 

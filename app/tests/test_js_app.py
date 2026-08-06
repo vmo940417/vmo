@@ -14,13 +14,16 @@ import json
 import shutil
 import subprocess
 import sys
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from tests.test_js_naver import AC_STOCK, BASIC, INDEX, INTEGRATION, NEWS, SISE  # noqa: E402
+from tests.test_js_naver import (  # noqa: E402
+    AC_STOCK, BASIC, INDEX, INTEGRATION, NEWS, SHORT_TREND, SISE, TREND,
+)
 
 HARNESS = Path(__file__).parent / "js" / "e2e_harness.mjs"
 ASSETS = Path(__file__).resolve().parents[2] / "android" / "app" / "src" / "main" / "assets"
@@ -35,6 +38,24 @@ ROUTES = {
     "ac.stock": AC_STOCK,
     "/news/stock/": NEWS,
     "siseJson": SISE,
+    "/trend": TREND,
+    "shortSellingTrend": SHORT_TREND,
+}
+
+# 수급 신선도는 '오늘'과 비교해 판정하므로 픽스처 날짜를 굳혀두면 실행일에 따라
+# 결과가 바뀐다. 수급은 오늘, 공매도는 직전 거래일로 잡아 두 경로를 함께 본다.
+_TODAY = datetime.now()
+_YESTERDAY = _TODAY - timedelta(days=1)
+_ymd = lambda d: d.strftime("%Y%m%d")
+
+DATED_ROUTES = {
+    **ROUTES,
+    "/trend": [{**TREND[0], "bizdate": _ymd(_TODAY)},
+               {**TREND[1], "bizdate": _ymd(_YESTERDAY)}],
+    "shortSellingTrend": {"result": [
+        {**SHORT_TREND["result"][0], "bizdate": _ymd(_YESTERDAY)},
+        SHORT_TREND["result"][1],
+    ]},
 }
 
 LLM_OK = {
@@ -102,13 +123,32 @@ class TestPipelineRuns:
     def test_index_used(self, base):
         assert base["result"]["context"]["index_rate"] == -4.58
 
+    def test_supply_collected(self, base):
+        s = base["result"]["context"]["supply"]
+        assert s["today"]["foreign"] == -1_200_000
+        assert s["short"]["ratio"] == 12.4
+
+    def test_supply_reaches_the_signals(self):
+        """수집만 하고 분석에 안 들어가면 붙인 의미가 없다."""
+        r = run(useLlm=False)
+        keys = {s["key"] for s in r["result"]["attribution"]["signals"]}
+        assert "supply" in keys and "short" in keys
+
+    def test_todays_supply_and_yesterdays_short_are_distinguished(self):
+        """수급은 오늘, 공매도는 어제 것이다. 앱이 둘을 뭉뚱그리면 안 된다."""
+        r = run(routes=DATED_ROUTES, useLlm=False)
+        by_key = {s["key"]: s["text"] for s in r["result"]["attribution"]["signals"]}
+        assert "오늘 수급" in by_key["supply"]
+        assert "장 마감 후에 공시" in by_key["short"], "당일 공매도는 장중에 존재하지 않는다"
+
 
 class TestProgressYields:
     """동기 브리지라 단계마다 이벤트 루프에 양보하지 않으면 화면이 얼어붙는다."""
 
     def test_reports_each_stage(self, base):
         joined = " ".join(base["progress"])
-        for stage in ("종목 확인", "시세 조회", "지수 조회", "동종 종목", "뉴스 수집"):
+        for stage in ("종목 확인", "시세 조회", "지수 조회", "동종 종목",
+                      "수급·공매도", "뉴스 수집"):
             assert stage in joined, f"'{stage}' 진행 표시가 없다"
 
     def test_progress_is_ordered(self, base):
@@ -139,6 +179,14 @@ class TestLlm:
         body = r["calls"]["post"][0]["body"]
         assert body["tool_choice"] == {"type": "tool", "name": "report_cause"}
         assert body["tools"][0]["name"] == "report_cause"
+
+    def test_evidence_carries_supply(self):
+        """수급을 프롬프트에 안 실으면 LLM 이 '누가 팔았는지'를 못 쓴다."""
+        r = run(prefs={"api_key": "sk-ant-test"}, llm=LLM_OK)
+        prompt = r["calls"]["post"][0]["body"]["messages"][0]["content"]
+        assert "[수급]" in prompt and "외국인" in prompt
+        assert "[공매도]" in prompt
+        assert "당일 공매도를 장중에 공개하지 않는다" in prompt
 
     def test_evidence_carries_decomposition(self):
         """LLM 이 분해 결과를 사실로 받아야 그걸 뒤집지 않는다."""

@@ -29,7 +29,9 @@
 
   class Client {
     constructor() {
-      this.report = { ok: [], failed: [] };
+      // samples: 200 은 받았는데 파싱이 빈 경우의 응답 앞부분. 스키마가 예상과
+      // 다를 때 화면(스크린샷) 하나로 바로 고칠 수 있게 남긴다.
+      this.report = { ok: [], failed: [], samples: {} };
     }
 
     getJson(name, url) {
@@ -46,6 +48,20 @@
         this.report.failed.push({ endpoint: name, error: 'JSON 파싱 실패' });
         return null;
       }
+    }
+
+    getText(name, url) {
+      const r = bridgeGet(url);
+      if (!r.ok) {
+        this.report.failed.push({ endpoint: name, error: r.error || ('HTTP ' + r.status) });
+        return null;
+      }
+      this.report.ok.push(name);
+      return r.body;
+    }
+
+    sample(name, raw) {
+      this.report.samples[name] = (typeof raw === 'string' ? raw : JSON.stringify(raw)).slice(0, 400);
     }
 
     // -- 종목 코드 해석 -------------------------------------------------
@@ -128,12 +144,8 @@
       }
       sectorName = sectorName || first(merged, 'industryName', 'upjongName', 'industryGroupKor');
 
-      let marketRaw = String(first(merged, 'stockExchangeType', 'marketType', 'market') || '');
-      if (merged.stockExchangeType && typeof merged.stockExchangeType === 'object') {
-        marketRaw = String(merged.stockExchangeType.code || merged.stockExchangeType.name || '');
-      }
-      const up = marketRaw.toUpperCase();
-      const market = up.includes('KOSDAQ') ? 'KOSDAQ' : up.includes('KOSPI') ? 'KOSPI' : 'UNKNOWN';
+      const market = marketOf(merged);
+      if (market === 'UNKNOWN') this.report.samples.market = JSON.stringify(merged).slice(0, 400);
 
       return {
         code,
@@ -203,6 +215,59 @@
       return use.reduce((a, b) => a + b, 0) / use.length;
     }
 
+    // -- 수급 / 공매도 ---------------------------------------------------
+
+    /**
+     * 투자자별 매매동향 + 공매도.
+     *
+     * 시세와 달리 실시간이 아니다. 장중 수급은 잠정치이고 공매도는 장 마감 후
+     * 공시된다. 그래서 '언제 기준인지'를 반드시 같이 담아 돌려준다.
+     */
+    supplyDemand(code, days) {
+      days = days || 10;
+      return {
+        today: null, history: [], short: null, short_history: [],
+        ...pack(this.investorFlows(code, days), this.shortSales(code, days)),
+      };
+    }
+
+    investorFlows(code, days) {
+      const candidates = [
+        ['trend', `https://m.stock.naver.com/api/stock/${code}/trend?pageSize=${days}&page=1`],
+        ['investorTrend', `https://m.stock.naver.com/api/stock/${code}/investorTrend?pageSize=${days}&page=1`],
+      ];
+      for (const [name, url] of candidates) {
+        const data = this.getJson(name, url);
+        const rows = parseFlowRows(data, days);
+        if (rows.length) return rows;
+        if (data) this.sample(name, data);
+      }
+      // JSON 이 안 되면 오래된 HTML 화면을 긁는다. 15년 넘게 같은 주소라
+      // JSON 엔드포인트보다 오히려 잘 버틴다.
+      const html = this.getText('frgn.naver', `https://finance.naver.com/item/frgn.naver?code=${code}`);
+      const rows = parseFrgnHtml(html || '', days);
+      if (!rows.length && html) this.sample('frgn.naver', html);
+      return rows;
+    }
+
+    shortSales(code, days) {
+      const candidates = [
+        ['shortSellingTrend', `https://m.stock.naver.com/api/stock/${code}/shortSellingTrend?pageSize=${days}&page=1`],
+        ['shortStockTrend', `https://m.stock.naver.com/api/stock/${code}/shortStockTrend?pageSize=${days}&page=1`],
+      ];
+      for (const [name, url] of candidates) {
+        const data = this.getJson(name, url);
+        const rows = parseShortRows(data, days);
+        if (rows.length) return rows;
+        if (data) this.sample(name, data);
+      }
+      const html = this.getText('short_trade.naver',
+        `https://finance.naver.com/item/short_trade.naver?code=${code}`);
+      const rows = parseShortHtml(html || '', days);
+      if (!rows.length && html) this.sample('short_trade.naver', html);
+      return rows;
+    }
+
     // -- 뉴스 -----------------------------------------------------------
 
     news(code, limit) {
@@ -214,6 +279,232 @@
   }
 
   // ------------------------------------------------------------------
+
+  // -- 시장 구분 --------------------------------------------------------
+  //
+  // 어느 지수와 비교할지를 정하는 값이라 틀리면 분해 자체가 틀린다(코스닥 종목을
+  // 코스피와 비교하게 된다). 네이버는 이 값을 문자열로도, {code,name,text} 객체로도
+  // 주기 때문에 키 하나만 보면 놓친다. 이름에 exchange/market 이 들어간 필드를
+  // 전부 훑어 토큰을 찾는다.
+
+  const MARKET_TOKENS = [
+    ['KOSDAQ', ['KOSDAQ', '코스닥']],
+    ['KONEX', ['KONEX', '코넥스']],
+    ['KOSPI', ['KOSPI', '코스피', '유가증권']],
+  ];
+
+  function* texts(value, depth) {
+    depth = depth || 0;
+    if (typeof value === 'string') yield value;
+    else if (depth < 3 && Array.isArray(value)) {
+      for (const v of value.slice(0, 8)) yield* texts(v, depth + 1);
+    } else if (depth < 3 && value && typeof value === 'object') {
+      for (const v of Object.values(value)) yield* texts(v, depth + 1);
+    }
+  }
+
+  function marketOf(payload) {
+    if (!payload || typeof payload !== 'object') return 'UNKNOWN';
+    for (const [key, value] of Object.entries(payload)) {
+      const low = key.toLowerCase();
+      if (!low.includes('exchange') && !low.includes('market')) continue;
+      for (const text of texts(value)) {
+        const up = text.toUpperCase();
+        for (const [market, tokens] of MARKET_TOKENS) {
+          if (tokens.some((t) => up.includes(t))) return market;
+        }
+      }
+    }
+    return 'UNKNOWN';
+  }
+
+  // -- 수급 / 공매도 파서 -----------------------------------------------
+  //
+  // 응답 스키마를 확정할 수 없어서(비공식 엔드포인트) 키 이름 후보를 넓게 잡고,
+  // 하나도 못 읽으면 빈 배열을 준다. 빈 결과는 report.samples 에 응답 앞부분이
+  // 남으므로 실제 응답을 보고 키를 맞추면 된다.
+
+  const FLOW_QUANT_KEYS = {
+    foreign: ['foreignerPureBuyQuant', 'frgnPureBuyQuant', 'foreignPureBuyQuant',
+              'foreignerNetBuyQuant', 'foreignerPureBuyVolume'],
+    institution: ['organPureBuyQuant', 'institutionPureBuyQuant', 'organNetBuyQuant',
+                  'organPureBuyVolume'],
+    individual: ['individualPureBuyQuant', 'personPureBuyQuant', 'individualNetBuyQuant',
+                 'individualPureBuyVolume'],
+  };
+  const FLOW_AMOUNT_KEYS = {
+    foreign: ['foreignerPureBuyAmount', 'frgnPureBuyAmount', 'foreignPureBuyAmount',
+              'foreignerNetBuyAmount'],
+    institution: ['organPureBuyAmount', 'institutionPureBuyAmount', 'organNetBuyAmount'],
+    individual: ['individualPureBuyAmount', 'personPureBuyAmount', 'individualNetBuyAmount'],
+  };
+
+  const SHORT_VOLUME_KEYS = ['shortSellingQuant', 'shortSellingVolume', 'shortQuant',
+                             'shortSellingTradingVolume', 'quant'];
+  const SHORT_VALUE_KEYS = ['shortSellingAmount', 'shortSellingValue', 'shortAmount',
+                            'shortSellingTradingValue', 'amount'];
+  const SHORT_RATIO_KEYS = ['shortSellingRatio', 'shortSellingWeight', 'shortRatio',
+                            'ratio', 'weight'];
+  const SHORT_BALANCE_QTY_KEYS = ['shortSellingBalanceQuant', 'balanceQuant', 'remainQuant'];
+  const SHORT_BALANCE_RATIO_KEYS = ['shortSellingBalanceRatio', 'balanceRatio', 'remainRatio'];
+
+  const DATE_KEYS = ['bizdate', 'localTradedAt', 'localDate', 'tradeDate', 'date', 'dt'];
+
+  const TR_RE = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
+  const TD_RE = /<td[^>]*>([\s\S]*?)<\/td>/gi;
+  const DATE_CELL_RE = /^(\d{4})[.\-/](\d{2})[.\-/](\d{2})$/;
+
+  /** 네이버가 주는 온갖 날짜 표기를 YYYY-MM-DD 로 통일한다. */
+  function normDate(raw) {
+    if (raw == null || raw === '') return '';
+    const m = String(raw).trim().match(/^(\d{4})[.\-/]?(\d{2})[.\-/]?(\d{2})/);
+    return m ? `${m[1]}-${m[2]}-${m[3]}` : '';
+  }
+
+  /** 오늘 날짜의 수급은 장이 끝나기 전까지 잠정치다. */
+  function isProvisional(date, now) {
+    now = now || new Date();
+    const today = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') +
+      '-' + String(now.getDate()).padStart(2, '0');
+    return !!date && date === today && now.getHours() < 18;
+  }
+
+  function rowsOf(data) {
+    if (Array.isArray(data)) return data.filter((r) => r && typeof r === 'object' && !Array.isArray(r));
+    if (data && typeof data === 'object') {
+      for (const key of ['trends', 'items', 'result', 'datas', 'list', 'stockTrends', 'trendList']) {
+        let bucket = data[key];
+        if (bucket && !Array.isArray(bucket)) bucket = bucket.items || bucket.list;
+        if (Array.isArray(bucket)) return bucket.filter((r) => r && typeof r === 'object');
+      }
+    }
+    return [];
+  }
+
+  function parseFlowRows(data, limit, now) {
+    const out = [];
+    for (const row of rowsOf(data).slice(0, limit || 10)) {
+      const date = normDate(first(row, ...DATE_KEYS));
+      const grab = (table) => {
+        const v = {};
+        for (const k of Object.keys(table)) v[k] = num(first(row, ...table[k]));
+        return v;
+      };
+      const quant = grab(FLOW_QUANT_KEYS);
+      const amount = grab(FLOW_AMOUNT_KEYS);
+
+      let values, unit;
+      if (Object.values(quant).some((v) => v != null)) { values = quant; unit = '주'; }
+      else if (Object.values(amount).some((v) => v != null)) { values = amount; unit = '원'; }
+      else continue;
+
+      out.push({
+        date,
+        foreign: values.foreign, institution: values.institution, individual: values.individual,
+        unit,
+        foreign_hold_ratio: num(first(row, 'foreignerHoldRatio', 'frgnHoldRatio',
+                                      'foreignHoldRatio', 'foreignerExhaustRate')),
+        provisional: isProvisional(date, now),
+      });
+    }
+    return out;
+  }
+
+  function cellsOf(rowHtml) {
+    const out = [];
+    TD_RE.lastIndex = 0;
+    let m;
+    while ((m = TD_RE.exec(rowHtml)) !== null) {
+      out.push(m[1].replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ')
+        .replace(/&amp;/g, '&').trim().split(/\s+/).join(' '));
+    }
+    return out;
+  }
+
+  function htmlRows(html) {
+    const out = [];
+    TR_RE.lastIndex = 0;
+    let m;
+    while ((m = TR_RE.exec(html)) !== null) out.push(m[1]);
+    return out;
+  }
+
+  /**
+   * finance.naver.com/item/frgn.naver 의 일별 표.
+   * 열 순서: 날짜 | 종가 | 전일비 | 등락률 | 거래량 | 기관 순매매량 |
+   *          외국인 순매매량 | 보유주수 | 보유율
+   *
+   * 이 페이지는 EUC-KR 이라 브리지가 UTF-8 로 읽으면 한글이 깨진다. 여기서 읽는
+   * 값은 날짜와 숫자뿐이고 둘 다 ASCII 라 깨져도 그대로 파싱된다.
+   */
+  function parseFrgnHtml(html, limit, now) {
+    const out = [];
+    for (const rowHtml of htmlRows(html)) {
+      const cells = cellsOf(rowHtml);
+      if (cells.length < 7 || !DATE_CELL_RE.test(cells[0])) continue;
+      const institution = num(cells[5]), foreign = num(cells[6]);
+      // 열 위치가 예상과 다르면 조용히 버린다(틀린 숫자보다 없는 게 낫다).
+      if (institution == null && foreign == null) continue;
+      const date = normDate(cells[0]);
+      out.push({
+        date, institution, foreign, individual: null, unit: '주',
+        foreign_hold_ratio: cells.length > 8 ? num(cells[8]) : null,
+        provisional: isProvisional(date, now),
+      });
+      if (out.length >= (limit || 10)) break;
+    }
+    return out;
+  }
+
+  function parseShortRows(data, limit) {
+    const out = [];
+    for (const row of rowsOf(data).slice(0, limit || 10)) {
+      const volume = num(first(row, ...SHORT_VOLUME_KEYS));
+      const value = num(first(row, ...SHORT_VALUE_KEYS));
+      const ratio = num(first(row, ...SHORT_RATIO_KEYS));
+      if (volume == null && value == null && ratio == null) continue;
+      out.push({
+        date: normDate(first(row, ...DATE_KEYS)),
+        volume, value, ratio,
+        balance_qty: num(first(row, ...SHORT_BALANCE_QTY_KEYS)),
+        balance_ratio: num(first(row, ...SHORT_BALANCE_RATIO_KEYS)),
+      });
+    }
+    return out;
+  }
+
+  /**
+   * finance.naver.com/item/short_trade.naver 의 일별 표.
+   *
+   * HTML 표에서는 '비중(%)' 칸만 읽는다. 공매도 거래량은 같은 행의 종가·거래량과
+   * 자릿수가 비슷해서 열 위치를 확신하지 못하면 구분할 방법이 없고, 찍어서
+   * 맞히려다 틀리면 없는 숫자를 사실처럼 보여주게 된다.
+   */
+  function parseShortHtml(html, limit) {
+    const out = [];
+    for (const rowHtml of htmlRows(html)) {
+      const cells = cellsOf(rowHtml);
+      if (cells.length < 3 || !DATE_CELL_RE.test(cells[0])) continue;
+      let ratio = null;
+      for (const cell of cells.slice(1)) {
+        const v = num(cell);
+        if (v != null && (cell.includes('.') || cell.includes('%')) && v >= 0 && v <= 100) {
+          ratio = v;
+          break;
+        }
+      }
+      if (ratio == null) continue;
+      out.push({ date: normDate(cells[0]), ratio, volume: null, value: null,
+                 balance_qty: null, balance_ratio: null });
+      if (out.length >= (limit || 10)) break;
+    }
+    return out;
+  }
+
+  const pack = (flows, shorts) => ({
+    today: flows[0] || null, history: flows,
+    short: shorts[0] || null, short_history: shorts,
+  });
 
   function extractHit(data) {
     if (!data) return null;
@@ -312,5 +603,8 @@
   const ymd = (d) => d.getFullYear() +
     String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0');
 
-  global.Naver = { Client, _num: num, _first: first, _extractHit: extractHit, _parseNews: parseNews };
+  global.Naver = {
+    Client, marketOf, parseFlowRows, parseFrgnHtml, parseShortRows, parseShortHtml, normDate,
+    _num: num, _first: first, _extractHit: extractHit, _parseNews: parseNews,
+  };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

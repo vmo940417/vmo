@@ -35,6 +35,7 @@ if (input.want.includes('resolve')) out.resolve = client.resolve(input.query || 
 if (input.want.includes('quote')) out.quote = client.quote(input.code || '005930');
 if (input.want.includes('index')) out.index = client.index('KOSPI');
 if (input.want.includes('avgVolume')) out.avgVolume = client.avgVolume(input.code || '005930');
+if (input.want.includes('supply')) out.supply = client.supplyDemand(input.code || '005930');
 if (input.want.includes('news')) {
   out.news = client.news(input.code || '005930').map((n) => ({
     ...n, published_at: n.published_at ? n.published_at.toISOString() : null,

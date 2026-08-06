@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal, Optional
 
-from ..models import MarketContext, NewsItem, Quote
+from ..models import MarketContext, NewsItem, Quote, SupplyDemand
 
 Driver = Literal["MARKET", "SECTOR", "IDIOSYNCRATIC"]
 
@@ -37,6 +37,13 @@ GAP_DOMINANT_SHARE = 0.6      # 갭이 당일 이동의 60% 이상이면 개장 
 INTRADAY_DOMINANT_SHARE = 0.6  # 장중 이동이 60% 이상이면 장중 재료
 VOLUME_SURGE_RATIO = 2.5       # 20일 평균 대비 배수
 NOISE_RATE = 0.7               # 이 아래는 사실상 보합으로 본다(%)
+
+# 수급 임계값
+FLOW_BIG_EOK = 300.0           # 이 이상이면 '대규모' 순매수/순매도로 본다(억원)
+FLOW_SHARE_OF_VALUE = 0.10     # 당일 거래대금의 10% 이상이면 수급이 시세를 민 것
+STREAK_MIN_DAYS = 3            # 연속 순매도/순매수 일수
+SHORT_SURGE_RATIO = 1.5        # 최근 평균 공매도 비중 대비 배수
+SHORT_HIGH_RATIO = 10.0        # 공매도 비중 자체가 이 % 를 넘으면 언급
 
 
 @dataclass
@@ -231,6 +238,8 @@ def _collect_signals(quote: Quote, ctx: MarketContext, timing: str,
         if worst.change_rate < quote.change_rate and best.change_rate > quote.change_rate:
             signals.append(Signal("peer_mid", "동종 종목들도 함께 움직이고 있어 업종 전반의 이슈로 보입니다."))
 
+    signals.extend(_supply_signals(quote, ctx.supply))
+
     # 52주 위치
     if quote.week52_high and quote.week52_low and quote.week52_high > quote.week52_low:
         pos52 = (quote.price - quote.week52_low) / (quote.week52_high - quote.week52_low)
@@ -238,6 +247,114 @@ def _collect_signals(quote: Quote, ctx: MarketContext, timing: str,
             signals.append(Signal("52w", "52주 신고가권 — 신고가 부담에 따른 차익실현이 나올 수 있는 자리입니다."))
         elif pos52 <= 0.05:
             signals.append(Signal("52w", "52주 신저가권 — 추세적 악재가 누적된 상태입니다."))
+
+    return signals
+
+
+# --------------------------------------------------------------------------
+# 수급 / 공매도
+#
+# 분해 항등식에는 손대지 않는다. 수급은 등락률의 '성분'이 아니라 그 성분을
+# 누가 만들었는지를 말해주는 정황이다. 시장 성분이 컸다는 사실과 외국인이
+# 팔았다는 사실은 서로 모순이 아니라 층이 다른 이야기다.
+# --------------------------------------------------------------------------
+
+INVESTOR_LABEL = {"foreign": "외국인", "institution": "기관", "individual": "개인"}
+
+
+def to_eok(value: Optional[float], unit: str, price: Optional[float]) -> Optional[float]:
+    """순매수 값을 억원으로 환산. 수량(주)이면 현재가를 곱한 추정치다."""
+    if value is None:
+        return None
+    won = value if unit == "원" else (value * price if price else None)
+    return won / 1e8 if won is not None else None
+
+
+def _flow_txt(value: Optional[float], unit: str, price: Optional[float]) -> str:
+    eok = to_eok(value, unit, price)
+    if eok is None:
+        return "-"
+    approx = "약 " if unit == "주" else ""
+    return f"{approx}{eok:+,.0f}억"
+
+
+def _supply_signals(quote: Quote, supply: Optional[SupplyDemand],
+                    today: Optional[str] = None) -> list[Signal]:
+    signals: list[Signal] = []
+    if supply is None:
+        return signals
+
+    flow = supply.today
+    if flow is not None:
+        fresh = supply.is_fresh(today)
+        stamp = "장중 잠정" if flow.provisional else (flow.date or "날짜 미상")
+        parts = [f"{INVESTOR_LABEL[k]} {_flow_txt(getattr(flow, k), flow.unit, quote.price)}"
+                 for k in ("foreign", "institution", "individual")
+                 if getattr(flow, k) is not None]
+        if parts:
+            head = "오늘 수급" if fresh else f"최근 수급({flow.date} 기준)"
+            signals.append(Signal("supply", f"{head}[{stamp}]: " + " · ".join(parts),
+                                  weight=1.4 if fresh else 0.8))
+
+        # 어느 주체가 얼마나 세게 밀었나 — 방향이 주가와 맞는지까지 본다.
+        sized = [(k, getattr(flow, k)) for k in ("foreign", "institution")
+                 if getattr(flow, k) is not None]
+        if sized and fresh:
+            who, value = max(sized, key=lambda kv: abs(kv[1]))
+            eok = to_eok(value, flow.unit, quote.price)
+            if eok is not None and abs(eok) >= FLOW_BIG_EOK:
+                side = "순매수" if value > 0 else "순매도"
+                aligned = (value > 0) == (quote.change_rate > 0)
+                share = ""
+                if quote.trading_value:
+                    ratio = abs(eok * 1e8) / quote.trading_value
+                    if ratio >= FLOW_SHARE_OF_VALUE:
+                        share = f" — 당일 거래대금의 {ratio:.0%}"
+                if aligned:
+                    text = (f"{INVESTOR_LABEL[who]}이 {abs(eok):,.0f}억 {side}{share}. "
+                            f"주가 방향과 일치해 수급이 오늘 움직임을 밀고 있습니다.")
+                else:
+                    text = (f"{INVESTOR_LABEL[who]}이 {abs(eok):,.0f}억 {side}{share}. "
+                            f"주가 방향과 반대라 다른 주체가 더 세게 반대편에 서 있습니다.")
+                signals.append(Signal("supply_side", text, weight=1.6))
+
+        days, total = supply.streak("foreign")
+        if days >= STREAK_MIN_DAYS:
+            side = "순매수" if total > 0 else "순매도"
+            eok = to_eok(total, flow.unit, quote.price)
+            amount = f"(누적 {_flow_txt(total, flow.unit, quote.price)})" if eok is not None else ""
+            signals.append(Signal(
+                "supply_streak",
+                f"외국인 {days}일 연속 {side}{amount} — 오늘 하루가 아니라 추세적 수급입니다.",
+                weight=1.2,
+            ))
+
+    short = supply.short
+    if short is not None and short.ratio is not None:
+        baseline = supply.short_ratio_baseline()
+        fresh = supply.short_is_fresh(today)
+        when = "당일" if fresh else f"{short.date} 기준"
+        text = f"공매도 비중 {short.ratio:.1f}% ({when})"
+        weight = 1.0
+        if baseline:
+            ratio = short.ratio / baseline if baseline else 0.0
+            text += f", 직전 평균 {baseline:.1f}% 의 {ratio:.1f}배"
+            if ratio >= SHORT_SURGE_RATIO:
+                text += " — 공매도가 평소보다 확연히 늘었습니다"
+                weight = 1.5
+        elif short.ratio >= SHORT_HIGH_RATIO:
+            weight = 1.3
+        if not fresh:
+            # 한국은 장중 공매도를 실시간 공개하지 않는다. 이걸 안 적으면
+            # 어제 숫자를 오늘 원인으로 읽게 된다.
+            text += ". 당일 공매도는 장 마감 후에 공시되므로 지금 값은 직전 거래일 기준입니다"
+        signals.append(Signal("short", text + ".", weight=weight))
+
+    if short is not None and short.balance_ratio is not None:
+        signals.append(Signal(
+            "short_balance",
+            f"공매도 잔고 비중 {short.balance_ratio:.2f}% — 숏 커버링 여력을 가늠할 수 있습니다.",
+        ))
 
     return signals
 
@@ -280,6 +397,24 @@ def _phrase(key: Driver, value: float, ctx: MarketContext) -> str:
     return f"종목 고유 요인({value:+.2f}%p, 동종 대비 {verb})"
 
 
+def _supply_clause(quote: Quote, ctx: MarketContext) -> str:
+    """헤드라인 뒤에 붙일 수급 한 마디. 오늘 확정된 방향이 있을 때만 붙인다."""
+    supply = ctx.supply
+    if supply is None or supply.today is None or not supply.is_fresh():
+        return ""
+    flow = supply.today
+    sized = [(k, getattr(flow, k)) for k in ("foreign", "institution")
+             if getattr(flow, k) is not None]
+    if not sized:
+        return ""
+    who, value = max(sized, key=lambda kv: abs(kv[1]))
+    eok = to_eok(value, flow.unit, quote.price)
+    if eok is None or abs(eok) < FLOW_BIG_EOK:
+        return ""
+    side = "순매수" if value > 0 else "순매도"
+    return f" 수급은 {INVESTOR_LABEL[who]} {abs(eok):,.0f}억 {side}가 주도했습니다."
+
+
 def _build_headline(quote: Quote, ranked: list[tuple[Driver, Component]],
                     ctx: MarketContext) -> str:
     move = "급등" if quote.change_rate >= 3 else "상승" if quote.change_rate > 0 else \
@@ -293,7 +428,9 @@ def _build_headline(quote: Quote, ranked: list[tuple[Driver, Component]],
     if second.share >= SECONDARY_MIN_SHARE and abs(second.value) >= SECONDARY_MIN_VALUE:
         parts.append(_phrase(second_key, second.value, ctx))
 
-    return f"{head} — 주 원인은 {parts[0]}" + (f"; 여기에 {parts[1]}이 겹쳤습니다." if len(parts) > 1 else ".")
+    body = f"{head} — 주 원인은 {parts[0]}" + \
+           (f"; 여기에 {parts[1]}이 겹쳤습니다." if len(parts) > 1 else ".")
+    return body + _supply_clause(quote, ctx)
 
 
 def analyze(quote: Quote, ctx: MarketContext,
@@ -312,6 +449,9 @@ def analyze(quote: Quote, ctx: MarketContext,
     # 장중 재료인데 거래량까지 터졌으면 확신도를 올린다.
     if any(s.key == "volume_surge" for s in signals) and driver == "IDIOSYNCRATIC":
         confidence = min(0.95, confidence + 0.1)
+    # 수급 방향이 주가 방향과 맞으면 설명이 한 겹 더 뒷받침된다.
+    if any(s.key == "supply_side" and "일치" in s.text for s in signals):
+        confidence = min(0.95, confidence + 0.05)
     # 데이터가 부족하면 확신도를 깎는다.
     if ctx.index_rate is None:
         confidence *= 0.6

@@ -107,16 +107,35 @@ async def selftest() -> int:
         news = await p.news(PROBE_CODE, limit=5)
         results.append(("뉴스 조회", bool(news), f"{len(news)}건" + (f" · 최신: {news[0].title[:36]}" if news else "")))
 
+        supply = await p.supply_demand(PROBE_CODE)
+        flow = supply.today
+        results.append((
+            "수급(투자자별)", flow is not None,
+            f"{flow.date} 기준 외국인 {flow.foreign:+,.0f}{flow.unit}" if flow else "실패",
+        ))
+        # 공매도는 없어도 나머지 분석이 다 나오므로 통과/실패 집계에서는 뺀다.
+        short = supply.short
+        short_line = (f"{short.date} 기준 비중 {short.ratio}%"
+                      if short and short.ratio is not None
+                      else "가져오지 못함 — 당일 공매도는 원래 장 마감 후 공시됩니다")
+
         report = p.report.as_dict()
 
     for name, ok, detail in results:
         print(f"  [{'OK  ' if ok else 'FAIL'}] {name:<16} {detail}")
+    print(f"  [INFO] {'공매도':<16} {short_line}")
 
     print("\n엔드포인트별 결과")
     for e in report["ok"]:
         print(f"  [OK  ] {e}")
     for f in report["failed"]:
         print(f"  [FAIL] {f['endpoint']}: {f['error']}")
+
+    # 응답은 왔는데 형태가 달라 못 읽은 것들. 이 앞부분만 보면 키를 맞출 수 있다.
+    if report.get("samples"):
+        print("\n형태가 달라 읽지 못한 응답 (이 내용을 알려주시면 파서를 맞출 수 있습니다)")
+        for name, sample in report["samples"].items():
+            print(f"  {name}: {sample[:200]}")
 
     print(f"\nLLM: {'사용 가능 (' + model_name() + ')' if has_api_key() else 'ANTHROPIC_API_KEY 미설정 — 규칙 기반으로만 동작합니다'}")
 

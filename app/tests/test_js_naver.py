@@ -200,3 +200,109 @@ class TestOther:
     def test_news_missing_is_empty_not_error(self):
         out = run({"/news/stock/": None}, ["news"])
         assert out["news"] == []
+
+
+# --------------------------------------------------------------------------
+# 시장 구분
+#
+# 실기기에서 UNKNOWN 이 떴던 자리다. UNKNOWN 이면 코스닥 종목도 코스피와
+# 비교하게 되어 분해가 통째로 틀어지므로, 실제로 올 수 있는 모양을 넓게 깐다.
+# --------------------------------------------------------------------------
+
+class TestMarketDetection:
+    def _market(self, exchange) -> str:
+        integration = {k: v for k, v in INTEGRATION.items() if k != "stockExchangeType"}
+        if exchange is not None:
+            integration["stockExchangeType"] = exchange
+        routes = {"/index/KOSPI/basic": INDEX, **ROUTES, "/integration": integration}
+        return run(routes, ["quote"])["quote"]["market"]
+
+    @pytest.mark.parametrize("exchange,want", [
+        ({"code": "KOSPI", "name": "코스피"}, "KOSPI"),
+        ({"name": "코스피"}, "KOSPI"),                    # code 가 없는 경우
+        ({"text": "코스닥"}, "KOSDAQ"),
+        ("KOSDAQ", "KOSDAQ"),                             # 평면 문자열
+        ("kospi", "KOSPI"),                               # 소문자
+        ({"code": "KONEX"}, "KONEX"),
+    ])
+    def test_variants(self, exchange, want):
+        assert self._market(exchange) == want
+
+    def test_unknown_leaves_a_sample(self):
+        """못 읽었으면 응답을 남겨야 다음 번에 스크린샷 한 장으로 고칠 수 있다."""
+        integration = {k: v for k, v in INTEGRATION.items() if k != "stockExchangeType"}
+        routes = {"/index/KOSPI/basic": INDEX, **ROUTES, "/integration": integration}
+        got = run(routes, ["quote"])
+        assert got["quote"]["market"] == "UNKNOWN"
+        assert "market" in got["report"]["samples"]
+
+
+# --------------------------------------------------------------------------
+# 수급 / 공매도
+# --------------------------------------------------------------------------
+
+TREND = [
+    {"bizdate": "20260806", "foreignerPureBuyQuant": "-1,200,000",
+     "organPureBuyQuant": "300,000", "individualPureBuyQuant": "900,000",
+     "foreignerHoldRatio": "50.12"},
+    {"bizdate": "20260805", "foreignerPureBuyQuant": "-800,000",
+     "organPureBuyQuant": "-100,000", "individualPureBuyQuant": "900,000"},
+]
+
+SHORT_TREND = {"result": [
+    {"bizdate": "20260805", "shortSellingQuant": "1,500,000",
+     "shortSellingRatio": "12.4", "shortSellingBalanceRatio": "1.85"},
+    {"bizdate": "20260804", "shortSellingQuant": "700,000", "shortSellingRatio": "6.0"},
+]}
+
+FRGN_HTML = """
+<table><tr><th>날짜</th><th>종가</th></tr>
+<tr><td class="tc">2026.08.06</td><td>228,500</td>
+    <td><span class="blind">하락</span> 17,500</td><td>-7.11%</td>
+    <td>21,854,734</td><td>+300,000</td><td>-1,200,000</td>
+    <td>2,990,000,000</td><td>50.12</td></tr>
+<tr><td colspan="9">&nbsp;</td></tr></table>
+"""
+
+SHORT_HTML = """
+<table><tr><th>일자</th><th>공매도 거래량</th><th>비중</th></tr>
+<tr><td>2026.08.05</td><td>1,500,000</td><td>12.40</td></tr>
+<tr><td>안내문구</td><td>-</td><td>-</td></tr></table>
+"""
+
+
+class TestSupplyDemand:
+    def _supply(self, extra: dict) -> dict:
+        routes = {"/index/KOSPI/basic": INDEX, **ROUTES, **extra}
+        return run(routes, ["supply"])
+
+    def test_json_endpoint(self):
+        s = self._supply({"/trend": TREND, "shortSellingTrend": SHORT_TREND})["supply"]
+        assert s["today"]["foreign"] == -1_200_000
+        assert s["today"]["unit"] == "주"
+        assert s["today"]["date"] == "2026-08-06"
+        assert len(s["history"]) == 2
+        assert s["short"]["ratio"] == 12.4
+        assert s["short"]["balance_ratio"] == 1.85
+
+    def test_html_fallback(self):
+        """JSON 이 죽어도 오래된 HTML 화면에서 긁어온다."""
+        s = self._supply({"frgn.naver": FRGN_HTML, "short_trade.naver": SHORT_HTML})["supply"]
+        assert s["today"]["foreign"] == -1_200_000
+        assert s["today"]["institution"] == 300_000
+        assert s["short"]["ratio"] == 12.4
+        assert s["short"]["volume"] is None, "찍어서 맞힌 숫자를 넣으면 안 된다"
+
+    def test_amount_unit_preserved(self):
+        rows = [{"bizdate": "20260806", "foreignerPureBuyAmount": "-274,000,000,000"}]
+        s = self._supply({"/trend": rows})["supply"]
+        assert s["today"]["unit"] == "원" and s["today"]["foreign"] == -274_000_000_000
+
+    def test_all_endpoints_down(self):
+        s = self._supply({})["supply"]
+        assert s["today"] is None and s["short"] is None and s["history"] == []
+
+    def test_unreadable_response_leaves_a_sample(self):
+        got = self._supply({"/trend": {"unexpected": [{"a": 1}]}})
+        assert "trend" in got["report"]["samples"]
+        assert "unexpected" in got["report"]["samples"]["trend"]

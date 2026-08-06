@@ -155,6 +155,8 @@
       }
     }
 
+    out.push(...supplySignals(quote, ctx.supply));
+
     if (quote.week52_high && quote.week52_low && quote.week52_high > quote.week52_low) {
       const pos52 = (quote.price - quote.week52_low) / (quote.week52_high - quote.week52_low);
       if (pos52 >= 0.95) {
@@ -165,6 +167,178 @@
     }
 
     return out;
+  }
+
+  // ------------------------------------------------------------------
+  // 수급 / 공매도 (models.SupplyDemand + attribution._supply_signals 이식본)
+  //
+  // 분해 항등식에는 손대지 않는다. 수급은 등락률의 '성분'이 아니라 그 성분을
+  // 누가 만들었는지를 말해주는 정황이다.
+  // ------------------------------------------------------------------
+
+  const INVESTOR_LABEL = { foreign: '외국인', institution: '기관', individual: '개인' };
+
+  const FLOW_BIG_EOK = 300.0;
+  const FLOW_SHARE_OF_VALUE = 0.10;
+  const STREAK_MIN_DAYS = 3;
+  const SHORT_SURGE_RATIO = 1.5;
+  const SHORT_HIGH_RATIO = 10.0;
+
+  const todayStr = () => {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') +
+      '-' + String(d.getDate()).padStart(2, '0');
+  };
+
+  /** 순매수 값을 억원으로 환산. 수량(주)이면 현재가를 곱한 추정치다. */
+  function toEok(value, unit, price) {
+    if (value == null) return null;
+    const won2 = unit === '원' ? value : (price ? value * price : null);
+    return won2 == null ? null : won2 / 1e8;
+  }
+
+  /**
+   * 파이썬 format(x, '.0f') 과 같은 반올림.
+   *
+   * 파이썬은 정확히 .5 일 때 짝수로 붙이고(banker's rounding) JS Math.round 는
+   * 위로 올린다. 100,000주 x 228,500원 = 228.5억 같은 값이 실제로 나오기 때문에,
+   * 이걸 맞추지 않으면 같은 데이터로 서버는 -228억, 앱은 -229억을 띄운다.
+   */
+  function round0(v) {
+    const floor = Math.floor(v);
+    const diff = v - floor;
+    if (diff > 0.5) return floor + 1;
+    if (diff < 0.5) return floor;
+    return floor % 2 === 0 ? floor : floor + 1;
+  }
+
+  /** 파이썬의 f"{v:+,.0f}억" 과 같은 문자열을 만든다. */
+  function eokTxt(value, unit, price) {
+    const eok = toEok(value, unit, price);
+    if (eok == null) return '-';
+    return (unit === '주' ? '약 ' : '') + (eok >= 0 ? '+' : '-') +
+      round0(Math.abs(eok)).toLocaleString('en-US') + '억';
+  }
+
+  const eokAbs = (eok) => round0(Math.abs(eok)).toLocaleString('en-US');
+
+  const isFresh = (s, today) =>
+    !!(s && s.today && s.today.date && s.today.date === (today || todayStr()));
+  const shortIsFresh = (s, today) =>
+    !!(s && s.short && s.short.date && s.short.date === (today || todayStr()));
+
+  /** 같은 방향(순매수/순매도)이 며칠 이어졌는지와 누적치. */
+  function streak(supply, who) {
+    let days = 0, total = 0, sign = 0;
+    for (const row of (supply && supply.history) || []) {
+      const v = row[who];
+      if (v == null || v === 0) break;
+      const s = v > 0 ? 1 : -1;
+      if (sign === 0) sign = s;
+      else if (s !== sign) break;
+      days += 1;
+      total += v;
+    }
+    return { days, total };
+  }
+
+  /** 직전 며칠 평균 공매도 비중. 오늘(최신) 값은 비교 대상이라 뺀다. */
+  function shortBaseline(supply, days = 5) {
+    const past = ((supply && supply.short_history) || []).slice(1, days + 1)
+      .map((s) => s.ratio).filter((r) => r != null);
+    return past.length ? past.reduce((a, b) => a + b, 0) / past.length : null;
+  }
+
+  function supplySignals(quote, supply, today) {
+    const out = [];
+    if (!supply) return out;
+    const add = (key, text, weight = 1.0) => out.push({ key, text, weight });
+
+    const flow = supply.today;
+    if (flow) {
+      const fresh = isFresh(supply, today);
+      const stamp = flow.provisional ? '장중 잠정' : (flow.date || '날짜 미상');
+      const parts = ['foreign', 'institution', 'individual']
+        .filter((k) => flow[k] != null)
+        .map((k) => `${INVESTOR_LABEL[k]} ${eokTxt(flow[k], flow.unit, quote.price)}`);
+      if (parts.length) {
+        const head = fresh ? '오늘 수급' : `최근 수급(${flow.date} 기준)`;
+        add('supply', `${head}[${stamp}]: ` + parts.join(' · '), fresh ? 1.4 : 0.8);
+      }
+
+      const sized = ['foreign', 'institution'].filter((k) => flow[k] != null)
+        .map((k) => [k, flow[k]]);
+      if (sized.length && fresh) {
+        const [who, value] = sized.reduce((a, b) => (Math.abs(b[1]) > Math.abs(a[1]) ? b : a));
+        const eok = toEok(value, flow.unit, quote.price);
+        if (eok != null && Math.abs(eok) >= FLOW_BIG_EOK) {
+          const side = value > 0 ? '순매수' : '순매도';
+          const aligned = (value > 0) === (quote.change_rate > 0);
+          let share = '';
+          if (quote.trading_value) {
+            const ratio = Math.abs(eok * 1e8) / quote.trading_value;
+            if (ratio >= FLOW_SHARE_OF_VALUE) share = ` — 당일 거래대금의 ${Math.round(ratio * 100)}%`;
+          }
+          add('supply_side', aligned
+            ? `${INVESTOR_LABEL[who]}이 ${eokAbs(eok)}억 ${side}${share}. 주가 방향과 일치해 수급이 오늘 움직임을 밀고 있습니다.`
+            : `${INVESTOR_LABEL[who]}이 ${eokAbs(eok)}억 ${side}${share}. 주가 방향과 반대라 다른 주체가 더 세게 반대편에 서 있습니다.`,
+            1.6);
+        }
+      }
+
+      const st = streak(supply, 'foreign');
+      if (st.days >= STREAK_MIN_DAYS) {
+        const side = st.total > 0 ? '순매수' : '순매도';
+        const eok = toEok(st.total, flow.unit, quote.price);
+        const amount = eok != null ? `(누적 ${eokTxt(st.total, flow.unit, quote.price)})` : '';
+        add('supply_streak',
+          `외국인 ${st.days}일 연속 ${side}${amount} — 오늘 하루가 아니라 추세적 수급입니다.`, 1.2);
+      }
+    }
+
+    const short = supply.short;
+    if (short && short.ratio != null) {
+      const baseline = shortBaseline(supply);
+      const fresh = shortIsFresh(supply, today);
+      const when = fresh ? '당일' : `${short.date} 기준`;
+      let text = `공매도 비중 ${short.ratio.toFixed(1)}% (${when})`;
+      let weight = 1.0;
+      if (baseline) {
+        const ratio = short.ratio / baseline;
+        text += `, 직전 평균 ${baseline.toFixed(1)}% 의 ${ratio.toFixed(1)}배`;
+        if (ratio >= SHORT_SURGE_RATIO) {
+          text += ' — 공매도가 평소보다 확연히 늘었습니다';
+          weight = 1.5;
+        }
+      } else if (short.ratio >= SHORT_HIGH_RATIO) {
+        weight = 1.3;
+      }
+      if (!fresh) {
+        // 한국은 장중 공매도를 실시간 공개하지 않는다.
+        text += '. 당일 공매도는 장 마감 후에 공시되므로 지금 값은 직전 거래일 기준입니다';
+      }
+      add('short', text + '.', weight);
+    }
+
+    if (short && short.balance_ratio != null) {
+      add('short_balance',
+        `공매도 잔고 비중 ${short.balance_ratio.toFixed(2)}% — 숏 커버링 여력을 가늠할 수 있습니다.`);
+    }
+
+    return out;
+  }
+
+  /** 헤드라인 뒤에 붙일 수급 한 마디. 오늘 확정된 방향이 있을 때만 붙인다. */
+  function supplyClause(quote, ctx, today) {
+    const supply = ctx.supply;
+    if (!supply || !supply.today || !isFresh(supply, today)) return '';
+    const flow = supply.today;
+    const sized = ['foreign', 'institution'].filter((k) => flow[k] != null).map((k) => [k, flow[k]]);
+    if (!sized.length) return '';
+    const [who, value] = sized.reduce((a, b) => (Math.abs(b[1]) > Math.abs(a[1]) ? b : a));
+    const eok = toEok(value, flow.unit, quote.price);
+    if (eok == null || Math.abs(eok) < FLOW_BIG_EOK) return '';
+    return ` 수급은 ${INVESTOR_LABEL[who]} ${eokAbs(eok)}억 ${value > 0 ? '순매수' : '순매도'}가 주도했습니다.`;
   }
 
   function rank(comps) {
@@ -207,8 +381,9 @@
     if (second.share >= SECONDARY_MIN_SHARE && Math.abs(second.value) >= SECONDARY_MIN_VALUE) {
       parts.push(phrase(secondKey, second.value, ctx));
     }
-    return `${head} — 주 원인은 ${parts[0]}` +
+    const body = `${head} — 주 원인은 ${parts[0]}` +
       (parts.length > 1 ? `; 여기에 ${parts[1]}이 겹쳤습니다.` : '.');
+    return body + supplyClause(quote, ctx);
   }
 
   /** 시세 + 시장환경으로부터 정량적 귀인 결과를 만든다. 뉴스는 여기서 쓰지 않는다. */
@@ -221,6 +396,10 @@
 
     if (signals.some((s) => s.key === 'volume_surge') && driver === 'IDIOSYNCRATIC') {
       confidence = Math.min(0.95, confidence + 0.1);
+    }
+    // 수급 방향이 주가 방향과 맞으면 설명이 한 겹 더 뒷받침된다.
+    if (signals.some((s) => s.key === 'supply_side' && s.text.includes('일치'))) {
+      confidence = Math.min(0.95, confidence + 0.05);
     }
     if (ctx.index_rate == null) confidence *= 0.6;
     if (ctx.sector_rate == null && !(ctx.peers && ctx.peers.length)) confidence *= 0.8;
@@ -332,6 +511,7 @@
 
   global.Attribution = {
     analyze, decompose, classifyTiming, scoreNews, categorize, tone,
-    DRIVER_LABEL,
+    supplySignals, toEok, streak, shortBaseline, isFresh, shortIsFresh, round0,
+    DRIVER_LABEL, INVESTOR_LABEL,
   };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

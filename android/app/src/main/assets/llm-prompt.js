@@ -21,6 +21,56 @@
   const n = (v) => (v == null ? 0 : v).toLocaleString('en-US');
   const f2 = (v) => (v > 0 ? '+' : '') + Number(v).toFixed(2);
   const pctInt = (v) => Math.round(v * 100) + '%';
+  // 파이썬의 f"{v:+,.0f}" 과 같은 문자열(반올림 규칙까지 맞춘다)
+  const f0 = (v) => (v >= 0 ? '+' : '-') +
+    global.Attribution.round0(Math.abs(v)).toLocaleString('en-US');
+
+  /**
+   * 수급·공매도 근거. 기준 날짜를 반드시 함께 적는다.
+   *
+   * LLM 이 어제 수급으로 오늘을 설명하는 것이 여기서 가장 흔한 실패다. 그래서
+   * 숫자만 주지 않고 '언제 것인지', '잠정인지 확정인지'를 문장으로 붙여준다.
+   */
+  function supplyLines(quote, ctx) {
+    const supply = ctx.supply;
+    if (!supply) return [];
+    const A = global.Attribution;
+    const L = [];
+
+    const flow = supply.today;
+    if (flow) {
+      const fresh = A.isFresh(supply);
+      const stamp = (flow.date || '날짜 미상') + (flow.provisional ? ' · 장중 잠정치' : ' · 확정');
+      L.push('');
+      L.push(`[수급] ${stamp}` + (fresh ? '' : ' (오늘 것이 아님 — 오늘 수급은 아직 집계 전)'));
+      for (const key of ['foreign', 'institution', 'individual']) {
+        if (flow[key] == null) continue;
+        const eok = A.toEok(flow[key], flow.unit, quote.price);
+        const shown = f0(eok) + '억원' + (flow.unit === '주' ? '(수량x현재가 환산 추정)' : '');
+        L.push(`  ${A.INVESTOR_LABEL[key]} ${shown}`);
+      }
+      const st = A.streak(supply, 'foreign');
+      if (st.days >= 2) L.push(`  외국인 ${st.days}일 연속 ${st.total > 0 ? '순매수' : '순매도'}`);
+    }
+
+    const short = supply.short;
+    if (short) {
+      const freshShort = A.shortIsFresh(supply);
+      L.push('');
+      L.push(`[공매도] ${freshShort ? '당일' : (short.date || '날짜 미상') + ' (직전 거래일)'}`);
+      if (short.ratio != null) {
+        const baseline = A.shortBaseline(supply);
+        L.push(`  거래 대비 비중 ${short.ratio.toFixed(2)}%` +
+          (baseline ? ` / 직전 평균 ${baseline.toFixed(1)}%` : ''));
+      }
+      if (short.balance_ratio != null) L.push(`  잔고 비중 ${short.balance_ratio.toFixed(2)}%`);
+      if (!freshShort) {
+        L.push('  ※ 한국은 당일 공매도를 장중에 공개하지 않는다. ' +
+          '위 수치를 오늘 움직임의 원인으로 단정하지 마라.');
+      }
+    }
+    return L;
+  }
 
   /** LLM 에 넘길 증거 묶음. 숫자는 이미 해석된 형태로 준다. */
   function buildEvidence(quote, ctx, attr, news, maxNews) {
@@ -52,6 +102,8 @@
     if (ctx.peers && ctx.peers.length) {
       L.push('  동종 종목: ' + ctx.peers.map((p) => `${p.name} ${f2(p.change_rate)}%`).join(', '));
     }
+
+    L.push(...supplyLines(quote, ctx));
 
     const c = attr.components;
     L.push('');

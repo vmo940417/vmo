@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -21,7 +21,9 @@ from server.analysis.attribution import (  # noqa: E402
     score_news,
     tone,
 )
-from server.models import MarketContext, NewsItem, Quote  # noqa: E402
+from server.models import (  # noqa: E402
+    InvestorFlow, MarketContext, NewsItem, Quote, ShortSale, SupplyDemand,
+)
 
 
 def samsung() -> Quote:
@@ -239,3 +241,187 @@ class TestNewsScoring:
     def test_empty_news_is_safe(self):
         a = analyze(samsung(), kospi_context())
         assert score_news([], samsung(), a) == []
+
+
+# --------------------------------------------------------------------------
+# 수급 / 공매도
+#
+# 여기서 가장 위험한 실수는 '어제 수급으로 오늘을 설명하는 것'이다. 그래서
+# 값이 맞는지보다 기준 날짜가 문구에 드러나는지를 더 촘촘히 본다.
+# --------------------------------------------------------------------------
+
+TODAY = datetime.now().strftime("%Y-%m-%d")
+YESTERDAY = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+
+
+def flow(date: str = TODAY, foreign: float = -1_200_000, institution: float = 300_000,
+         individual: float = 900_000, unit: str = "주", provisional: bool = True) -> InvestorFlow:
+    return InvestorFlow(date=date, foreign=foreign, institution=institution,
+                        individual=individual, unit=unit,  # type: ignore[arg-type]
+                        provisional=provisional)
+
+
+def supply(**kw) -> SupplyDemand:
+    today = kw.pop("today", flow())
+    history = kw.pop("history", [today] if today else [])
+    return SupplyDemand(today=today, history=history, **kw)
+
+
+def signal_of(attribution, key: str):
+    return next((s for s in attribution.signals if s.key == key), None)
+
+
+class TestSupplySignals:
+    def test_lists_all_three_investors(self):
+        a = analyze(samsung(), kospi_context(supply=supply()))
+        s = signal_of(a, "supply")
+        assert s is not None
+        for who in ("외국인", "기관", "개인"):
+            assert who in s.text
+
+    def test_quantity_is_marked_as_an_estimate(self):
+        """수량(주)에 현재가를 곱한 값은 추정이다 — '약'을 빼면 확정치로 읽힌다."""
+        s = signal_of(analyze(samsung(), kospi_context(supply=supply())), "supply")
+        assert s is not None and "약 " in s.text
+
+    def test_amount_unit_is_not_marked_estimate(self):
+        f = flow(unit="원", foreign=-274_000_000_000, institution=None, individual=None)
+        s = signal_of(analyze(samsung(), kospi_context(supply=supply(today=f))), "supply")
+        assert s is not None
+        assert "외국인 -2,740억" in s.text and "약" not in s.text
+
+    def test_marks_intraday_numbers_as_provisional(self):
+        s = signal_of(analyze(samsung(), kospi_context(supply=supply())), "supply")
+        assert s is not None and "장중 잠정" in s.text
+
+    def test_stale_data_says_when_it_is_from(self):
+        f = flow(date=YESTERDAY, provisional=False)
+        s = signal_of(analyze(samsung(), kospi_context(supply=supply(today=f))), "supply")
+        assert s is not None
+        assert YESTERDAY in s.text and "최근 수급" in s.text
+        assert s.weight < 1.0, "오늘 것이 아니면 비중을 낮춰야 한다"
+
+    def test_dominant_seller_aligned_with_price(self):
+        """외국인이 팔고 주가도 빠졌으면 수급이 움직임을 밀었다고 말할 수 있다."""
+        s = signal_of(analyze(samsung(), kospi_context(supply=supply())), "supply_side")
+        assert s is not None
+        assert "외국인" in s.text and "순매도" in s.text and "일치" in s.text
+
+    def test_dominant_buyer_against_price_is_flagged(self):
+        f = flow(foreign=1_200_000, institution=-200_000, individual=-1_000_000)
+        s = signal_of(analyze(samsung(), kospi_context(supply=supply(today=f))), "supply_side")
+        assert s is not None and "반대" in s.text
+
+    def test_small_flows_do_not_get_a_headline_signal(self):
+        f = flow(foreign=-1000, institution=500, individual=500)
+        a = analyze(samsung(), kospi_context(supply=supply(today=f)))
+        assert signal_of(a, "supply_side") is None
+        assert signal_of(a, "supply") is not None, "규모가 작아도 수치 자체는 보여준다"
+
+    def test_share_of_trading_value(self):
+        """규모는 절대금액보다 '거래대금 대비 몇 %'가 훨씬 잘 와닿는다."""
+        f = flow(foreign=-3_000_000)     # 약 6,855억 = 당일 거래대금의 13%
+        s = signal_of(analyze(samsung(), kospi_context(supply=supply(today=f))), "supply_side")
+        assert s is not None and "당일 거래대금의 13%" in s.text
+
+    def test_modest_flow_omits_the_share(self):
+        """거래대금의 10% 도 안 되는 수급을 '거래대금의 5%'라고 굳이 적으면 잡음이다."""
+        s = signal_of(analyze(samsung(), kospi_context(supply=supply())), "supply_side")
+        assert s is not None and "거래대금의" not in s.text
+
+    def test_stale_data_never_claims_to_drive_today(self):
+        f = flow(date=YESTERDAY, provisional=False)
+        a = analyze(samsung(), kospi_context(supply=supply(today=f)))
+        assert signal_of(a, "supply_side") is None
+
+    def test_streak(self):
+        rows = [flow(), flow(date=YESTERDAY, foreign=-800_000),
+                flow(date="2026-08-04", foreign=-500_000)]
+        a = analyze(samsung(), kospi_context(supply=supply(history=rows)))
+        s = signal_of(a, "supply_streak")
+        assert s is not None and "3일 연속 순매도" in s.text
+
+    def test_streak_breaks_on_direction_change(self):
+        rows = [flow(), flow(date=YESTERDAY, foreign=-800_000), flow(date="2026-08-04", foreign=+500_000)]
+        a = analyze(samsung(), kospi_context(supply=supply(history=rows)))
+        assert signal_of(a, "supply_streak") is None, "2일은 추세라 부르지 않는다"
+
+    def test_no_supply_no_signals(self):
+        a = analyze(samsung(), kospi_context(supply=None))
+        assert not [s for s in a.signals if s.key.startswith("supply")]
+
+    def test_missing_investor_is_skipped_not_zeroed(self):
+        f = flow(institution=None, individual=None)
+        s = signal_of(analyze(samsung(), kospi_context(supply=supply(today=f))), "supply")
+        assert s is not None and "기관" not in s.text
+
+
+class TestShortSellingSignals:
+    def _supply(self, ratios: list[float], date: str = YESTERDAY) -> SupplyDemand:
+        rows = [ShortSale(date=date if i == 0 else f"2026-07-{20 + i:02d}", ratio=r)
+                for i, r in enumerate(ratios)]
+        return SupplyDemand(today=flow(), history=[flow()], short=rows[0], short_history=rows)
+
+    def test_reports_ratio_and_baseline(self):
+        s = signal_of(analyze(samsung(), kospi_context(
+            supply=self._supply([12.4, 6.0, 5.0, 6.0]))), "short")
+        assert s is not None
+        assert "12.4%" in s.text and "직전 평균" in s.text
+
+    def test_flags_a_surge(self):
+        a = analyze(samsung(), kospi_context(supply=self._supply([12.4, 6.0, 5.0, 6.0])))
+        s = signal_of(a, "short")
+        assert s is not None and "확연히 늘었습니다" in s.text and s.weight >= 1.5
+
+    def test_quiet_short_is_not_flagged(self):
+        s = signal_of(analyze(samsung(), kospi_context(
+            supply=self._supply([6.1, 6.0, 5.9, 6.2]))), "short")
+        assert s is not None and "확연히" not in s.text
+
+    def test_says_yesterdays_data_is_yesterdays(self):
+        """장중에 당일 공매도는 존재하지 않는다. 이 문구가 빠지면 오해를 부른다."""
+        s = signal_of(analyze(samsung(), kospi_context(supply=self._supply([12.4, 6.0]))), "short")
+        assert s is not None
+        assert "장 마감 후에 공시" in s.text and YESTERDAY in s.text
+
+    def test_todays_data_needs_no_disclaimer(self):
+        s = signal_of(analyze(samsung(), kospi_context(
+            supply=self._supply([12.4, 6.0], date=TODAY))), "short")
+        assert s is not None and "당일" in s.text and "장 마감 후에 공시" not in s.text
+
+    def test_balance_ratio(self):
+        sd = SupplyDemand(short=ShortSale(date=YESTERDAY, ratio=8.0, balance_ratio=1.85),
+                          short_history=[ShortSale(date=YESTERDAY, ratio=8.0)])
+        s = signal_of(analyze(samsung(), kospi_context(supply=sd)), "short_balance")
+        assert s is not None and "1.85%" in s.text
+
+    def test_no_short_data_no_signal(self):
+        a = analyze(samsung(), kospi_context(supply=supply()))
+        assert signal_of(a, "short") is None
+
+
+class TestSupplyInHeadlineAndConfidence:
+    def test_headline_names_the_dominant_flow(self):
+        a = analyze(samsung(), kospi_context(supply=supply()))
+        assert "수급은 외국인" in a.headline and "순매도가 주도했습니다" in a.headline
+
+    def test_headline_keeps_the_decomposition_first(self):
+        """수급은 덧붙이는 말이지 분해를 대체하지 않는다."""
+        a = analyze(samsung(), kospi_context(supply=supply()))
+        assert a.headline.index("주 원인은") < a.headline.index("수급은")
+
+    def test_headline_silent_without_fresh_supply(self):
+        f = flow(date=YESTERDAY, provisional=False)
+        a = analyze(samsung(), kospi_context(supply=supply(today=f)))
+        assert "수급은" not in a.headline
+
+    def test_aligned_supply_raises_confidence(self):
+        plain = analyze(samsung(), kospi_context())
+        withflow = analyze(samsung(), kospi_context(supply=supply()))
+        assert withflow.confidence > plain.confidence
+
+    def test_supply_does_not_touch_the_identity(self):
+        """수급은 성분이 아니다 — 분해 합은 그대로 등락률이어야 한다."""
+        a = analyze(samsung(), kospi_context(supply=supply()))
+        total = a.market.value + a.sector.value + a.idiosyncratic.value
+        assert total == pytest.approx(samsung().change_rate, abs=0.01)

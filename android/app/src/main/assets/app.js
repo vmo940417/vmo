@@ -253,6 +253,10 @@
     await tick();
     const avgVolume = client.avgVolume(resolved.code);
 
+    say('수급·공매도 조회 중…');
+    await tick();
+    const supply = client.supplyDemand(resolved.code);
+
     const ctx = {
       index_name: indexName,
       index_rate: idx.rate,
@@ -262,6 +266,7 @@
       peers,
       avg_volume_20d: avgVolume,
       beta: 1.0,
+      supply,
     };
 
     const attribution = global.Attribution.analyze(quote, ctx);

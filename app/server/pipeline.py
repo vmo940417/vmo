@@ -101,6 +101,31 @@ def _context_dict(ctx) -> dict:
         "avg_volume_20d": ctx.avg_volume_20d, "beta": ctx.beta,
         "peers": [{"code": p.code, "name": p.name, "change_rate": p.change_rate}
                   for p in ctx.peers],
+        "supply": _supply_dict(ctx.supply),
+    }
+
+
+def _supply_dict(supply) -> Optional[dict]:
+    """수급은 값보다 '언제 기준인지'가 중요해서 신선도를 같이 내보낸다."""
+    if supply is None:
+        return None
+    flow, short = supply.today, supply.short
+    days, streak_total = supply.streak("foreign")
+    return {
+        "fresh": supply.is_fresh(),
+        "flow": None if flow is None else {
+            "date": flow.date, "unit": flow.unit, "provisional": flow.provisional,
+            "foreign": flow.foreign, "institution": flow.institution,
+            "individual": flow.individual,
+            "foreign_hold_ratio": flow.foreign_hold_ratio,
+        },
+        "streak_days": days, "streak_total": streak_total,
+        "short_fresh": supply.short_is_fresh(),
+        "short": None if short is None else {
+            "date": short.date, "ratio": short.ratio, "volume": short.volume,
+            "value": short.value, "balance_ratio": short.balance_ratio,
+        },
+        "short_baseline": supply.short_ratio_baseline(),
     }
 
 
