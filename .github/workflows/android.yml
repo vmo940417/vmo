@@ -33,6 +33,15 @@ jobs:
         working-directory: android
         run: ./gradlew assembleDebug --stacktrace
 
+      # 서명 지문이 빌드마다 흔들리면 폰에서 덮어쓰기 설치가 막힌다.
+      # 로그에 남겨두면 나중에 설치가 안 될 때 원인을 바로 짚을 수 있다.
+      - name: Verify signing certificate
+        working-directory: android
+        run: |
+          APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | tail -1)
+          "$APKSIGNER" verify --print-certs \
+            app/build/outputs/apk/debug/app-debug.apk | grep -i "certificate SHA-256"
+
       - name: Rename APK
         working-directory: android
         run: |
