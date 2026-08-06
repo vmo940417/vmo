@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>장중 시세 원인 분석</title>
+<style>
+  :root {
+    --bg: #0e1116; --panel: #161b22; --line: #262d38;
+    --fg: #e6edf3; --dim: #8b98a5; --faint: #5c6773;
+    --up: #f0616d; --down: #4a9eff; --accent: #d6a44c;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f6f7f9; --panel: #fff; --line: #e2e6ea;
+      --fg: #1a1f26; --dim: #5c6773; --faint: #93a1af;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
+                 "Pretendard", "Malgun Gothic", sans-serif;
+    line-height: 1.6; padding: 24px 16px 80px;
+  }
+  .wrap { max-width: 780px; margin: 0 auto; }
+  h1 { font-size: 19px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.3px; }
+  .sub { color: var(--dim); font-size: 13px; margin-bottom: 20px; }
+
+  form { display: flex; gap: 8px; margin-bottom: 12px; }
+  input {
+    flex: 1; padding: 14px 16px; font-size: 16px; border-radius: 10px;
+    border: 1px solid var(--line); background: var(--panel); color: var(--fg);
+  }
+  input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  button {
+    padding: 0 22px; font-size: 15px; font-weight: 600; border: 0;
+    border-radius: 10px; background: var(--accent); color: #1a1205; cursor: pointer;
+  }
+  button:disabled { opacity: .5; cursor: default; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 24px; }
+  .chip {
+    padding: 5px 11px; font-size: 12.5px; border-radius: 999px; cursor: pointer;
+    border: 1px solid var(--line); background: transparent; color: var(--dim);
+  }
+  .chip:hover { color: var(--fg); border-color: var(--faint); }
+
+  .card {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 14px; padding: 20px; margin-bottom: 14px;
+  }
+  .ticker { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .tname { font-size: 20px; font-weight: 700; }
+  .tcode { color: var(--faint); font-size: 13px; font-variant-numeric: tabular-nums; }
+  .tprice { margin-left: auto; font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .tchg { font-size: 14px; font-variant-numeric: tabular-nums; }
+  .up { color: var(--up); } .down { color: var(--down); } .flat { color: var(--dim); }
+
+  .answer { font-size: 17px; font-weight: 600; line-height: 1.55; margin: 0 0 14px; }
+  .reason { display: flex; gap: 10px; padding: 9px 0; border-top: 1px solid var(--line); }
+  .rpoint { flex: 0 0 108px; font-size: 13px; font-weight: 600; color: var(--accent); }
+  .rdetail { flex: 1; font-size: 14px; color: var(--fg); }
+
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  .tag {
+    font-size: 12px; padding: 4px 10px; border-radius: 6px;
+    background: var(--bg); border: 1px solid var(--line); color: var(--dim);
+  }
+
+  h2 { font-size: 13px; font-weight: 700; color: var(--dim); margin: 0 0 12px;
+       text-transform: uppercase; letter-spacing: .6px; }
+
+  .bar { display: flex; height: 30px; border-radius: 7px; overflow: hidden;
+         background: var(--bg); margin-bottom: 12px; }
+  .seg { display: flex; align-items: center; justify-content: center;
+         font-size: 11.5px; font-weight: 700; color: #0e1116; min-width: 2px; }
+  .legend { display: grid; gap: 7px; }
+  .lrow { display: flex; align-items: center; gap: 9px; font-size: 13.5px; }
+  .dot { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+  .lname { flex: 1; }
+  .lval { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .lshare { color: var(--faint); font-size: 12px; width: 42px; text-align: right;
+            font-variant-numeric: tabular-nums; }
+
+  ul.signals { list-style: none; padding: 0; margin: 0; }
+  ul.signals li { font-size: 13.5px; color: var(--dim); padding: 6px 0 6px 14px;
+                  position: relative; }
+  ul.signals li::before { content: "·"; position: absolute; left: 2px; color: var(--accent); }
+
+  .news a { display: flex; gap: 10px; padding: 8px 0; text-decoration: none;
+            color: var(--fg); border-top: 1px solid var(--line); font-size: 13.5px; }
+  .news a:first-child { border-top: 0; }
+  .news a:hover .ntitle { color: var(--accent); }
+  .ntime { color: var(--faint); font-variant-numeric: tabular-nums; flex: none; }
+  .ntitle { flex: 1; }
+  .ncat { color: var(--faint); font-size: 11.5px; flex: none; }
+
+  .status { text-align: center; color: var(--dim); padding: 36px 0; font-size: 14px; }
+  .err { color: var(--up); }
+  .spin { display: inline-block; width: 15px; height: 15px; vertical-align: -2px;
+          border: 2px solid var(--line); border-top-color: var(--accent);
+          border-radius: 50%; animation: r .7s linear infinite; margin-right: 8px; }
+  @keyframes r { to { transform: rotate(360deg); } }
+  .foot { color: var(--faint); font-size: 11.5px; text-align: center; margin-top: 24px;
+          line-height: 1.7; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>장중 시세 원인 분석</h1>
+  <div class="sub">종목을 입력하면 오늘 왜 그렇게 움직이는지 즉답합니다.</div>
+
+  <form id="f">
+    <input id="q" placeholder="종목명 또는 코드 (예: 삼성전자, 005930)" autocomplete="off" autofocus>
+    <button type="submit" id="go">분석</button>
+  </form>
+  <div class="chips" id="chips"></div>
+
+  <div id="out"></div>
+
+  <div class="foot">
+    시세·뉴스는 네이버 금융에서 수집하며 지연될 수 있습니다.<br>
+    이 결과는 정보 제공용 분석이며 투자 판단의 근거로 삼지 마십시오.
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const out = $('#out'), form = $('#f'), qEl = $('#q'), goEl = $('#go');
+
+const SAMPLES = ['삼성전자', 'SK하이닉스', '한화오션', 'LG에너지솔루션', '알테오젠', 'HD현대일렉트릭'];
+$('#chips').innerHTML = SAMPLES.map(s => `<button type="button" class="chip">${s}</button>`).join('');
+$('#chips').addEventListener('click', e => {
+  if (!e.target.classList.contains('chip')) return;
+  qEl.value = e.target.textContent;
+  form.requestSubmit();
+});
+
+const nf = n => n == null ? '-' : n.toLocaleString('ko-KR');
+const cls = v => v > 0 ? 'up' : v < 0 ? 'down' : 'flat';
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+form.addEventListener('submit', async e => {
+  e.preventDefault();
+  const q = qEl.value.trim();
+  if (!q) return;
+  goEl.disabled = true;
+  out.innerHTML = `<div class="status"><span class="spin"></span>${esc(q)} 분석 중…</div>`;
+  try {
+    const r = await fetch(`/api/why?q=${encodeURIComponent(q)}`);
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || `HTTP ${r.status}`);
+    render(data);
+  } catch (err) {
+    out.innerHTML = `<div class="status err">분석 실패: ${esc(err.message)}</div>`;
+  } finally {
+    goEl.disabled = false;
+  }
+});
+
+function render(d) {
+  const q = d.quote, a = d.attribution, c = a.components, exp = d.explanation;
+  const parts = [];
+
+  // 시세 헤더
+  parts.push(`<div class="card">
+    <div class="ticker">
+      <span class="tname">${esc(q.name)}</span>
+      <span class="tcode">${esc(q.code)} · ${esc(q.market)}${q.sector_name ? ' · ' + esc(q.sector_name) : ''}</span>
+      <span class="tprice ${cls(q.change_rate)}">${nf(q.price)}</span>
+    </div>
+    <div class="tchg ${cls(q.change_rate)}" style="text-align:right">
+      ${q.change > 0 ? '+' : ''}${nf(q.change)} (${q.change_rate > 0 ? '+' : ''}${q.change_rate.toFixed(2)}%)
+    </div>
+  </div>`);
+
+  // 즉답
+  const answer = exp && exp.answer ? exp.answer : a.headline;
+  let body = `<div class="card"><p class="answer">${esc(answer)}</p>`;
+  if (exp && exp.reasons) {
+    for (const r of exp.reasons) {
+      body += `<div class="reason"><div class="rpoint">${esc(r.point)}</div><div class="rdetail">${esc(r.detail)}</div></div>`;
+    }
+  }
+  const tags = [];
+  if (exp && exp.catalyst) tags.push(`촉발 재료: ${exp.catalyst}`);
+  if (exp && exp.watch) tags.push(`체크: ${exp.watch}`);
+  tags.push(`주도 요인: ${a.driver_label}`);
+  tags.push(`확신도: ${exp && exp.confidence ? exp.confidence : a.confidence}`);
+  body += `<div class="meta">${tags.map(t => `<span class="tag">${esc(t)}</span>`).join('')}</div></div>`;
+  parts.push(body);
+
+  // 등락률 분해
+  const comps = [
+    ['시장', c.market, '#4a9eff'],
+    ['업종초과', c.sector, '#d6a44c'],
+    ['종목고유', c.idiosyncratic, '#5ec98a'],
+  ];
+  const segs = comps.map(([n, o, col]) =>
+    o.share > 0.02 ? `<div class="seg" style="width:${(o.share*100).toFixed(1)}%;background:${col}">${o.share > .12 ? n : ''}</div>` : ''
+  ).join('');
+  const legend = comps.map(([n, o, col]) => `<div class="lrow">
+      <span class="dot" style="background:${col}"></span>
+      <span class="lname">${n}</span>
+      <span class="lval ${cls(o.value)}">${o.value > 0 ? '+' : ''}${o.value.toFixed(2)}%p</span>
+      <span class="lshare">${(o.share*100).toFixed(0)}%</span>
+    </div>`).join('');
+  parts.push(`<div class="card"><h2>등락률 분해</h2>
+    <div class="bar">${segs}</div><div class="legend">${legend}</div>
+    <div class="meta">
+      <span class="tag">${esc(d.context.index_name)} ${d.context.index_rate != null ? (d.context.index_rate > 0 ? '+' : '') + d.context.index_rate.toFixed(2) + '%' : '-'}</span>
+      ${d.context.sector_rate != null ? `<span class="tag">업종 ${(d.context.sector_rate > 0 ? '+' : '') + d.context.sector_rate.toFixed(2)}%</span>` : ''}
+      ${d.context.peers.map(p => `<span class="tag">${esc(p.name)} ${(p.change_rate > 0 ? '+' : '') + p.change_rate.toFixed(2)}%</span>`).join('')}
+    </div></div>`);
+
+  // 정황
+  if (a.signals.length) {
+    parts.push(`<div class="card"><h2>정황</h2><ul class="signals">
+      ${a.signals.map(s => `<li>${esc(s.text)}</li>`).join('')}</ul></div>`);
+  }
+
+  // 뉴스
+  if (d.news && d.news.length) {
+    parts.push(`<div class="card"><h2>관련 뉴스</h2><div class="news">
+      ${d.news.slice(0, 10).map(n => `<a href="${esc(n.url || '#')}" target="_blank" rel="noopener">
+        <span class="ntime">${esc(n.time)}</span>
+        <span class="ntitle">${esc(n.title)}</span>
+        <span class="ncat">${esc((n.categories || []).join('/'))}</span></a>`).join('')}
+    </div></div>`);
+  }
+
+  out.innerHTML = parts.join('');
+}
+</script>
+</body>
+</html>
