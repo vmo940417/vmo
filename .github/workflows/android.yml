@@ -10,6 +10,9 @@ on:
       - ".github/workflows/android.yml"
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -45,3 +48,21 @@ jobs:
           path: android/out/stockwhy.apk
           if-no-files-found: error
           retention-days: 90
+
+      # 릴리스에도 올린다. 아티팩트는 zip 으로 감싸여 있고 로그인해야 받을 수 있어
+      # 폰에서 설치하기 불편하다. 릴리스 자산은 raw .apk 라 링크를 탭하면 바로 받는다.
+      - name: Publish to rolling release
+        if: github.ref == 'refs/heads/claude/stock-price-analysis-app-i9ddfj'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete apk-latest --yes --cleanup-tag 2>/dev/null || true
+          gh release create apk-latest android/out/stockwhy.apk \
+            --title "왜 움직여 — 최신 APK" \
+            --prerelease \
+            --notes "커밋 \`${GITHUB_SHA:0:7}\` 빌드.
+
+          **설치**: 아래 \`stockwhy.apk\` 를 폰에서 받아 실행하세요.
+          '출처를 알 수 없는 앱' 설치를 한 번 허용해야 합니다.
+
+          서명되지 않은 디버그 빌드라 Play 스토어를 거치지 않습니다."
