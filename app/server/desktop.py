@@ -1,0 +1,262 @@
+"""데스크톱 앱 — 터미널 없이 아이콘만 눌러서 쓰는 버전.
+
+PowerShell 을 열고 명령을 치는 과정 자체가 이 앱을 매일 쓰는 데 가장 큰 걸림돌이다.
+그래서 .exe 하나로 묶어 더블클릭만 하면 되게 만든다. 실행하면:
+
+  1. 127.0.0.1 에만 서버를 띄우고 (외부에서 접근 불가)
+  2. 기본 브라우저로 화면을 열고
+  3. 작은 창 하나를 남겨 상태 표시 / 설정 / 종료를 제공한다
+
+화면 자체는 브라우저를 쓴다. 창 안에 웹뷰를 심으려면 외부 패키지(pywebview 등)가
+필요한데, 그러면 사내 PC 에서 설치가 막히거나 백신에 걸릴 확률이 올라간다.
+표준 라이브러리(tkinter)만으로 껍데기를 만들고 화면은 브라우저에 맡기면
+의존성이 늘지 않는다.
+
+    python -m server.desktop           # 소스에서 실행
+    stockwhy.exe                       # 묶은 실행 파일
+
+서버는 lite.py 를 그대로 쓴다. FastAPI/uvicorn 은 컴파일 확장을 끌고 와서
+실행 파일이 무거워지고 백신 오탐도 늘어난다.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import socket
+import sys
+import threading
+import urllib.error
+import urllib.request
+import webbrowser
+from http.server import ThreadingHTTPServer
+from typing import Optional
+
+from .config import (
+    access_token,
+    has_api_key,
+    load_env,
+    model_name,
+    save_user_env,
+    setup_tls,
+    user_env_path,
+)
+from .lite import make_server
+
+HOST = "127.0.0.1"
+# 매번 같은 주소여야 즐겨찾기가 유지된다. 이미 쓰는 프로그램이 있으면 다음 번호로.
+PORTS = (8765, 8766, 8767, 8768)
+TITLE = "장중 시세 원인 분석"
+
+
+# --------------------------------------------------------------------------
+# 서버 기동
+# --------------------------------------------------------------------------
+
+def _health(port: int, timeout: float = 0.8) -> Optional[dict]:
+    """그 포트에 떠 있는 게 이 앱인지 확인한다."""
+    try:
+        with urllib.request.urlopen(
+                f"http://{HOST}:{port}/api/health", timeout=timeout) as r:
+            data = json.loads(r.read().decode("utf-8"))
+        return data if isinstance(data, dict) and data.get("ok") else None
+    except (urllib.error.URLError, OSError, ValueError, json.JSONDecodeError):
+        return None
+
+
+def _in_use(port: int) -> bool:
+    with socket.socket() as s:
+        s.settimeout(0.3)
+        return s.connect_ex((HOST, port)) == 0
+
+
+def find_port() -> tuple[Optional[int], Optional[int]]:
+    """(새로 띄울 포트, 이미 떠 있는 우리 앱의 포트).
+
+    아이콘을 두 번 눌렀을 때 두 번째 인스턴스가 조용히 실패하는 대신, 먼저 떠
+    있는 창의 주소를 열어주기 위해 구분한다.
+    """
+    for port in PORTS:
+        if not _in_use(port):
+            return port, None
+        if _health(port):
+            return None, port          # 이미 우리 앱이 떠 있다
+    return None, None                  # 전부 남이 쓰는 중
+
+
+def start_server(port: int) -> tuple[ThreadingHTTPServer, threading.Thread]:
+    httpd = make_server(port, HOST)
+    thread = threading.Thread(target=httpd.serve_forever, daemon=True, name="stockwhy-http")
+    thread.start()
+    return httpd, thread
+
+
+def app_url(port: int) -> str:
+    token = access_token()
+    return f"http://{HOST}:{port}/" + (f"?t={token}" if token else "")
+
+
+# --------------------------------------------------------------------------
+# 창
+# --------------------------------------------------------------------------
+
+BG = "#0e1116"
+FG = "#e6e9ef"
+DIM = "#8b93a1"
+ACCENT = "#d6a44c"
+
+
+class Window:
+    """상태 표시 + 설정 + 종료.
+
+    분석 화면이 아니다. 브라우저를 닫아도 서버는 계속 돌아야 하고, 그걸 끄는
+    수단이 어딘가에는 있어야 한다. 콘솔 없이 띄우면 Ctrl+C 를 쓸 수 없어서
+    작업 관리자로 죽이는 것 말고는 방법이 없어지기 때문이다.
+    """
+
+    def __init__(self, tk, port: int, httpd: Optional[ThreadingHTTPServer] = None):
+        self.tk = tk
+        self.port = port
+        self.httpd = httpd
+        self.root = tk.Tk()
+        self.root.title(TITLE)
+        self.root.configure(bg=BG)
+        self.root.geometry("460x430")
+        self.root.minsize(420, 400)
+        self._build()
+        self.root.protocol("WM_DELETE_WINDOW", self.quit)
+
+    # -- 구성 -------------------------------------------------------------
+
+    def _label(self, parent, text, size=10, color=FG, **kw):
+        return self.tk.Label(parent, text=text, bg=BG, fg=color,
+                             font=("Malgun Gothic", size), **kw)
+
+    def _build(self) -> None:
+        tk = self.tk
+        pad = {"padx": 20}
+
+        self._label(self.root, TITLE, size=14).pack(anchor="w", pady=(18, 2), **pad)
+        self._label(self.root, app_url(self.port), size=9, color=ACCENT).pack(anchor="w", **pad)
+
+        row = tk.Frame(self.root, bg=BG)
+        row.pack(anchor="w", pady=(14, 6), **pad)
+        tk.Button(row, text="앱 열기", command=self.open_browser, width=12).pack(side="left")
+        tk.Button(row, text="종료", command=self.quit, width=10).pack(side="left", padx=(8, 0))
+
+        tk.Frame(self.root, bg="#252a33", height=1).pack(fill="x", pady=(12, 12), **pad)
+
+        self._label(self.root, "설정", size=11).pack(anchor="w", **pad)
+        self._label(self.root,
+                    "키를 비워두면 규칙 기반 분석만 합니다.\n"
+                    "분해·타이밍·수급·뉴스는 키 없이도 그대로 나옵니다.",
+                    size=8, color=DIM, justify="left").pack(anchor="w", pady=(2, 8), **pad)
+
+        self.fields: dict[str, object] = {}
+        for key, label, show in (
+            ("ANTHROPIC_API_KEY", "Claude API 키", "•"),
+            ("STOCKWHY_MODEL", "모델 (비우면 claude-sonnet-5)", None),
+            ("STOCKWHY_CA_BUNDLE", "회사 CA 인증서 경로 (선택)", None),
+        ):
+            self._label(self.root, label, size=9, color=DIM).pack(anchor="w", **pad)
+            entry = tk.Entry(self.root, width=52, show=show or "")
+            entry.insert(0, os.getenv(key, ""))
+            entry.pack(anchor="w", pady=(0, 8), **pad)
+            self.fields[key] = entry
+
+        save = tk.Frame(self.root, bg=BG)
+        save.pack(anchor="w", **pad)
+        tk.Button(save, text="설정 저장", command=self.save, width=12).pack(side="left")
+        self.status = self._label(save, "", size=8, color=DIM)
+        self.status.pack(side="left", padx=(10, 0))
+
+        self.footer = self._label(self.root, self._footer(), size=8, color=DIM, justify="left")
+        self.footer.pack(anchor="w", pady=(14, 0), **pad)
+
+    def _footer(self) -> str:
+        return (f"LLM  {model_name() if has_api_key() else '미사용 — 규칙 기반'}\n"
+                f"TLS  {setup_tls()}")
+
+    # -- 동작 -------------------------------------------------------------
+
+    def open_browser(self) -> None:
+        webbrowser.open(app_url(self.port))
+
+    def save(self) -> None:
+        values = {k: e.get() for k, e in self.fields.items()}  # type: ignore[attr-defined]
+        try:
+            path = save_user_env(values)
+        except OSError as e:
+            self.status.config(text=f"저장 실패: {e}")
+            return
+        # 키·모델은 다음 질의부터 바로 먹는다. CA 번들은 TLS 초기화 시점이
+        # 지나서 재시작해야 적용된다 — 그걸 알려주지 않으면 안 먹는 줄 안다.
+        note = " (인증서는 재시작 후 적용)" if values.get("STOCKWHY_CA_BUNDLE") else ""
+        self.status.config(text=f"저장됨 · {path.name}{note}")
+        self.footer.config(text=self._footer())
+
+    def quit(self) -> None:
+        if self.httpd is not None:
+            # shutdown() 은 serve_forever 루프가 멈출 때까지 블록한다. 창을 닫는
+            # 스레드에서 부르면 화면이 잠깐 굳으므로 따로 돌린다.
+            threading.Thread(target=self.httpd.shutdown, daemon=True).start()
+        self.root.destroy()
+
+    def run(self) -> None:
+        self.root.mainloop()
+
+
+# --------------------------------------------------------------------------
+
+def main() -> int:
+    load_env()
+    setup_tls()
+
+    port, running = find_port()
+
+    if running is not None:
+        # 이미 떠 있다. 창을 하나 더 띄우지 말고 그 주소를 열어준다.
+        webbrowser.open(app_url(running))
+        return 0
+    if port is None:
+        _fatal(f"{PORTS[0]}~{PORTS[-1]} 포트를 모두 다른 프로그램이 쓰고 있습니다.")
+        return 1
+
+    httpd, thread = start_server(port)
+
+    try:
+        import tkinter as tk
+    except ImportError:
+        # tkinter 가 없는 환경(리눅스 최소 설치 등)에서는 창 없이 서버만 돌린다.
+        print(f"{TITLE}  {app_url(port)}  (Ctrl+C 로 종료)")
+        webbrowser.open(app_url(port))
+        try:
+            thread.join()
+        except KeyboardInterrupt:
+            httpd.shutdown()
+        return 0
+
+    window = Window(tk, port, httpd)
+    # 창이 먼저 보이고 나서 브라우저가 뜨는 편이 자연스럽다.
+    window.root.after(300, window.open_browser)
+    window.run()
+    return 0
+
+
+def _fatal(message: str) -> None:
+    """콘솔이 없을 수도 있으니 창으로도 알린다."""
+    try:
+        import tkinter as tk
+        from tkinter import messagebox
+        root = tk.Tk()
+        root.withdraw()
+        messagebox.showerror(TITLE, message)
+        root.destroy()
+    except Exception:  # noqa: BLE001
+        pass
+    if sys.stderr is not None:
+        print(message, file=sys.stderr)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

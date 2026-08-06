@@ -6,3 +6,8 @@ venv/
 .env
 .DS_Store
 .usage.jsonl
+
+# PyInstaller (데스크톱 앱 빌드 산출물)
+build/
+dist/
+*.manifest

@@ -2,12 +2,17 @@
 
 국내 주식 종목을 입력하면 **오늘 왜 그렇게 움직이는지** 즉답하는 앱.
 
-두 가지 형태로 쓸 수 있다.
+네 가지 형태로 쓸 수 있다. 앞의 둘은 설치나 터미널이 필요 없다.
 
-| | 형태 | 셋업 | 데이터 |
-|---|---|---|---|
-| **웹앱** | 브라우저 입력창 | Python + API 키 | 네이버 금융 |
-| **스킬** | Claude 대화창 | 없음 | 세션에 연결된 MCP |
+| | 형태 | 셋업 |
+|---|---|---|
+| **윈도우 앱** | `stockwhy.exe` 더블클릭 | 없음 |
+| **안드로이드 앱** | `stockwhy.apk` 설치 | 없음 |
+| **웹앱** | 브라우저 입력창 | Python |
+| **스킬** | Claude 대화창 | 없음 (MCP 사용) |
+
+API 키는 어느 쪽이든 선택이다 — 없으면 분해·타이밍·수급·뉴스까지 규칙 기반으로
+나오고, 키를 넣으면 LLM 이 뉴스를 읽고 원인에 이름을 붙이는 한 겹이 추가된다.
 
 ---
 
@@ -76,7 +81,38 @@
 
 ---
 
-## 웹앱 실행
+## 설치 없이 쓰기 (권장)
+
+터미널을 여는 것 자체가 매일 쓰는 데 가장 큰 걸림돌이라, 양쪽 다 **더블클릭만
+하면 되는** 형태로 따로 만들어 두었다. 파이썬도, PowerShell 도 필요 없다.
+
+| | 받는 곳 | 비고 |
+|---|---|---|
+| **윈도우 데스크톱** | [릴리스의 `stockwhy.exe`](https://github.com/vmo940417/vmo/releases/tag/desktop-latest) | 받아서 더블클릭 |
+| **안드로이드** | [릴리스의 `stockwhy.apk`](https://github.com/vmo940417/vmo/releases/tag/apk-latest) | 폰에서 받아 설치 |
+
+### 윈도우 데스크톱 앱
+
+`stockwhy.exe` 를 실행하면 작은 창이 뜨고 브라우저에 분석 화면이 열린다.
+
+- 서버는 **127.0.0.1 에만** 연다. 같은 사내망의 다른 PC 에서는 접근할 수 없다
+- API 키·모델·회사 CA 인증서 경로는 창에서 입력해 저장한다
+  (`%APPDATA%\stockwhy\.env`. 실행 파일은 임시 폴더에 풀렸다 지워지므로
+  그 옆에 저장하면 매번 날아간다)
+- 창을 닫으면 서버도 함께 멈춘다. 브라우저 탭만 닫는 것으로는 안 꺼진다
+- 아이콘을 두 번 눌러도 창이 둘 뜨지 않는다 — 이미 떠 있는 쪽을 찾아 연다
+
+처음 실행하면 **Windows SmartScreen 이 '알 수 없는 게시자'라며 막는다.** 코드
+서명 인증서가 없어서 나는 정상적인 경고다(안드로이드의 Play Protect 경고와 같은
+성격이다). `추가 정보` → `실행` 을 누르면 된다. 사내 백신이 PyInstaller 로 묶은
+실행 파일을 격리하는 경우도 있는데, 그건 아래 소스 실행 방식으로 우회할 수 있다.
+
+빌드는 GitHub Actions 의 윈도우 러너가 한다(`.github/workflows/windows.yml`).
+개발 환경이 리눅스라 윈도우 실행 파일을 여기서 만들 수 없기 때문이다.
+
+---
+
+## 소스에서 실행
 
 ```bash
 cd app
@@ -97,6 +133,9 @@ python -m server.cli --selftest
 # 웹 서버
 uvicorn server.main:app --port 8000
 # -> http://localhost:8000
+
+# 데스크톱 앱(창 + 브라우저)을 소스에서 그대로
+python -m server.desktop
 
 # 터미널에서 바로
 python -m server.cli 삼성전자
@@ -314,7 +353,8 @@ app/
     pipeline.py                수집 -> 분해 -> 서술
     cli.py                     CLI + serve + --selftest + --usage
     main.py                    FastAPI (PC용)
-    lite.py                    표준 라이브러리 서버 (폰/Termux용)
+    lite.py                    표준 라이브러리 서버 (폰/데스크톱 앱용)
+    desktop.py                 데스크톱 앱 (터미널 없이 창 + 브라우저)
     providers/naver.py         네이버 수집 (다중 엔드포인트 폴백)
     analysis/
       attribution.py           등락률 분해, 타이밍 판별, 뉴스 스코어링
@@ -324,15 +364,20 @@ app/
       manifest.webmanifest     PWA
       sw.js                    서비스 워커 (시세는 캐시 안 함)
       icons/                   앱 아이콘
+  packaging/
+    stockwhy.spec              PyInstaller 빌드 정의 (윈도우 .exe)
+    entry.py                   실행 파일 진입점
+    stockwhy.ico               윈도우 아이콘
   requirements-lite.txt        폰용 최소 의존성 (httpx 하나)
   tools/make_icons.py          아이콘 생성 (Pillow 필요, 실행에는 불필요)
-  tests/                       183개
-mobile/termux-setup.sh         안드로이드 설치 스크립트
+  tests/                       407개
+android/                       안드로이드 네이티브 앱 (WebView + HTTP 브리지)
+mobile/termux-setup.sh         안드로이드 설치 스크립트 (APK 이전 방식)
 .claude/skills/stock-why/      대화창용 스킬
 ```
 
 ```bash
-cd app && python -m pytest    # 183 passed
+cd app && python -m pytest    # 407 passed
 ```
 
 테스트는 2026-08-06 실제 장중 시세를 픽스처로 쓰고, 네이버 응답은

@@ -136,8 +136,23 @@ class Handler(BaseHTTPRequestHandler):
         self._json(200, result)
 
     def log_message(self, fmt: str, *args) -> None:
-        """기본 로그는 요청마다 두 줄씩 찍혀 폰 화면을 덮는다. 한 줄로 줄인다."""
-        sys.stderr.write(f"  {self.address_string()} {fmt % args}\n")
+        """기본 로그는 요청마다 두 줄씩 찍혀 폰 화면을 덮는다. 한 줄로 줄인다.
+
+        콘솔 없이 뜨는 데스크톱 앱(.exe)에서는 sys.stderr 가 None 이다. 그대로
+        쓰면 요청마다 예외가 나서 앱이 통째로 먹통이 되므로 없으면 그냥 버린다.
+        """
+        stream = sys.stderr
+        if stream is None:
+            return
+        try:
+            stream.write(f"  {self.address_string()} {fmt % args}\n")
+        except Exception:  # noqa: BLE001 - 로그 때문에 응답이 죽으면 안 된다
+            pass
+
+
+def make_server(port: int = 8000, host: str = "0.0.0.0") -> ThreadingHTTPServer:
+    """서버 객체만 만들어 돌려준다. 데스크톱 앱은 이걸 별도 스레드에서 돌린다."""
+    return ThreadingHTTPServer((host, port), Handler)
 
 
 def serve(port: int = 8000, host: str = "0.0.0.0") -> int:
@@ -152,7 +167,7 @@ def serve(port: int = 8000, host: str = "0.0.0.0") -> int:
     print(f"  TLS    {setup_tls()}")
     print("  중지: Ctrl+C\n")
 
-    httpd = ThreadingHTTPServer((host, port), Handler)
+    httpd = make_server(port, host)
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:

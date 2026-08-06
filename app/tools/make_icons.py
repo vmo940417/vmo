@@ -89,6 +89,23 @@ def main() -> None:
     print(f"  {'favicon.png':<26} 64x64")
     print(f"\n-> {OUT}")
 
+    make_ico()
+
+
+def make_ico() -> None:
+    """윈도우 실행 파일용 .ico.
+
+    ICO 는 한 파일에 여러 해상도를 담는다. 작업표시줄(16~32px)과 바탕화면
+    아이콘(48~256px)이 서로 다른 크기를 골라 쓰기 때문에, 큰 것 하나만 넣으면
+    작은 자리에서 뭉개진다.
+    """
+    src = Image.open(OUT / "icon-512.png").convert("RGBA")
+    target = OUT.parents[2] / "packaging" / "stockwhy.ico"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    src.save(target, sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64),
+                            (128, 128), (256, 256)])
+    print(f"-> {target}")
+
 
 if __name__ == "__main__":
     main()

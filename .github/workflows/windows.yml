@@ -1,0 +1,102 @@
+name: Windows 데스크톱 앱
+
+# APK 와 같은 이유로 여기(GitHub 러너)에서 빌드한다. 윈도우 실행 파일은
+# 윈도우에서만 만들 수 있는데 개발 컨테이너는 리눅스다.
+
+on:
+  push:
+    paths:
+      - "app/**"
+      - ".github/workflows/windows.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # lite 서버(표준 라이브러리)로 돌기 때문에 fastapi/uvicorn/anthropic 은
+      # 넣지 않는다. 실행 파일이 작아지고 백신 오탐도 준다.
+      - name: Install build deps
+        working-directory: app
+        run: |
+          python -m pip install --upgrade pip
+          pip install httpx python-dotenv truststore pyinstaller
+
+      - name: Build exe
+        working-directory: app
+        run: pyinstaller --clean --noconfirm packaging/stockwhy.spec
+
+      # 서버가 실제로 뜨고 응답하는지 확인한다. 실행 파일은 소스와 달리
+      # 리소스 경로가 달라져서 "빌드는 됐는데 화면이 404" 가 흔한 실패다.
+      - name: Smoke test
+        working-directory: app
+        shell: pwsh
+        run: |
+          $exe = Start-Process -FilePath dist\stockwhy.exe -PassThru
+          try {
+            $ok = $false
+            foreach ($i in 1..30) {
+              Start-Sleep -Seconds 2
+              foreach ($port in 8765,8766,8767,8768) {
+                try {
+                  $h = Invoke-RestMethod "http://127.0.0.1:$port/api/health" -TimeoutSec 2
+                  if ($h.ok) {
+                    Write-Host "health: $($h | ConvertTo-Json -Compress)"
+                    $page = Invoke-WebRequest "http://127.0.0.1:$port/" -TimeoutSec 5
+                    if ($page.StatusCode -ne 200) { throw "index 응답 $($page.StatusCode)" }
+                    if ($page.Content -notmatch '등락률 분해|왜 움직') { throw "index 내용이 앱 화면이 아님" }
+                    $icon = Invoke-WebRequest "http://127.0.0.1:$port/static/icons/favicon.png" -TimeoutSec 5
+                    if ($icon.StatusCode -ne 200) { throw "정적 파일이 안 묶임" }
+                    $ok = $true
+                  }
+                } catch [System.Net.WebException] { }
+                if ($ok) { break }
+              }
+              if ($ok) { break }
+            }
+            if (-not $ok) { throw "실행 파일이 서버를 띄우지 못했습니다" }
+            Write-Host "스모크 테스트 통과"
+          } finally {
+            Stop-Process -Id $exe.Id -Force -ErrorAction SilentlyContinue
+          }
+
+      - name: Upload exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: stockwhy-windows
+          path: app/dist/stockwhy.exe
+          if-no-files-found: error
+          retention-days: 90
+
+      # 릴리스에 올려 링크 하나로 받게 한다. 아티팩트는 로그인해야 받을 수 있고
+      # zip 으로 감싸여 있어서 "받아서 더블클릭" 이 안 된다.
+      - name: Publish to rolling release
+        if: github.ref == 'refs/heads/claude/stock-price-analysis-app-i9ddfj'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh release delete desktop-latest --yes --cleanup-tag 2>/dev/null || true
+          gh release create desktop-latest app/dist/stockwhy.exe \
+            --title "왜 움직여 — 윈도우 데스크톱 앱" \
+            --prerelease \
+            --notes "커밋 \`${GITHUB_SHA:0:7}\` 빌드.
+
+          **설치 없음**: \`stockwhy.exe\` 를 받아서 더블클릭하면 됩니다.
+          PowerShell 도, 파이썬 설치도 필요 없습니다.
+
+          처음 실행하면 Windows SmartScreen 이 '알 수 없는 게시자'라고 막습니다.
+          코드 서명 인증서가 없어서 나는 정상적인 경고입니다.
+          '추가 정보' -> '실행'을 누르세요.
+
+          서버는 127.0.0.1 에만 열리므로 다른 PC 에서는 접근할 수 없습니다."
