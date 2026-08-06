@@ -110,6 +110,43 @@ GET /api/health
 | `STOCKWHY_TOKEN` | (없음) | 설정하면 `/api` 호출에 토큰을 요구한다. **공개 터널로 열 거면 필수.** |
 | `STOCKWHY_CA_BUNDLE` | (없음) | 회사 루트 인증서 `.pem` 경로. truststore 로도 안 될 때만. |
 | `STOCKWHY_TLS` | (없음) | `certifi` 로 두면 OS 인증서 저장소를 쓰지 않는다. |
+| `STOCKWHY_USD_KRW` | `1400` | 비용 표시용 환율. 청구액이 아니라 감을 잡기 위한 근사값. |
+| `STOCKWHY_USAGE_LOG` | `app/.usage.jsonl` | 사용량 기록 파일 경로. |
+
+---
+
+## 비용
+
+**API 키 없이도 앱은 완전히 돌아간다.** 등락률 분해, 타이밍 판별, 정황 신호,
+뉴스 수집·스코어링은 전부 규칙 기반이라 비용이 0이다. 키를 넣으면 **뉴스를 읽고
+원인에 이름을 붙이는 서술** 한 겹이 추가되고, 그 부분만 과금된다.
+
+비용은 **추정하지 않는다.** 한국어는 영어보다 토큰을 훨씬 많이 먹어서 어림짐작이
+몇 배씩 틀린다. API 응답의 `usage` 값을 그대로 받아 계산하고, 질의마다 화면에
+찍는다.
+
+```
+[비용] 2,143 in / 587 out 토큰 · $0.0102 (약 14원) · 도입가 적용중 (~2026-08-31)
+```
+
+누적은 `app/.usage.jsonl` 에 한 줄씩 쌓이고, 합계는 이렇게 본다.
+
+```bash
+python -m server.cli --usage
+```
+
+```
+  오늘           13회 · 27,859 in / 7,631 out · $0.1320 (약 185원) · 평균 $0.0102/회
+  이 사용 패턴이면 월 예상 $2.90 (약 4,066원) — 1일 사용 기준, 월 22거래일 환산
+```
+
+웹앱에서는 시세 카드에 1회 비용이, 하단에 누적과 월 예상치가 표시된다
+(`GET /api/usage`).
+
+**요금표는 `pricing.py` 한 곳에 있고, 도입가 만료일을 넘기면 자동으로 정가로
+넘어간다** — 날짜를 넘겨서 계산하므로 코드를 고칠 필요가 없다. 요금표에 없는
+모델은 비용을 `null` 로 두고 누적에서도 뺀다. 모르는 값을 0원으로 표시하면 공짜인
+줄 알게 되고, 합계가 조용히 거짓말을 하기 때문이다.
 
 ---
 
@@ -230,10 +267,12 @@ cloudflared tunnel --url http://localhost:8000
 app/
   server/
     models.py                  도메인 모델
-    config.py                  .env 로딩, 토큰
+    config.py                  .env 로딩, 토큰, TLS
     peers.py                   업종/테마별 대표 종목 맵
+    pricing.py                 모델 요금표, 실측 토큰 기반 비용 계산
+    usage.py                   사용량 누적 기록(JSONL) + 합산
     pipeline.py                수집 -> 분해 -> 서술
-    cli.py                     CLI + serve + --selftest 진단
+    cli.py                     CLI + serve + --selftest + --usage
     main.py                    FastAPI
     providers/naver.py         네이버 수집 (다중 엔드포인트 폴백)
     analysis/
@@ -245,12 +284,12 @@ app/
       sw.js                    서비스 워커 (시세는 캐시 안 함)
       icons/                   앱 아이콘
   tools/make_icons.py          아이콘 생성 (Pillow 필요, 실행에는 불필요)
-  tests/                       100개
+  tests/                       152개
 .claude/skills/stock-why/      대화창용 스킬
 ```
 
 ```bash
-cd app && python -m pytest    # 100 passed
+cd app && python -m pytest    # 152 passed
 ```
 
 테스트는 2026-08-06 실제 장중 시세를 픽스처로 쓰고, 네이버 응답은

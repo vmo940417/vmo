@@ -154,6 +154,8 @@
 
   <div id="out"></div>
 
+  <div class="foot" id="usage"></div>
+
   <div class="foot">
     시세·뉴스는 네이버 금융에서 수집하며 지연될 수 있습니다.<br>
     이 결과는 정보 제공용 분석이며 투자 판단의 근거로 삼지 마십시오.
@@ -185,6 +187,14 @@ const token = () => { try { return localStorage.getItem(TOKEN_KEY); } catch (e) 
 
 const nf = n => n == null ? '-' : n.toLocaleString('ko-KR');
 const cls = v => v > 0 ? 'up' : v < 0 ? 'down' : 'flat';
+
+// 이번 질의에 실제로 든 토큰과 비용. 추정이 아니라 API 응답의 usage 값이다.
+function costLabel(c) {
+  if (!c) return ' · LLM 미사용';
+  const tok = `${nf(c.input_tokens)}+${nf(c.output_tokens)} 토큰`;
+  if (c.usd == null) return ` · ${tok}`;
+  return ` · ${tok} · ${Math.round(c.krw)}원`;
+}
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
 form.addEventListener('submit', async e => {
@@ -225,7 +235,7 @@ function render(d) {
       ${q.change > 0 ? '+' : ''}${nf(q.change)} (${q.change_rate > 0 ? '+' : ''}${q.change_rate.toFixed(2)}%)
     </div>
     <div class="stamp">
-      <span>${esc((d.as_of || '').slice(11, 16))} 기준 · ${d.elapsed_ms}ms</span>
+      <span>${esc((d.as_of || '').slice(11, 16))} 기준 · ${d.elapsed_ms}ms${costLabel(d.cost)}</span>
       <button type="button" class="refresh" id="rf">새로고침</button>
     </div>
   </div>`);
@@ -288,6 +298,27 @@ function render(d) {
   out.innerHTML = parts.join('');
   const rf = document.getElementById('rf');
   if (rf) rf.addEventListener('click', () => form.requestSubmit());
+  loadUsage();
+}
+
+// 누적 사용량. 1회 비용은 감이 안 오고, 정작 궁금한 건 "이번 달 얼마"다.
+async function loadUsage() {
+  const el = document.getElementById('usage');
+  if (!el) return;
+  try {
+    const tk = token();
+    const r = await fetch('/api/usage', tk ? { headers: { 'X-Token': tk } } : undefined);
+    if (!r.ok) return;
+    const u = await r.json();
+    const [today, , total] = u.buckets;
+    if (!total.calls) return;
+    let line = `누적 ${total.calls}회 · ${nf(Math.round(total.krw))}원`;
+    if (today.calls) line = `오늘 ${today.calls}회 · ${nf(Math.round(today.krw))}원　|　` + line;
+    if (u.projected_monthly_krw) {
+      line += `　|　이 패턴이면 월 ${nf(u.projected_monthly_krw)}원 예상`;
+    }
+    el.textContent = line;
+  } catch (e) { /* 사용량 표시 실패가 분석을 막지 않는다 */ }
 }
 
 // 홈 화면 설치 + 즉시 실행용. 시세는 캐시하지 않는다(sw.js 참고).

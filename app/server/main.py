@@ -17,6 +17,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Query
 from fastapi.responses import FileResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
+from . import usage
 from .config import access_token, has_api_key, load_env, model_name, setup_tls
 from .pipeline import NotFound, diagnose, render_text
 
@@ -91,6 +92,12 @@ async def why(
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:  # noqa: BLE001
         raise HTTPException(status_code=502, detail=f"{type(e).__name__}: {e}") from e
+
+
+@app.get("/api/usage", dependencies=[Depends(require_token)])
+async def usage_summary() -> dict:
+    """LLM 토큰/비용 누적 사용량."""
+    return usage.summarize()
 
 
 @app.get("/api/why.txt", response_class=PlainTextResponse,

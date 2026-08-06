@@ -7,10 +7,12 @@ import os
 from datetime import datetime
 from typing import Any, Optional
 
+from . import usage
 from .analysis import llm
 from .analysis.attribution import analyze, score_news
 from .models import NewsItem, Quote
 from .peers import peers_for, theme_of
+from .pricing import cost_of, format_cost
 from .providers.naver import NaverProvider, build_context
 
 
@@ -47,8 +49,11 @@ async def diagnose(query: str, use_llm: bool = True,
     ranked_news = score_news(news_items, quote, attribution)
 
     explanation: Optional[dict] = None
+    cost: Optional[dict] = None
     if use_llm:
         explanation = await llm.explain(quote, ctx, attribution, ranked_news, api_key=api_key)
+        cost = _cost_of(explanation)
+        usage.record(query, quote.code, cost)
 
     return {
         "query": query,
@@ -59,8 +64,19 @@ async def diagnose(query: str, use_llm: bool = True,
         "attribution": attribution.as_dict(),
         "news": ranked_news[:15],
         "explanation": explanation,
+        "cost": cost,
         "diagnostics": provider_report,
     }
+
+
+def _cost_of(explanation: Optional[dict]) -> Optional[dict]:
+    """LLM 응답에 실려온 실제 토큰 수로 비용을 낸다(추정 아님)."""
+    if not explanation:
+        return None
+    tokens = explanation.get("_usage")
+    if not tokens:
+        return None   # 호출 실패 등으로 usage 가 없으면 비용도 없다
+    return cost_of(tokens, explanation.get("_model") or "unknown")
 
 
 def _quote_dict(q: Quote) -> dict:
@@ -128,5 +144,8 @@ def render_text(result: dict[str, Any]) -> str:
         out.append("[관련 뉴스]")
         for n in result["news"][:5]:
             out.append(f"  {n['time']}  {n['title']}")
+
+    out.append("")
+    out.append(f"[비용] {format_cost(result.get('cost'))} · {result['elapsed_ms']}ms")
 
     return "\n".join(out)

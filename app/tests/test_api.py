@@ -59,6 +59,52 @@ class TestPipeline:
     async def test_llm_skipped_without_key(self):
         r = await pipeline.diagnose("005930", use_llm=True)
         assert r["explanation"] is None
+        assert r["cost"] is None
+
+    async def test_cost_computed_from_real_usage(self, monkeypatch, tmp_path):
+        """LLM 응답에 실린 토큰 수로 비용이 나오고 기록까지 남아야 한다."""
+        monkeypatch.setenv("STOCKWHY_USAGE_LOG", str(tmp_path / "u.jsonl"))
+
+        async def fake_explain(*a, **k):
+            return {
+                "answer": "시장 전체 하락에 연동",
+                "reasons": [], "catalyst": "확인된 개별 재료 없음",
+                "confidence": "medium", "watch": "외국인 수급",
+                "_model": "claude-sonnet-5",
+                "_usage": {"input_tokens": 2000, "output_tokens": 600},
+            }
+
+        monkeypatch.setattr(pipeline.llm, "explain", fake_explain)
+        r = await pipeline.diagnose("005930", use_llm=True)
+
+        assert r["cost"]["input_tokens"] == 2000
+        assert r["cost"]["usd"] is not None
+        assert r["cost"]["krw"] > 0
+        assert (tmp_path / "u.jsonl").exists(), "사용량이 기록되지 않았다"
+
+    async def test_llm_failure_yields_no_cost(self, monkeypatch):
+        """호출이 실패하면 usage 가 없으므로 비용도 없어야 한다(0원 아님)."""
+        async def failed(*a, **k):
+            return {"error": "APIConnectionError: boom"}
+
+        monkeypatch.setattr(pipeline.llm, "explain", failed)
+        r = await pipeline.diagnose("005930", use_llm=True)
+        assert r["cost"] is None
+
+    async def test_render_text_shows_cost(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("STOCKWHY_USAGE_LOG", str(tmp_path / "u.jsonl"))
+
+        async def fake_explain(*a, **k):
+            return {"answer": "x", "reasons": [], "_model": "claude-sonnet-5",
+                    "_usage": {"input_tokens": 2000, "output_tokens": 600}}
+
+        monkeypatch.setattr(pipeline.llm, "explain", fake_explain)
+        text = pipeline.render_text(await pipeline.diagnose("005930", use_llm=True))
+        assert "[비용]" in text and "토큰" in text
+
+    async def test_render_text_without_llm_says_so(self):
+        text = pipeline.render_text(await pipeline.diagnose("005930", use_llm=False))
+        assert "LLM 미사용" in text
 
     async def test_unknown_symbol_raises(self, monkeypatch):
         def empty(*a, **k):
@@ -105,3 +151,18 @@ class TestHttpApi:
     def test_missing_query_is_422(self):
         with TestClient(app) as c:
             assert c.get("/api/why").status_code == 422
+
+    def test_usage_endpoint(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("STOCKWHY_USAGE_LOG", str(tmp_path / "u.jsonl"))
+        with TestClient(app) as c:
+            r = c.get("/api/usage")
+        assert r.status_code == 200
+        body = r.json()
+        assert len(body["buckets"]) == 3
+        assert body["buckets"][0]["calls"] == 0
+
+    def test_frontend_renders_cost(self):
+        with TestClient(app) as c:
+            html = c.get("/").text
+        assert "costLabel" in html
+        assert "/api/usage" in html

@@ -3,6 +3,7 @@
     python -m server.cli 삼성전자          # 분석
     python -m server.cli 005930 --no-llm   # 규칙 기반만
     python -m server.cli --selftest        # 데이터 소스 생사 확인
+    python -m server.cli --usage          # 토큰/비용 누적 사용량
     python -m server.cli 삼성전자 --json    # 원본 JSON
     python -m server.cli serve             # 웹서버 (폰 접속 주소 안내)
 
@@ -19,6 +20,7 @@ import os
 import socket
 import sys
 
+from . import usage
 from .config import access_token, has_api_key, load_env, model_name, setup_tls
 from .pipeline import NotFound, diagnose, render_text
 from .providers.naver import NaverProvider
@@ -157,9 +159,13 @@ def main() -> int:
     ap.add_argument("--no-llm", action="store_true", help="LLM 없이 규칙 기반만 사용")
     ap.add_argument("--json", action="store_true", help="원본 JSON 출력")
     ap.add_argument("--selftest", action="store_true", help="데이터 소스 생사 확인")
+    ap.add_argument("--usage", action="store_true", help="LLM 토큰/비용 누적 사용량")
     ap.add_argument("--port", type=int, default=8000, help="serve 포트 (기본 8000)")
     args = ap.parse_args()
 
+    if args.usage:
+        print(usage.render(usage.summarize()))
+        return 0
     if args.selftest:
         return asyncio.run(selftest())
     if args.query == "serve":

@@ -170,16 +170,30 @@ async def explain(quote: Quote, ctx: MarketContext, attr: Attribution,
     finally:
         await client.close()
 
+    meta = {"_model": resp.model, "_usage": _usage_of(resp)}
+
     for block in resp.content:
         if block.type == "tool_use" and block.name == "report_cause":
-            result = dict(block.input)
-            result["_model"] = resp.model
-            return result
+            return {**dict(block.input), **meta}
 
     # 도구를 안 쓰고 텍스트로만 답한 경우를 대비한 폴백
     text = "".join(b.text for b in resp.content if b.type == "text")
     try:
-        return json.loads(text)
+        return {**json.loads(text), **meta}
     except (json.JSONDecodeError, TypeError):
         return {"answer": text.strip()[:500], "reasons": [], "catalyst": "",
-                "confidence": "low", "watch": ""}
+                "confidence": "low", "watch": "", **meta}
+
+
+def _usage_of(resp) -> dict:
+    """응답의 토큰 사용량. 추정하지 않고 API 가 알려준 값을 그대로 쓴다."""
+    u = getattr(resp, "usage", None)
+    if u is None:
+        return {}
+    return {
+        "input_tokens": getattr(u, "input_tokens", 0) or 0,
+        "output_tokens": getattr(u, "output_tokens", 0) or 0,
+        # 이 앱은 캐시를 쓰지 않지만, 값이 오면 비용에 반영되도록 실어 보낸다.
+        "cache_creation_input_tokens": getattr(u, "cache_creation_input_tokens", 0) or 0,
+        "cache_read_input_tokens": getattr(u, "cache_read_input_tokens", 0) or 0,
+    }
