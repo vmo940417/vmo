@@ -2,8 +2,17 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>장중 시세 원인 분석</title>
+
+<link rel="manifest" href="/static/manifest.webmanifest">
+<link rel="icon" href="/static/icons/favicon.png" sizes="64x64">
+<link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+<meta name="theme-color" content="#0e1116">
+<!-- iOS 는 매니페스트를 부분적으로만 본다. 홈 화면 전체화면 실행에 필요. -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="왜 움직여">
 <style>
   :root {
     --bg: #0e1116; --panel: #161b22; --line: #262d38;
@@ -21,7 +30,11 @@
     margin: 0; background: var(--bg); color: var(--fg);
     font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
                  "Pretendard", "Malgun Gothic", sans-serif;
-    line-height: 1.6; padding: 24px 16px 80px;
+    line-height: 1.6;
+    /* 노치 대응: 홈 화면에서 전체화면으로 뜨면 상단이 잘린다 */
+    padding: calc(env(safe-area-inset-top, 0px) + 20px) 16px
+             calc(env(safe-area-inset-bottom, 0px) + 60px);
+    -webkit-text-size-adjust: 100%;
   }
   .wrap { max-width: 780px; margin: 0 auto; }
   h1 { font-size: 19px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.3px; }
@@ -104,6 +117,28 @@
   @keyframes r { to { transform: rotate(360deg); } }
   .foot { color: var(--faint); font-size: 11.5px; text-align: center; margin-top: 24px;
           line-height: 1.7; }
+
+  .stamp { display: flex; align-items: center; gap: 8px; margin-top: 10px;
+           font-size: 12px; color: var(--faint); }
+  .refresh { margin-left: auto; padding: 5px 12px; font-size: 12px; font-weight: 600;
+             background: transparent; color: var(--dim); border: 1px solid var(--line);
+             border-radius: 7px; }
+  .refresh:hover { color: var(--fg); border-color: var(--faint); }
+
+  @media (max-width: 520px) {
+    body { padding-left: 12px; padding-right: 12px; }
+    h1 { font-size: 17px; }
+    .card { padding: 16px; border-radius: 12px; }
+    .tprice { font-size: 20px; }
+    .tname { font-size: 18px; }
+    .answer { font-size: 16px; }
+    /* 좁은 화면에서 근거는 세로로 쌓는다 */
+    .reason { flex-direction: column; gap: 2px; }
+    .rpoint { flex: none; }
+    .news a { flex-wrap: wrap; }
+    .ncat { width: 100%; padding-left: 44px; }
+    button[type=submit] { padding: 0 16px; }
+  }
 </style>
 </head>
 <body>
@@ -137,6 +172,17 @@ $('#chips').addEventListener('click', e => {
   form.requestSubmit();
 });
 
+// 토큰이 켜져 있으면 ?t=... 로 한 번만 받아 저장하고, 이후엔 헤더로 보낸다.
+// URL 에 계속 달고 다니면 공유하다 실수로 새어나가기 쉽다.
+const TOKEN_KEY = 'stockwhy_token';
+(function captureToken() {
+  const t = new URLSearchParams(location.search).get('t');
+  if (!t) return;
+  try { localStorage.setItem(TOKEN_KEY, t); } catch (e) {}
+  history.replaceState({}, '', location.pathname);
+})();
+const token = () => { try { return localStorage.getItem(TOKEN_KEY); } catch (e) { return null; } };
+
 const nf = n => n == null ? '-' : n.toLocaleString('ko-KR');
 const cls = v => v > 0 ? 'up' : v < 0 ? 'down' : 'flat';
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -148,8 +194,13 @@ form.addEventListener('submit', async e => {
   goEl.disabled = true;
   out.innerHTML = `<div class="status"><span class="spin"></span>${esc(q)} 분석 중…</div>`;
   try {
-    const r = await fetch(`/api/why?q=${encodeURIComponent(q)}`);
+    const tk = token();
+    const r = await fetch(`/api/why?q=${encodeURIComponent(q)}`,
+                          tk ? { headers: { 'X-Token': tk } } : undefined);
     const data = await r.json();
+    if (r.status === 401) {
+      throw new Error('접근 토큰이 없거나 틀립니다. PC에서 안내된 주소(?t=...)로 한 번 접속하세요.');
+    }
     if (!r.ok) throw new Error(data.detail || `HTTP ${r.status}`);
     render(data);
   } catch (err) {
@@ -172,6 +223,10 @@ function render(d) {
     </div>
     <div class="tchg ${cls(q.change_rate)}" style="text-align:right">
       ${q.change > 0 ? '+' : ''}${nf(q.change)} (${q.change_rate > 0 ? '+' : ''}${q.change_rate.toFixed(2)}%)
+    </div>
+    <div class="stamp">
+      <span>${esc((d.as_of || '').slice(11, 16))} 기준 · ${d.elapsed_ms}ms</span>
+      <button type="button" class="refresh" id="rf">새로고침</button>
     </div>
   </div>`);
 
@@ -231,6 +286,15 @@ function render(d) {
   }
 
   out.innerHTML = parts.join('');
+  const rf = document.getElementById('rf');
+  if (rf) rf.addEventListener('click', () => form.requestSubmit());
+}
+
+// 홈 화면 설치 + 즉시 실행용. 시세는 캐시하지 않는다(sw.js 참고).
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
 }
 </script>
 </body>

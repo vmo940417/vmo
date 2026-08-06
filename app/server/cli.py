@@ -4,6 +4,7 @@
     python -m server.cli 005930 --no-llm   # 규칙 기반만
     python -m server.cli --selftest        # 데이터 소스 생사 확인
     python -m server.cli 삼성전자 --json    # 원본 JSON
+    python -m server.cli serve             # 웹서버 (폰 접속 주소 안내)
 
 `--selftest` 는 네이버 엔드포인트가 여전히 살아있는지 확인한다. 네이버는 공식
 API 가 아니라 스키마가 바뀔 수 있어서, 뭔가 이상하면 여기부터 돌려보면 된다.
@@ -15,12 +16,50 @@ import argparse
 import asyncio
 import json
 import os
+import socket
 import sys
 
+from .config import access_token, has_api_key, load_env, model_name
 from .pipeline import NotFound, diagnose, render_text
 from .providers.naver import NaverProvider
 
 PROBE_CODE = "005930"  # 삼성전자. 상장폐지 걱정 없는 기준점.
+
+
+def lan_ip() -> str | None:
+    """이 PC 의 사설망 IP. 같은 와이파이의 폰이 접속할 주소다."""
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(("8.8.8.8", 80))       # 실제로 패킷을 보내진 않는다
+        return s.getsockname()[0]
+    except OSError:
+        return None
+    finally:
+        s.close()
+
+
+def serve(port: int) -> int:
+    import uvicorn
+
+    ip = lan_ip()
+    tok = access_token()
+    suffix = f"/?t={tok}" if tok else ""
+
+    print("장중 시세 원인 분석 서버")
+    print(f"  이 PC       http://localhost:{port}{suffix}")
+    if ip:
+        print(f"  같은 와이파이의 폰   http://{ip}:{port}{suffix}")
+    else:
+        print("  (사설 IP를 찾지 못했습니다. 폰 접속은 --host 를 직접 확인하세요)")
+    print(f"  LLM         {'사용 (' + model_name() + ')' if has_api_key() else '미사용 — 규칙 기반'}")
+    if tok:
+        print("  잠금        켜짐 — 폰에서 위 ?t=... 주소로 한 번만 접속하면 저장됩니다")
+    else:
+        print("  잠금        꺼짐 — 공개 터널로 열 거라면 STOCKWHY_TOKEN 을 설정하세요")
+    print("  중지: Ctrl+C\n")
+
+    uvicorn.run("server.main:app", host="0.0.0.0", port=port, log_level="warning")
+    return 0
 
 
 async def selftest() -> int:
@@ -57,8 +96,7 @@ async def selftest() -> int:
     for f in report["failed"]:
         print(f"  [FAIL] {f['endpoint']}: {f['error']}")
 
-    key = os.getenv("ANTHROPIC_API_KEY")
-    print(f"\nLLM: {'사용 가능 (' + os.getenv('STOCKWHY_MODEL', 'claude-sonnet-5') + ')' if key else 'ANTHROPIC_API_KEY 미설정 — 규칙 기반으로만 동작합니다'}")
+    print(f"\nLLM: {'사용 가능 (' + model_name() + ')' if has_api_key() else 'ANTHROPIC_API_KEY 미설정 — 규칙 기반으로만 동작합니다'}")
 
     failures = sum(1 for _, ok, _ in results if not ok)
     print(f"\n{len(results) - failures}/{len(results)} 통과")
@@ -83,15 +121,20 @@ async def run(query: str, use_llm: bool, as_json: bool) -> int:
 
 
 def main() -> int:
+    load_env()
+
     ap = argparse.ArgumentParser(description="장중 시세 원인 분석")
-    ap.add_argument("query", nargs="?", help="종목명 또는 6자리 코드")
+    ap.add_argument("query", nargs="?", help="종목명 또는 6자리 코드 (또는 'serve')")
     ap.add_argument("--no-llm", action="store_true", help="LLM 없이 규칙 기반만 사용")
     ap.add_argument("--json", action="store_true", help="원본 JSON 출력")
     ap.add_argument("--selftest", action="store_true", help="데이터 소스 생사 확인")
+    ap.add_argument("--port", type=int, default=8000, help="serve 포트 (기본 8000)")
     args = ap.parse_args()
 
     if args.selftest:
         return asyncio.run(selftest())
+    if args.query == "serve":
+        return serve(args.port)
     if not args.query:
         ap.print_help()
         return 2

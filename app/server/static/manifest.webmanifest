@@ -1,0 +1,18 @@
+{
+  "name": "장중 시세 원인 분석",
+  "short_name": "왜 움직여",
+  "description": "종목을 입력하면 오늘 왜 그렇게 움직이는지 즉답합니다.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0e1116",
+  "theme_color": "#0e1116",
+  "lang": "ko-KR",
+  "categories": ["finance", "news"],
+  "icons": [
+    { "src": "/static/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/static/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/static/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

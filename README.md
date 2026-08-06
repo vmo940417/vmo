@@ -101,10 +101,80 @@ GET /api/health
 
 ### 환경 변수
 
+`app/.env` 에 넣는다 (`cp .env.example .env`).
+
 | 변수 | 기본값 | 설명 |
 |---|---|---|
 | `ANTHROPIC_API_KEY` | (없음) | 없으면 규칙 기반으로만 동작한다. 앱은 그대로 돌아간다. |
 | `STOCKWHY_MODEL` | `claude-sonnet-5` | 장중 즉답이라 지연시간 우선. 더 깊은 판단이 필요하면 `claude-opus-5`. |
+| `STOCKWHY_TOKEN` | (없음) | 설정하면 `/api` 호출에 토큰을 요구한다. **공개 터널로 열 거면 필수.** |
+
+---
+
+## 모바일에서 쓰기
+
+웹앱이라 폰 브라우저로 접속만 되면 그대로 쓸 수 있다. 화면은 이미 모바일에
+맞춰져 있고, 홈 화면에 설치하면 주소창 없는 전체화면으로 뜬다.
+
+### 왜 클라우드에 안 올리나
+
+**네이버가 데이터센터 IP를 차단하거나 조이기 때문이다.** Render, Fly.io 같은
+해외 클라우드에 올리면 앱은 뜨는데 시세 수집이 막혀서 무용지물이 되기 쉽다.
+그래서 수집은 집의 가정용 IP에서 하고 폰은 거기에 접속만 하는 구조가 안전하다.
+
+### 방법 1 — 같은 와이파이 (가장 간단)
+
+```bash
+python -m server.cli serve
+```
+
+접속 주소를 알려준다. 폰 브라우저에 `http://192.168.x.x:8000` 을 치면 끝.
+집 안에서만 되지만 셋업이 없다.
+
+### 방법 2 — Tailscale (추천, 밖에서도 접속)
+
+개인용으로는 이게 제일 낫다. 공개 URL을 만들지 않고 내 기기끼리만 연결하는
+사설망이라 토큰도 필요 없고, 주소가 고정된다.
+
+1. PC와 폰 양쪽에 [Tailscale](https://tailscale.com/download) 설치 후 같은 계정으로 로그인 (무료)
+2. PC에서 `python -m server.cli serve`
+3. 폰에서 `http://<PC의 tailscale IP>:8000` 접속
+
+PC의 tailscale IP는 `tailscale ip -4` 로 확인한다.
+
+### 방법 3 — Cloudflare 임시 터널 (지금 당장 테스트)
+
+계정도 도메인도 없이 1분이면 된다. 단 **URL이 공개**라서 토큰을 반드시 켜야 한다.
+
+```bash
+# 1. .env 에 토큰 설정
+python -c "import secrets; print('STOCKWHY_TOKEN=' + secrets.token_urlsafe(24))" >> .env
+
+# 2. 서버
+python -m server.cli serve
+
+# 3. 다른 터미널에서 터널 (cloudflared 설치 필요)
+cloudflared tunnel --url http://localhost:8000
+```
+
+`https://xxx-yyy.trycloudflare.com` 같은 주소가 나온다. 폰에서 **한 번만**
+`https://그주소/?t=발급한토큰` 으로 접속하면 토큰이 저장되고, 이후엔 주소만
+열면 된다. 주소창의 `?t=` 는 저장 직후 자동으로 지워진다.
+
+터널을 재시작하면 URL이 바뀐다. 고정 주소가 필요하면 방법 2를 쓴다.
+
+### 홈 화면에 설치
+
+접속한 상태에서:
+
+- **iPhone (Safari)**: 공유 버튼 → `홈 화면에 추가`
+- **Android (Chrome)**: 메뉴 → `앱 설치` 또는 `홈 화면에 추가`
+
+아이콘이 깔리고 전체화면 앱처럼 실행된다.
+
+> 서비스 워커는 **시세를 절대 캐시하지 않는다.** 주식 앱에서 캐시된 옛날 가격을
+> 보여주는 건 아무것도 안 보여주는 것보다 나쁘기 때문이다. 캐시는 화면 껍데기에만
+> 쓰고 `/api` 는 항상 네트워크로 나간다.
 
 ---
 
@@ -127,21 +197,27 @@ GET /api/health
 app/
   server/
     models.py                  도메인 모델
+    config.py                  .env 로딩, 토큰
     peers.py                   업종/테마별 대표 종목 맵
     pipeline.py                수집 -> 분해 -> 서술
-    cli.py                     CLI + --selftest 진단
+    cli.py                     CLI + serve + --selftest 진단
     main.py                    FastAPI
     providers/naver.py         네이버 수집 (다중 엔드포인트 폴백)
     analysis/
       attribution.py           등락률 분해, 타이밍 판별, 뉴스 스코어링
       llm.py                   Claude 서술
-    static/index.html          프론트엔드
-  tests/                       53개
+    static/
+      index.html               프론트엔드
+      manifest.webmanifest     PWA
+      sw.js                    서비스 워커 (시세는 캐시 안 함)
+      icons/                   앱 아이콘
+  tools/make_icons.py          아이콘 생성 (Pillow 필요, 실행에는 불필요)
+  tests/                       87개
 .claude/skills/stock-why/      대화창용 스킬
 ```
 
 ```bash
-cd app && python -m pytest    # 53 passed
+cd app && python -m pytest    # 87 passed
 ```
 
 테스트는 2026-08-06 실제 장중 시세를 픽스처로 쓰고, 네이버 응답은
