@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>작가 검색 · 저서 한눈에 보기</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="icon-192.png" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+  <meta name="theme-color" content="#a44a3f" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="작가검색" />
+</head>
+<body>
+  <div class="app">
+    <header class="hero">
+      <h1>작가를 검색하면, 쓴 책이 바로 보여요</h1>
+      <p class="subtitle">작가 이름을 입력하고 목록에서 선택하면 그 작가의 작품들을 확인할 수 있어요.</p>
+
+      <div class="search-box">
+        <input
+          id="authorInput"
+          type="text"
+          placeholder="예: 무라카미 하루키, Ernest Hemingway, 한강..."
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <div id="suggestions" class="suggestions" hidden></div>
+      </div>
+    </header>
+
+    <main id="main">
+      <div id="status" class="status" hidden></div>
+
+      <section id="authorPanel" class="author-panel" hidden>
+        <img id="authorPhoto" class="author-photo" alt="" />
+        <div class="author-meta">
+          <h2 id="authorName"></h2>
+          <p id="authorDates" class="author-dates"></p>
+          <p id="authorTopWork" class="author-topwork"></p>
+        </div>
+      </section>
+
+      <section id="booksSection" hidden>
+        <h3 class="books-heading">저서 <span id="bookCount"></span></h3>
+        <div id="booksGrid" class="books-grid"></div>
+      </section>
+
+      <div id="emptyState" class="empty-state">
+        <p>🔍 작가 이름을 검색해보세요.</p>
+      </div>
+    </main>
+
+    <footer class="footer">
+      데이터 제공: <a href="https://openlibrary.org" target="_blank" rel="noopener">Open Library</a>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

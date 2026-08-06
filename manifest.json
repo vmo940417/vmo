@@ -1,0 +1,14 @@
+{
+  "name": "작가 검색 · 저서 한눈에 보기",
+  "short_name": "작가검색",
+  "description": "작가 이름을 검색하면 그 작가가 쓴 책을 바로 볼 수 있는 앱",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f7f6f3",
+  "theme_color": "#a44a3f",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
