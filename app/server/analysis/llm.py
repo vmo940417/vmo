@@ -20,6 +20,9 @@ from .attribution import Attribution
 
 DEFAULT_MODEL = os.getenv("STOCKWHY_MODEL", "claude-sonnet-5")
 
+API_URL = "https://api.anthropic.com/v1/messages"
+ANTHROPIC_VERSION = "2023-06-01"
+
 SYSTEM = """\
 당신은 한국 주식시장 장중 데스크의 애널리스트다. 트레이더가 "이 종목 왜 이래?"라고
 물으면 30초 안에 답해야 한다.
@@ -144,40 +147,75 @@ async def explain(quote: Quote, ctx: MarketContext, attr: Attribution,
     if not key:
         return None
 
+    evidence = build_evidence(quote, ctx, attr, news)
+    payload = {
+        "model": model or DEFAULT_MODEL,
+        "max_tokens": 1500,
+        "system": SYSTEM,
+        "tools": [RESPONSE_TOOL],
+        "tool_choice": {"type": "tool", "name": "report_cause"},
+        "messages": [{
+            "role": "user",
+            "content": (f"아래는 {quote.name}의 현재 장중 데이터다. 왜 이렇게 움직이는지 "
+                        f"판단해서 report_cause 도구로 보고하라.\n\n{evidence}"),
+        }],
+    }
+
+    try:
+        raw = await _call_sdk(payload, key)
+        if raw is None:
+            # SDK 가 없는 환경(폰의 Termux 등). Messages API 는 단순 JSON POST 라
+            # httpx 만으로도 동일하게 호출된다 — 순수 파이썬이라 컴파일이 필요 없다.
+            raw = await _call_http(payload, key)
+    except Exception as e:  # noqa: BLE001 - LLM 실패해도 앱은 답을 내야 한다
+        return {"error": f"{type(e).__name__}: {e}"}
+
+    return _parse(raw)
+
+
+async def _call_sdk(payload: dict, key: str) -> Optional[dict]:
+    """공식 SDK 경로(기본). 설치돼 있지 않으면 None 을 돌려 HTTP 경로로 넘긴다."""
     try:
         from anthropic import AsyncAnthropic
     except ImportError:
         return None
 
-    evidence = build_evidence(quote, ctx, attr, news)
-    prompt = (
-        f"아래는 {quote.name}의 현재 장중 데이터다. 왜 이렇게 움직이는지 판단해서 "
-        f"report_cause 도구로 보고하라.\n\n{evidence}"
-    )
-
     client = AsyncAnthropic(api_key=key)
     try:
-        resp = await client.messages.create(
-            model=model or DEFAULT_MODEL,
-            max_tokens=1500,
-            system=SYSTEM,
-            tools=[RESPONSE_TOOL],
-            tool_choice={"type": "tool", "name": "report_cause"},
-            messages=[{"role": "user", "content": prompt}],
-        )
-    except Exception as e:  # noqa: BLE001 - LLM 실패해도 앱은 답을 내야 한다
-        return {"error": f"{type(e).__name__}: {e}"}
+        resp = await client.messages.create(**payload)
     finally:
         await client.close()
+    return resp.model_dump()
 
-    meta = {"_model": resp.model, "_usage": _usage_of(resp)}
 
-    for block in resp.content:
-        if block.type == "tool_use" and block.name == "report_cause":
-            return {**dict(block.input), **meta}
+async def _call_http(payload: dict, key: str) -> dict:
+    """SDK 없이 Messages API 를 직접 호출한다."""
+    import httpx
+
+    from ..config import ca_bundle
+
+    headers = {
+        "x-api-key": key,
+        "anthropic-version": ANTHROPIC_VERSION,
+        "content-type": "application/json",
+    }
+    async with httpx.AsyncClient(timeout=90.0, verify=ca_bundle() or True) as client:
+        r = await client.post(API_URL, headers=headers, json=payload)
+        r.raise_for_status()
+        return r.json()
+
+
+def _parse(raw: dict) -> dict:
+    """SDK / HTTP 어느 경로로 왔든 같은 dict 모양이라 처리도 하나로 끝난다."""
+    meta = {"_model": raw.get("model", "unknown"), "_usage": _usage_of(raw)}
+    blocks = raw.get("content") or []
+
+    for block in blocks:
+        if block.get("type") == "tool_use" and block.get("name") == "report_cause":
+            return {**dict(block.get("input") or {}), **meta}
 
     # 도구를 안 쓰고 텍스트로만 답한 경우를 대비한 폴백
-    text = "".join(b.text for b in resp.content if b.type == "text")
+    text = "".join(b.get("text", "") for b in blocks if b.get("type") == "text")
     try:
         return {**json.loads(text), **meta}
     except (json.JSONDecodeError, TypeError):
@@ -185,15 +223,13 @@ async def explain(quote: Quote, ctx: MarketContext, attr: Attribution,
                 "confidence": "low", "watch": "", **meta}
 
 
-def _usage_of(resp) -> dict:
+def _usage_of(raw: dict) -> dict:
     """응답의 토큰 사용량. 추정하지 않고 API 가 알려준 값을 그대로 쓴다."""
-    u = getattr(resp, "usage", None)
-    if u is None:
-        return {}
+    u = raw.get("usage") or {}
     return {
-        "input_tokens": getattr(u, "input_tokens", 0) or 0,
-        "output_tokens": getattr(u, "output_tokens", 0) or 0,
+        "input_tokens": u.get("input_tokens") or 0,
+        "output_tokens": u.get("output_tokens") or 0,
         # 이 앱은 캐시를 쓰지 않지만, 값이 오면 비용에 반영되도록 실어 보낸다.
-        "cache_creation_input_tokens": getattr(u, "cache_creation_input_tokens", 0) or 0,
-        "cache_read_input_tokens": getattr(u, "cache_read_input_tokens", 0) or 0,
+        "cache_creation_input_tokens": u.get("cache_creation_input_tokens") or 0,
+        "cache_read_input_tokens": u.get("cache_read_input_tokens") or 0,
     }

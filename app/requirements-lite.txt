@@ -1,0 +1,14 @@
+# 폰(Termux)용 최소 의존성.
+#
+# 여기 있는 건 전부 순수 파이썬이라 컴파일이 필요 없다. server/lite.py 는 표준
+# 라이브러리 http.server 로 돌고, LLM 호출은 SDK 가 없으면 httpx 로 직접 한다.
+#
+# requirements.txt(PC용)에 있는 fastapi/uvicorn/anthropic 은 pydantic-core 등
+# Rust/C 확장을 끌고 와서 안드로이드에서 빌드가 오래 걸리고 자주 실패한다.
+#
+#   pip install -r requirements-lite.txt
+#   python -m server.lite
+httpx>=0.27
+
+# 회사망 TLS 검사 장비 대응. 폰(통신사망)에서는 보통 필요 없다.
+# truststore>=0.9

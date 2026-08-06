@@ -186,6 +186,31 @@ STOCKWHY_CA_BUNDLE=C:\path\to\company-root.pem
 웹앱이라 폰 브라우저로 접속만 되면 그대로 쓸 수 있다. 화면은 이미 모바일에
 맞춰져 있고, 홈 화면에 설치하면 주소창 없는 전체화면으로 뜬다.
 
+문제는 화면이 아니라 **서버를 어디서 돌리느냐**다. 아래 네 가지 중 하나를 고른다.
+
+### 방법 0 — 폰에서 직접 (안드로이드, PC 불필요)
+
+[Termux](https://f-droid.org/packages/com.termux/) 를 깔고 한 줄 실행하면 폰 안에서
+파이썬 서버가 돈다. PC도, 와이파이도, 방화벽도 무관하다.
+
+```bash
+curl -sL https://raw.githubusercontent.com/vmo940417/vmo/claude/stock-price-analysis-app-i9ddfj/mobile/termux-setup.sh | bash
+```
+
+```
+stockwhy                    # 서버 켜기 -> http://localhost:8000
+why 삼성전자                 # 터미널에서 바로
+why --usage                 # 누적 비용
+```
+
+**폰에서는 `server/lite.py`(표준 라이브러리 서버)가 돈다.** PC용 `main.py` 는
+FastAPI + uvicorn 을 쓰는데, 이것들이 `pydantic-core` 같은 Rust/C 확장을 끌고 와서
+안드로이드에서 빌드하면 20분 걸리고 자주 실패하기 때문이다. 경량 서버는 같은
+라우트와 같은 프론트엔드를 쓰고, 의존성은 `httpx` 하나(순수 파이썬)뿐이다.
+LLM 호출도 SDK 가 없으면 `httpx` 로 Messages API 를 직접 친다.
+
+> 아이폰은 Termux 가 없어서 이 방법을 쓸 수 없다. 아래 방법 중에서 고른다.
+
 ### 왜 클라우드에 안 올리나
 
 **네이버가 데이터센터 IP를 차단하거나 조이기 때문이다.** Render, Fly.io 같은
@@ -273,7 +298,8 @@ app/
     usage.py                   사용량 누적 기록(JSONL) + 합산
     pipeline.py                수집 -> 분해 -> 서술
     cli.py                     CLI + serve + --selftest + --usage
-    main.py                    FastAPI
+    main.py                    FastAPI (PC용)
+    lite.py                    표준 라이브러리 서버 (폰/Termux용)
     providers/naver.py         네이버 수집 (다중 엔드포인트 폴백)
     analysis/
       attribution.py           등락률 분해, 타이밍 판별, 뉴스 스코어링
@@ -283,13 +309,15 @@ app/
       manifest.webmanifest     PWA
       sw.js                    서비스 워커 (시세는 캐시 안 함)
       icons/                   앱 아이콘
+  requirements-lite.txt        폰용 최소 의존성 (httpx 하나)
   tools/make_icons.py          아이콘 생성 (Pillow 필요, 실행에는 불필요)
-  tests/                       152개
+  tests/                       183개
+mobile/termux-setup.sh         안드로이드 설치 스크립트
 .claude/skills/stock-why/      대화창용 스킬
 ```
 
 ```bash
-cd app && python -m pytest    # 152 passed
+cd app && python -m pytest    # 183 passed
 ```
 
 테스트는 2026-08-06 실제 장중 시세를 픽스처로 쓰고, 네이버 응답은
