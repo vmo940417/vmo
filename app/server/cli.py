@@ -19,7 +19,7 @@ import os
 import socket
 import sys
 
-from .config import access_token, has_api_key, load_env, model_name
+from .config import access_token, has_api_key, load_env, model_name, setup_tls
 from .pipeline import NotFound, diagnose, render_text
 from .providers.naver import NaverProvider
 
@@ -52,6 +52,7 @@ def serve(port: int) -> int:
     else:
         print("  (사설 IP를 찾지 못했습니다. 폰 접속은 --host 를 직접 확인하세요)")
     print(f"  LLM         {'사용 (' + model_name() + ')' if has_api_key() else '미사용 — 규칙 기반'}")
+    print(f"  TLS         {setup_tls()}")
     if tok:
         print("  잠금        켜짐 — 폰에서 위 ?t=... 주소로 한 번만 접속하면 저장됩니다")
     else:
@@ -62,8 +63,27 @@ def serve(port: int) -> int:
     return 0
 
 
+TLS_HELP = """
+────────────────────────────────────────────────────────────────
+전부 인증서 오류입니다. 회사망의 TLS 검사 장비 때문입니다.
+
+사내망은 HTTPS 를 중간에서 풀었다가 회사 자체 인증서로 다시 묶어 내보냅니다.
+그 루트 인증서는 Windows 에 이미 깔려 있지만 Python 은 OS 저장소를 안 보고
+자체 번들만 봐서 거부합니다. 네이버가 막은 게 아닙니다.
+
+해결:  python -m pip install truststore
+       (설치하면 Python 이 Windows 인증서 저장소를 쓰게 되어 바로 해결됩니다)
+
+그래도 안 되면 회사 루트 인증서를 .pem 으로 내보내서 .env 에 지정하세요:
+       STOCKWHY_CA_BUNDLE=C:\\path\\to\\company-root.pem
+
+인증서 검증을 끄는 방법은 안내하지 않습니다. 사내망에서는 실제 보안 저하입니다.
+────────────────────────────────────────────────────────────────"""
+
+
 async def selftest() -> int:
     print("데이터 소스 진단\n" + "=" * 46)
+    print(f"  TLS: {setup_tls()}\n")
     results: list[tuple[str, bool, str]] = []
 
     async with NaverProvider() as p:
@@ -100,6 +120,14 @@ async def selftest() -> int:
 
     failures = sum(1 for _, ok, _ in results if not ok)
     print(f"\n{len(results) - failures}/{len(results)} 통과")
+
+    # 실패 원인이 하나로 수렴하면 그 해결책을 바로 알려준다.
+    errors = " ".join(f["error"] for f in report["failed"])
+    if "CERTIFICATE_VERIFY" in errors or "SSLCertVerification" in errors:
+        print(TLS_HELP)
+    elif failures and ("ProxyError" in errors or "ConnectTimeout" in errors):
+        print("\n네트워크가 막혀 있습니다. 사내 프록시를 쓴다면 HTTPS_PROXY 환경변수를 설정하세요.")
+
     return 1 if failures else 0
 
 
@@ -122,6 +150,7 @@ async def run(query: str, use_llm: bool, as_json: bool) -> int:
 
 def main() -> int:
     load_env()
+    setup_tls()   # httpx 클라이언트를 만들기 전에 해야 한다.
 
     ap = argparse.ArgumentParser(description="장중 시세 원인 분석")
     ap.add_argument("query", nargs="?", help="종목명 또는 6자리 코드 (또는 'serve')")

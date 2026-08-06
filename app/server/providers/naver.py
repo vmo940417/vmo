@@ -88,8 +88,12 @@ class NaverProvider:
 
     async def __aenter__(self) -> "NaverProvider":
         if self._client is None:
+            from ..config import ca_bundle
+            # verify=True 여도 truststore 가 끼워져 있으면 OS 인증서 저장소를 쓴다.
+            # (config.setup_tls 참고 — 회사망 TLS 검사 장비 대응)
             self._client = httpx.AsyncClient(
                 headers=HEADERS, timeout=self._timeout, follow_redirects=True,
+                verify=ca_bundle() or True,
             )
         return self
 

@@ -17,10 +17,11 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Query
 from fastapi.responses import FileResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
-from .config import access_token, has_api_key, load_env, model_name
+from .config import access_token, has_api_key, load_env, model_name, setup_tls
 from .pipeline import NotFound, diagnose, render_text
 
 load_env()
+setup_tls()   # 회사망 TLS 검사 장비 대응. httpx 클라이언트를 만들기 전에 해야 한다.
 
 STATIC = Path(__file__).parent / "static"
 

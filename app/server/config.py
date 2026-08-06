@@ -51,6 +51,42 @@ def has_api_key() -> bool:
     return bool(os.getenv("ANTHROPIC_API_KEY"))
 
 
+def ca_bundle() -> str | None:
+    """직접 지정한 CA 번들 경로(.pem). truststore 로도 안 될 때의 탈출구."""
+    path = os.getenv("STOCKWHY_CA_BUNDLE", "").strip()
+    return path or None
+
+
+def setup_tls() -> str:
+    """회사망 TLS 검사 장비(SSL 인스펙션) 대응.
+
+    사내망은 HTTPS 를 중간에서 풀었다가 회사 자체 인증서로 다시 묶어 내보내는
+    경우가 많다. 그 루트 인증서는 Windows/macOS 인증서 저장소에는 이미 깔려
+    있지만, Python 은 OS 저장소를 안 보고 certifi 번들만 봐서 모르는 인증서라며
+    거부한다. truststore 를 끼우면 Python 이 OS 저장소를 쓰게 되어 해결된다.
+
+    인증서 검증을 끄는 선택지는 두지 않는다. 사내망에서 그건 실제 보안 저하다.
+
+    반환값은 실제로 적용된 방식(진단 출력용).
+    """
+    if ca_bundle():
+        return f"CA 번들 지정: {ca_bundle()}"
+
+    if os.getenv("STOCKWHY_TLS", "").strip().lower() == "certifi":
+        return "certifi (STOCKWHY_TLS=certifi)"
+
+    try:
+        import truststore
+    except ImportError:
+        return "certifi (truststore 미설치)"
+
+    try:
+        truststore.inject_into_ssl()
+        return "OS 인증서 저장소 (truststore)"
+    except Exception as e:  # noqa: BLE001
+        return f"certifi (truststore 적용 실패: {type(e).__name__})"
+
+
 def access_token() -> str | None:
     """설정돼 있으면 /api/ 호출에 토큰을 요구한다.
 

@@ -108,6 +108,39 @@ GET /api/health
 | `ANTHROPIC_API_KEY` | (없음) | 없으면 규칙 기반으로만 동작한다. 앱은 그대로 돌아간다. |
 | `STOCKWHY_MODEL` | `claude-sonnet-5` | 장중 즉답이라 지연시간 우선. 더 깊은 판단이 필요하면 `claude-opus-5`. |
 | `STOCKWHY_TOKEN` | (없음) | 설정하면 `/api` 호출에 토큰을 요구한다. **공개 터널로 열 거면 필수.** |
+| `STOCKWHY_CA_BUNDLE` | (없음) | 회사 루트 인증서 `.pem` 경로. truststore 로도 안 될 때만. |
+| `STOCKWHY_TLS` | (없음) | `certifi` 로 두면 OS 인증서 저장소를 쓰지 않는다. |
+
+---
+
+## 회사망에서 쓸 때
+
+사내망은 HTTPS를 중간에서 풀었다가 회사 자체 인증서로 다시 묶어 내보내는
+경우가 많다(TLS 검사 장비). 그 루트 인증서는 Windows·macOS 인증서 저장소에는
+이미 깔려 있지만, **Python은 OS 저장소를 안 보고 자체 번들(certifi)만 보기
+때문에** 모르는 인증서라며 거부한다. 증상은 이렇게 나온다.
+
+```
+[SSL: CERTIFICATE_VERIFY_FAILED] self-signed certificate in certificate chain
+```
+
+네이버가 막은 게 아니다. `requirements.txt` 에 포함된 **truststore** 가 이걸
+해결한다 — Python이 OS 인증서 저장소를 쓰게 만든다. 설치만 되어 있으면
+자동으로 적용되고, `--selftest` 첫 줄에서 확인할 수 있다.
+
+```
+TLS: OS 인증서 저장소 (truststore)
+```
+
+그래도 안 되면 회사 루트 인증서를 `.pem` 으로 내보내 `.env` 에 지정한다.
+
+```
+STOCKWHY_CA_BUNDLE=C:\path\to\company-root.pem
+```
+
+> **인증서 검증을 끄는 방법은 제공하지 않는다.** 사내망에서 그건 실제 보안
+> 저하이고, 검사 장비가 있는 망에서는 특히 그렇다. 코드에 `verify=False` 경로가
+> 존재하지 않는다는 것을 테스트로 못박아 뒀다.
 
 ---
 
@@ -212,12 +245,12 @@ app/
       sw.js                    서비스 워커 (시세는 캐시 안 함)
       icons/                   앱 아이콘
   tools/make_icons.py          아이콘 생성 (Pillow 필요, 실행에는 불필요)
-  tests/                       87개
+  tests/                       99개
 .claude/skills/stock-why/      대화창용 스킬
 ```
 
 ```bash
-cd app && python -m pytest    # 87 passed
+cd app && python -m pytest    # 99 passed
 ```
 
 테스트는 2026-08-06 실제 장중 시세를 픽스처로 쓰고, 네이버 응답은
