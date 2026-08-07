@@ -106,7 +106,10 @@ def _rows(data: Any) -> list[dict]:
 async def _post(client: httpx.AsyncClient, report, name: str, payload: dict) -> Optional[dict]:
     try:
         r = await client.post(URL, data=payload, headers=HEADERS, timeout=10.0)
-        r.raise_for_status()
+        if r.status_code >= 400:
+            # KRX 는 무엇이 잘못됐는지를 본문에 적어준다. 상태 코드만 남기면
+            # "400" 만 보고 파라미터를 찍어 맞히게 된다.
+            raise RuntimeError(f"HTTP {r.status_code}: {r.text[:200]}")
         data = r.json()
         report.note_ok(name)
         return data

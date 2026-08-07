@@ -147,6 +147,16 @@ jobs:
           PYTHONIOENCODING: "utf-8"
         run: python -m server.cli --selftest
 
+      # 일회성 진단. KRX 공매도의 화면 코드(bld)와 파라미터 조합을 격자로 훑는다.
+      # 정답을 찾아 krx.py 에 반영하면 이 단계와 tools/probe_krx.py 는 지운다.
+      - name: KRX 공매도 엔드포인트 탐침
+        working-directory: app
+        continue-on-error: true
+        env:
+          PYTHONUTF8: "1"
+          PYTHONIOENCODING: "utf-8"
+        run: python tools/probe_krx.py
+
       - name: Upload exe
         uses: actions/upload-artifact@v4
         with:
