@@ -19,6 +19,7 @@ import asyncio
 import json
 import mimetypes
 import sys
+import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -28,6 +29,10 @@ from .config import access_token, has_api_key, load_env, model_name, setup_tls
 from .pipeline import NotFound, diagnose, render_text
 
 STATIC = Path(__file__).parent / "static"
+
+# 데스크톱 앱에서만 켠다. 브라우저 화면에서 앱을 끌 수 있게 하는 스위치인데,
+# 폰이나 사내망에 열어둔 서버에서는 아무나 끌 수 있으면 곤란하다.
+ALLOW_QUIT = False
 
 
 def _truthy(value: str | None, default: bool = True) -> bool:
@@ -99,6 +104,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, {
                 "ok": True, "llm_enabled": has_api_key(), "model": model_name(),
                 "auth_required": access_token() is not None, "server": "lite",
+                "can_quit": ALLOW_QUIT,
             })
 
         if not self._authorized(params):
@@ -110,6 +116,21 @@ class Handler(BaseHTTPRequestHandler):
             return self._why(route, params)
 
         self._json(404, {"detail": "not found"})
+
+    def do_POST(self) -> None:  # noqa: N802 - http.server 규약
+        """앱 종료. 데스크톱 앱에서만 열린다.
+
+        GET 이 아니라 POST 로 받는다. 다른 웹페이지가 이미지 태그 하나로 우리 앱을
+        꺼버리는 일을 막기 위해서다(피해는 '앱이 꺼짐'뿐이지만 굳이 열어둘 이유가 없다).
+        """
+        route = urlparse(self.path).path
+        if route != "/api/quit" or not ALLOW_QUIT:
+            return self._json(404, {"detail": "not found"})
+
+        self._json(200, {"ok": True})
+        # shutdown() 은 serve_forever 루프가 멈출 때까지 블록한다. 지금 스레드가
+        # 그 루프에 속해 있으므로 여기서 부르면 서로를 기다리며 굳는다.
+        threading.Thread(target=self.server.shutdown, daemon=True).start()
 
     def _static(self, route: str) -> None:
         target = (STATIC / route[len("/static/"):]).resolve()

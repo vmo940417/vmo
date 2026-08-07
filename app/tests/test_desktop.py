@@ -15,6 +15,7 @@ import socket
 import subprocess
 import sys
 import threading
+import urllib.error
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -23,7 +24,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from server import config, desktop  # noqa: E402
+from server import config, desktop, lite  # noqa: E402
 
 
 def free_port() -> int:
@@ -315,3 +316,61 @@ class TestWindowFailureFallback:
         assert desktop.main() == 0
         assert opened, "창이 실패해도 브라우저는 열어야 한다"
         assert str(port) in opened[0]
+
+
+class TestQuitFromBrowser:
+    """브라우저 화면에서 앱을 끌 수 있어야 한다.
+
+    작은 창은 작업표시줄로 내려두고 쓰기 때문에, 끄는 수단이 창에만 있으면
+    그걸 다시 찾아 올려야 한다.
+    """
+
+    def post(self, port: int, path: str = "/api/quit"):
+        req = urllib.request.Request(f"http://127.0.0.1:{port}{path}", data=b"", method="POST")
+        return urllib.request.urlopen(req, timeout=5)
+
+    def test_health_advertises_it(self, running):
+        port, _ = running
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/health") as r:
+            assert json.loads(r.read())["can_quit"] is True
+
+    def test_quit_stops_the_server(self):
+        port = free_port()
+        httpd, thread = desktop.start_server(port)
+        with self.post(port) as r:
+            assert json.loads(r.read())["ok"] is True
+        thread.join(timeout=10)
+        assert not thread.is_alive(), "종료 요청에도 서버가 계속 돌고 있다"
+        httpd.server_close()
+
+    def test_get_does_not_quit(self, running):
+        """다른 페이지가 이미지 태그 하나로 우리 앱을 꺼버리면 안 된다."""
+        port, _ = running
+        with pytest.raises(urllib.error.HTTPError) as e:
+            urllib.request.urlopen(f"http://127.0.0.1:{port}/api/quit", timeout=5)
+        assert e.value.code == 404
+        # 여전히 살아 있어야 한다
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/health") as r:
+            assert json.loads(r.read())["ok"] is True
+
+    def test_closed_when_not_a_desktop_app(self, monkeypatch):
+        """폰이나 사내망에 열어둔 서버는 아무나 끌 수 있으면 안 된다."""
+        monkeypatch.setattr(lite, "ALLOW_QUIT", False)
+        port = free_port()
+        httpd = lite.make_server(port, "127.0.0.1")
+        thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with pytest.raises(urllib.error.HTTPError) as e:
+                self.post(port)
+            assert e.value.code == 404
+            assert thread.is_alive(), "끄면 안 되는 서버가 꺼졌다"
+        finally:
+            httpd.shutdown()
+            thread.join(timeout=5)
+
+    def test_page_offers_the_button(self):
+        html = (Path(__file__).resolve().parents[1] /
+                "server" / "static" / "index.html").read_text(encoding="utf-8")
+        assert "quitBtn" in html and "/api/quit" in html
+        assert "can_quit" in html, "health 를 확인하지 않으면 폰에서도 버튼이 뜬다"

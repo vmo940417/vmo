@@ -41,6 +41,7 @@ from .config import (
     setup_tls,
     user_env_path,
 )
+from . import lite
 from .lite import make_server
 
 HOST = "127.0.0.1"
@@ -85,6 +86,9 @@ def find_port() -> tuple[Optional[int], Optional[int]]:
 
 
 def start_server(port: int) -> tuple[ThreadingHTTPServer, threading.Thread]:
+    # 브라우저 화면에서 앱을 끌 수 있게 한다. 창을 작업표시줄로 내려두고 쓰는 게
+    # 기본이라, 끄는 수단이 창에만 있으면 그걸 다시 찾아 올려야 한다.
+    lite.ALLOW_QUIT = True
     httpd = make_server(port, HOST)
     thread = threading.Thread(target=httpd.serve_forever, daemon=True, name="stockwhy-http")
     thread.start()
@@ -142,7 +146,8 @@ class Window:
         row = tk.Frame(self.root, bg=BG)
         row.pack(anchor="w", pady=(14, 6), **pad)
         tk.Button(row, text="앱 열기", command=self.open_browser, width=12).pack(side="left")
-        tk.Button(row, text="종료", command=self.quit, width=10).pack(side="left", padx=(8, 0))
+        tk.Button(row, text="진단", command=self.diagnose, width=8).pack(side="left", padx=(8, 0))
+        tk.Button(row, text="종료", command=self.quit, width=8).pack(side="left", padx=(8, 0))
 
         tk.Frame(self.root, bg="#252a33", height=1).pack(fill="x", pady=(12, 12), **pad)
 
@@ -194,6 +199,62 @@ class Window:
         note = " (인증서는 재시작 후 적용)" if values.get("STOCKWHY_CA_BUNDLE") else ""
         self.status.config(text=f"저장됨 · {path.name}{note}")
         self.footer.config(text=self._footer())
+
+    def diagnose(self) -> None:
+        """데이터 소스 진단을 창으로 보여준다.
+
+        터미널을 안 쓰려고 만든 앱인데 정작 문제가 생기면 `--selftest` 를 돌려야
+        원인을 알 수 있다면 앞뒤가 안 맞는다. 같은 결과를 창에서 보고 그대로
+        복사할 수 있어야 "왜 안 되는지"를 물어볼 수 있다.
+
+        수집이 몇 초 걸리므로 별도 스레드에서 돌린다. Tk 위젯은 메인 스레드에서만
+        건드려야 해서 결과 반영은 after() 로 넘긴다.
+        """
+        tk = self.tk
+        win = tk.Toplevel(self.root)
+        win.title("데이터 소스 진단")
+        win.configure(bg=BG)
+        win.geometry("720x480")
+
+        text = tk.Text(win, bg=BG, fg=FG, insertbackground=FG, wrap="none",
+                       font=("Consolas", 9), borderwidth=0)
+        scroll = tk.Scrollbar(win, command=text.yview)
+        text.configure(yscrollcommand=scroll.set)
+        scroll.pack(side="right", fill="y")
+
+        bar = tk.Frame(win, bg=BG)
+        bar.pack(side="bottom", fill="x", padx=10, pady=8)
+        copied = self._label(bar, "", size=8, color=DIM)
+        copied.pack(side="right")
+
+        def copy() -> None:
+            self.root.clipboard_clear()
+            self.root.clipboard_append(text.get("1.0", "end-1c"))
+            copied.config(text="복사했습니다")
+
+        tk.Button(bar, text="결과 복사", command=copy, width=12).pack(side="left")
+        text.pack(fill="both", expand=True, padx=10, pady=(10, 0))
+        text.insert("1.0", "확인 중… (10초쯤 걸립니다)")
+
+        def fill(body: str) -> None:
+            text.delete("1.0", "end")
+            text.insert("1.0", body)
+
+        def work() -> None:
+            import asyncio  # noqa: PLC0415
+            from .cli import source_report  # noqa: PLC0415
+            try:
+                lines, _ = asyncio.run(source_report())
+                body = "\n".join(lines)
+            except Exception as e:  # noqa: BLE001 - 진단이 죽으면 원인을 못 본다
+                body = f"진단 중 오류: {type(e).__name__}: {e}"
+            # 창이 이미 닫혔을 수도 있다.
+            try:
+                self.root.after(0, lambda: fill(body))
+            except Exception:  # noqa: BLE001
+                pass
+
+        threading.Thread(target=work, daemon=True, name="stockwhy-diag").start()
 
     def quit(self) -> None:
         if self.httpd is not None:
@@ -257,8 +318,10 @@ def main() -> int:
         return 0
 
     window = Window(tk, port, httpd)
-    # 창이 먼저 보이고 나서 브라우저가 뜨는 편이 자연스럽다.
+    # 브라우저를 띄운 뒤 창은 작업표시줄로 내린다. 이 창은 상태 표시와 종료용이지
+    # 매번 볼 화면이 아니라서, 떠 있으면 분석 화면을 가린다.
     window.root.after(300, window.open_browser)
+    window.root.after(900, window.root.iconify)
     window.run()
     return 0
 

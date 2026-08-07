@@ -83,9 +83,13 @@ TLS_HELP = """
 ────────────────────────────────────────────────────────────────"""
 
 
-async def selftest() -> int:
-    print("데이터 소스 진단\n" + "=" * 46)
-    print(f"  TLS: {setup_tls()}\n")
+async def source_report() -> tuple[list[str], int]:
+    """데이터 소스 진단 결과를 '줄 목록 + 실패 수' 로 돌려준다.
+
+    터미널(--selftest)과 데스크톱 앱의 진단 창이 같은 결과를 봐야 한다. 한쪽만
+    고치면 "터미널에서는 되는데 앱에서는 안 된다" 같은 유령을 쫓게 된다.
+    """
+    lines: list[str] = ["데이터 소스 진단", "=" * 46, f"  TLS: {setup_tls()}", ""]
     results: list[tuple[str, bool, str]] = []
 
     async with NaverProvider() as p:
@@ -122,33 +126,43 @@ async def selftest() -> int:
         report = p.report.as_dict()
 
     for name, ok, detail in results:
-        print(f"  [{'OK  ' if ok else 'FAIL'}] {name:<16} {detail}")
-    print(f"  [INFO] {'공매도':<16} {short_line}")
+        lines.append(f"  [{'OK  ' if ok else 'FAIL'}] {name:<16} {detail}")
+    lines.append(f"  [INFO] {'공매도':<16} {short_line}")
 
-    print("\n엔드포인트별 결과")
-    for e in report["ok"]:
-        print(f"  [OK  ] {e}")
-    for f in report["failed"]:
-        print(f"  [FAIL] {f['endpoint']}: {f['error']}")
+    lines.append("")
+    lines.append("엔드포인트별 결과")
+    lines.extend(f"  [OK  ] {e}" for e in report["ok"])
+    lines.extend(f"  [FAIL] {f['endpoint']}: {f['error']}" for f in report["failed"])
 
     # 응답은 왔는데 형태가 달라 못 읽은 것들. 이 앞부분만 보면 키를 맞출 수 있다.
     if report.get("samples"):
-        print("\n형태가 달라 읽지 못한 응답 (이 내용을 알려주시면 파서를 맞출 수 있습니다)")
-        for name, sample in report["samples"].items():
-            print(f"  {name}: {sample[:200]}")
+        lines.append("")
+        lines.append("형태가 달라 읽지 못한 응답 (이 내용을 알려주시면 파서를 맞출 수 있습니다)")
+        lines.extend(f"  {name}: {sample[:200]}" for name, sample in report["samples"].items())
 
-    print(f"\nLLM: {'사용 가능 (' + model_name() + ')' if has_api_key() else 'ANTHROPIC_API_KEY 미설정 — 규칙 기반으로만 동작합니다'}")
+    lines.append("")
+    lines.append("LLM: " + ("사용 가능 (" + model_name() + ")" if has_api_key()
+                            else "ANTHROPIC_API_KEY 미설정 — 규칙 기반으로만 동작합니다"))
 
     failures = sum(1 for _, ok, _ in results if not ok)
-    print(f"\n{len(results) - failures}/{len(results)} 통과")
+    lines.append("")
+    lines.append(f"{len(results) - failures}/{len(results)} 통과")
 
     # 실패 원인이 하나로 수렴하면 그 해결책을 바로 알려준다.
     errors = " ".join(f["error"] for f in report["failed"])
     if "CERTIFICATE_VERIFY" in errors or "SSLCertVerification" in errors:
-        print(TLS_HELP)
+        lines.append(TLS_HELP)
     elif failures and ("ProxyError" in errors or "ConnectTimeout" in errors):
-        print("\n네트워크가 막혀 있습니다. 사내 프록시를 쓴다면 HTTPS_PROXY 환경변수를 설정하세요.")
+        lines.append("")
+        lines.append("네트워크가 막혀 있습니다. 사내 프록시를 쓴다면 "
+                     "HTTPS_PROXY 환경변수를 설정하세요.")
 
+    return lines, failures
+
+
+async def selftest() -> int:
+    lines, failures = await source_report()
+    print("\n".join(lines))
     return 1 if failures else 0
 
 

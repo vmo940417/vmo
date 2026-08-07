@@ -160,6 +160,12 @@
     시세·뉴스는 네이버 금융에서 수집하며 지연될 수 있습니다.<br>
     이 결과는 정보 제공용 분석이며 투자 판단의 근거로 삼지 마십시오.
   </div>
+
+  <!-- 데스크톱 앱에서만 보인다. 작은 창을 작업표시줄로 내려두고 쓰기 때문에,
+       끄는 수단이 지금 보고 있는 화면에도 있어야 한다. -->
+  <div class="foot" id="quitBar" style="display:none">
+    <button type="button" class="chip" id="quitBtn">앱 종료</button>
+  </div>
 </div>
 
 <script>
@@ -369,6 +375,23 @@ async function loadUsage() {
     el.textContent = line;
   } catch (e) { /* 사용량 표시 실패가 분석을 막지 않는다 */ }
 }
+
+// 데스크톱 앱(.exe)에서만 종료 버튼을 띄운다. 폰이나 사내망에 열어둔 서버는
+// can_quit 가 false 라 버튼 자체가 나오지 않는다.
+async function setupQuit() {
+  try {
+    const h = await (await fetch('/api/health')).json();
+    if (!h.can_quit) return;
+    const bar = document.getElementById('quitBar');
+    bar.style.display = '';
+    document.getElementById('quitBtn').onclick = async () => {
+      if (!confirm('앱을 종료합니다. 이 탭도 닫으시면 됩니다.')) return;
+      try { await fetch('/api/quit', { method: 'POST' }); } catch (e) { /* 종료되면 응답이 끊긴다 */ }
+      bar.innerHTML = '<span>종료했습니다. 이 탭을 닫으세요.</span>';
+    };
+  } catch (e) { /* health 를 못 읽어도 분석은 된다 */ }
+}
+setupQuit();
 
 // 홈 화면 설치 + 즉시 실행용. 시세는 캐시하지 않는다(sw.js 참고).
 if ('serviceWorker' in navigator) {
