@@ -115,20 +115,40 @@ jobs:
           }
 
           Start-Process -FilePath dist\stockwhy.exe | Out-Null
-          Start-Sleep -Seconds 20
+          Start-Sleep -Seconds 10
           try {
             # 부모/자식 어느 쪽이든 살아 있으면 앱이 떠 있는 것이다.
             if (-not (Get-Process stockwhy -ErrorAction SilentlyContinue)) {
               throw "창을 띄우자마자 종료됐습니다 (tkinter 실패 추정)"
             }
+
+            # 서버 단계와 같은 재시도 루프를 쓴다. 한 번만 찔러보면 창 생성과
+            # 브라우저 실행이 겹치는 순간에 걸려 멀쩡한 빌드를 실패로 잡는다
+            # (실제로 그랬다 — 네 포트 모두 '연결 거부'가 아니라 타임아웃이었다).
             $alive = $false
-            foreach ($port in 8765,8766,8767,8768) {
-              try {
-                $h = Invoke-RestMethod "http://127.0.0.1:$port/api/health" -TimeoutSec 3 -ErrorAction Stop
-                if ($h.ok) { $alive = $true; break }
-              } catch { continue }
+            foreach ($i in 1..20) {
+              foreach ($port in 8765,8766,8767,8768) {
+                try {
+                  $h = Invoke-RestMethod "http://127.0.0.1:$port/api/health" -TimeoutSec 5 -ErrorAction Stop
+                  if ($h.ok) {
+                    Write-Host "health($port): $($h | ConvertTo-Json -Compress)"
+                    if (-not $h.can_quit) { throw "화면에서 종료할 수 없는 빌드입니다" }
+                    $alive = $true
+                    break
+                  }
+                } catch [System.Management.Automation.RuntimeException] {
+                  throw
+                } catch { continue }
+              }
+              if ($alive) { break }
+              Start-Sleep -Seconds 2
             }
-            if (-not $alive) { throw "프로세스는 살아 있는데 서버가 응답하지 않습니다" }
+            if (-not $alive) {
+              Write-Host "--- 진단: 8765~8768 포트 상태 ---"
+              netstat -ano | Select-String ":876"
+              Get-Process stockwhy -ErrorAction SilentlyContinue | Format-Table Id, StartTime
+              throw "프로세스는 살아 있는데 서버가 응답하지 않습니다"
+            }
             Write-Host "창 스모크 테스트 통과"
           } finally {
             Get-Process stockwhy -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
