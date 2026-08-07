@@ -23,9 +23,9 @@ from __future__ import annotations
 
 import json
 import os
-import socket
 import sys
 import threading
+import time
 import urllib.error
 import urllib.request
 import webbrowser
@@ -65,34 +65,58 @@ def _health(port: int, timeout: float = 0.8) -> Optional[dict]:
         return None
 
 
-def _in_use(port: int) -> bool:
-    with socket.socket() as s:
-        s.settimeout(0.3)
-        return s.connect_ex((HOST, port)) == 0
+def _health_with_retry(port: int, attempts: int = 15, interval: float = 0.2) -> Optional[dict]:
+    """방금 바인딩에서 이긴 프로세스가 아직 accept 루프를 못 돌렸을 수 있어 잠깐 기다린다."""
+    for _ in range(attempts):
+        data = _health(port)
+        if data:
+            return data
+        time.sleep(interval)
+    return None
 
 
-def find_port() -> tuple[Optional[int], Optional[int]]:
-    """(새로 띄울 포트, 이미 떠 있는 우리 앱의 포트).
+def claim_port() -> tuple[Optional[int], Optional[ThreadingHTTPServer], Optional[int]]:
+    """(우리가 점유한 포트, 그 서버, 이미 떠 있는 우리 앱의 포트) 중 해당하는 것만 채워 돌려준다.
 
-    아이콘을 두 번 눌렀을 때 두 번째 인스턴스가 조용히 실패하는 대신, 먼저 떠
-    있는 창의 주소를 열어주기 위해 구분한다.
+    예전에는 "포트가 비어있나 확인 -> 비어있으면 바인딩" 두 단계였다. Windows
+    SmartScreen 경고 때문에 exe 를 다시 눌러 두 프로세스가 몇 밀리초 차이로
+    거의 동시에 뜨면, 둘 다 확인 시점에 "비어있다"고 보고 각자 창을 띄우는 틈이
+    있었다 — 실제로 그 증상(작은 창이 두 개, 하나를 닫으면 브라우저가 먹통)이
+    보고됐다.
+
+    소켓 bind() 자체는 OS 가 원자적으로 처리한다. 그래서 확인 없이 바로
+    바인딩을 시도하고, 실패(OSError)했을 때만 "누가 먼저 가져갔다"고 판단하면
+    이 틈이 사라진다 — 동시에 시도해도 정확히 하나만 성공한다.
     """
     for port in PORTS:
-        if not _in_use(port):
-            return port, None
-        if _health(port):
-            return None, port          # 이미 우리 앱이 떠 있다
-    return None, None                  # 전부 남이 쓰는 중
+        try:
+            httpd = make_server(port, HOST)
+        except OSError:
+            # 이미 누가 물고 있다. 방금 이긴 우리 자신의 다른 프로세스일 수도,
+            # 전혀 다른 프로그램일 수도 있다.
+            existing = _health_with_retry(port)
+            if existing:
+                return None, None, port
+            continue
+        else:
+            return port, httpd, None
+    return None, None, None
+
+
+def _spawn(httpd: ThreadingHTTPServer) -> threading.Thread:
+    thread = threading.Thread(target=httpd.serve_forever, daemon=True, name="stockwhy-http")
+    thread.start()
+    return thread
 
 
 def start_server(port: int) -> tuple[ThreadingHTTPServer, threading.Thread]:
+    """지정한 포트에 그대로 바인딩한다(테스트·픽스처용). 단일 인스턴스 판단은
+    claim_port() 의 몫이고, 여기는 포트가 이미 정해진 뒤의 순수 기동만 한다."""
     # 브라우저 화면에서 앱을 끌 수 있게 한다. 창을 작업표시줄로 내려두고 쓰는 게
     # 기본이라, 끄는 수단이 창에만 있으면 그걸 다시 찾아 올려야 한다.
     lite.ALLOW_QUIT = True
     httpd = make_server(port, HOST)
-    thread = threading.Thread(target=httpd.serve_forever, daemon=True, name="stockwhy-http")
-    thread.start()
-    return httpd, thread
+    return httpd, _spawn(httpd)
 
 
 def app_url(port: int) -> str:
@@ -282,18 +306,21 @@ def main() -> int:
     load_env()
     setup_tls()
 
-    port, running = find_port()
+    port, httpd, running_port = claim_port()
 
-    if running is not None:
+    if running_port is not None:
         # 이미 떠 있다. 창을 하나 더 띄우지 말고 그 주소를 열어준다.
         if not headless():
-            webbrowser.open(app_url(running))
+            webbrowser.open(app_url(running_port))
         return 0
-    if port is None:
+    if port is None or httpd is None:
         _fatal(f"{PORTS[0]}~{PORTS[-1]} 포트를 모두 다른 프로그램이 쓰고 있습니다.")
         return 1
 
-    httpd, thread = start_server(port)
+    # 브라우저 화면에서 앱을 끌 수 있게 한다. 창을 작업표시줄로 내려두고 쓰는 게
+    # 기본이라, 끄는 수단이 창에만 있으면 그걸 다시 찾아 올려야 한다.
+    lite.ALLOW_QUIT = True
+    thread = _spawn(httpd)
 
     window = None
     if not headless():
@@ -317,7 +344,6 @@ def main() -> int:
             httpd.shutdown()
         return 0
 
-    window = Window(tk, port, httpd)
     # 브라우저를 띄운 뒤 창은 작업표시줄로 내린다. 이 창은 상태 표시와 종료용이지
     # 매번 볼 화면이 아니라서, 떠 있으면 분석 화면을 가린다.
     window.root.after(300, window.open_browser)

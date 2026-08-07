@@ -75,21 +75,36 @@ class TestServer:
         httpd.shutdown()
         thread.join(timeout=5)
         httpd.server_close()
-        assert not desktop._in_use(port), "종료 후에도 포트를 잡고 있으면 재실행이 막힌다"
+        # 재바인딩이 되면 포트가 풀린 것이다. claim_port() 이 이 확인을 대신한다.
+        again = desktop.make_server(port, "127.0.0.1")
+        again.server_close()
 
 
 class TestPortSelection:
+    """claim_port() 은 확인과 점유를 한 동작으로 합친다.
+
+    예전에는 "비어있나 확인 -> 비어있으면 바인딩" 두 단계였다. 두 프로세스가
+    거의 동시에 뜨면(SmartScreen 경고 때문에 exe 를 다시 누른 경우 등) 둘 다
+    확인 시점에 비어있다고 보고 각자 서버·창을 띄우는 틈이 있었다. bind() 는
+    OS 가 원자적으로 처리하므로, 확인 없이 바로 바인딩을 시도하면 동시에
+    경쟁해도 정확히 하나만 이긴다.
+    """
+
     def test_picks_a_free_port(self, monkeypatch):
-        monkeypatch.setattr(desktop, "PORTS", (free_port(),))
-        port, running_port = desktop.find_port()
-        assert port is not None and running_port is None
+        p = free_port()
+        monkeypatch.setattr(desktop, "PORTS", (p,))
+        port, httpd, running_port = desktop.claim_port()
+        try:
+            assert port == p and httpd is not None and running_port is None
+        finally:
+            httpd.server_close()
 
     def test_finds_our_own_instance(self, running, monkeypatch):
         """아이콘을 두 번 눌러도 창이 둘 뜨면 안 된다 — 먼저 뜬 걸 찾아야 한다."""
         port, _ = running
         monkeypatch.setattr(desktop, "PORTS", (port,))
-        new_port, existing = desktop.find_port()
-        assert new_port is None and existing == port
+        new_port, httpd, existing = desktop.claim_port()
+        assert new_port is None and httpd is None and existing == port
 
     def test_stranger_on_the_port_is_not_us(self, monkeypatch):
         """다른 프로그램이 그 포트를 쓰고 있으면 그쪽으로 브라우저를 열면 안 된다."""
@@ -109,11 +124,67 @@ class TestPortSelection:
         t.start()
         try:
             monkeypatch.setattr(desktop, "PORTS", (port,))
-            new_port, existing = desktop.find_port()
-            assert new_port is None and existing is None, "남의 서버를 우리 앱으로 오인했다"
+            new_port, httpd, existing = desktop.claim_port()
+            assert new_port is None and httpd is None and existing is None, \
+                "남의 서버를 우리 앱으로 오인했다"
         finally:
             srv.shutdown()
             t.join(timeout=5)
+
+    def test_all_candidates_taken_by_strangers(self, monkeypatch):
+        ports = (free_port(), free_port())
+
+        class Quiet(BaseHTTPRequestHandler):
+            def log_message(self, *a):
+                pass
+
+        servers = [ThreadingHTTPServer(("127.0.0.1", p), Quiet) for p in ports]
+        threads = [threading.Thread(target=s.serve_forever, daemon=True) for s in servers]
+        for t in threads:
+            t.start()
+        try:
+            monkeypatch.setattr(desktop, "PORTS", ports)
+            new_port, httpd, existing = desktop.claim_port()
+            assert new_port is None and httpd is None and existing is None
+        finally:
+            for s in servers:
+                s.shutdown()
+            for t in threads:
+                t.join(timeout=5)
+
+    def test_racing_processes_never_both_win(self, monkeypatch):
+        """동시에 claim_port() 를 부르는 두 '프로세스'를 흉내낸다.
+
+        예전 버그는 정확히 이 상황(두 프로세스가 같은 순간 비어있다고 봄)에서
+        창이 두 개 뜨는 것으로 나타났다. 둘 중 정확히 하나만 서버를 점유해야
+        하고, 진 쪽은 이긴 쪽의 포트를 찾아내야 한다.
+        """
+        port = free_port()
+        monkeypatch.setattr(desktop, "PORTS", (port,))
+
+        results: list[tuple] = []
+
+        def race():
+            # main() 은 이긴 직후 바로 _spawn() 해서 accept 루프를 돌린다.
+            # 여기서도 그래야 진 쪽의 health 재시도가 실제로 성공할 수 있다.
+            p, httpd, running = desktop.claim_port()
+            if httpd is not None:
+                desktop._spawn(httpd)
+            results.append((p, httpd, running))
+
+        t1 = threading.Thread(target=race)
+        t2 = threading.Thread(target=race)
+        t1.start(); t2.start()
+        t1.join(timeout=15); t2.join(timeout=15)
+
+        winners = [r for r in results if r[1] is not None]
+        losers = [r for r in results if r[1] is None]
+        try:
+            assert len(winners) == 1, "정확히 하나만 바인딩에 성공해야 한다"
+            assert len(losers) == 1 and losers[0][2] == winners[0][0], \
+                "진 쪽은 이긴 쪽의 포트를 찾아야 한다"
+        finally:
+            winners[0][1].server_close()
 
     def test_health_probe_rejects_non_json(self, monkeypatch):
         assert desktop._health(free_port()) is None    # 아무도 없는 포트
@@ -285,7 +356,7 @@ class TestHeadlessMode:
         opened = []
         monkeypatch.setenv("STOCKWHY_NO_WINDOW", "1")
         monkeypatch.setattr(desktop.webbrowser, "open", lambda url: opened.append(url))
-        monkeypatch.setattr(desktop, "find_port", lambda: (None, 8765))
+        monkeypatch.setattr(desktop, "claim_port", lambda: (None, None, 8765))
         assert desktop.main() == 0
         assert opened == []
 
