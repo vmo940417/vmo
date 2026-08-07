@@ -22,7 +22,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from tests.test_js_naver import (  # noqa: E402
-    AC_STOCK, BASIC, INDEX, INTEGRATION, NEWS, SHORT_TREND, SISE, TREND,
+    AC_STOCK, BASIC, INDEX, INTEGRATION, KRX_POST, KRX_TRADES, NEWS, SISE, TREND,
 )
 
 HARNESS = Path(__file__).parent / "js" / "e2e_harness.mjs"
@@ -39,7 +39,6 @@ ROUTES = {
     "/news/stock/": NEWS,
     "siseJson": SISE,
     "/trend": TREND,
-    "shortSellingTrend": SHORT_TREND,
 }
 
 # 수급 신선도는 '오늘'과 비교해 판정하므로 픽스처 날짜를 굳혀두면 실행일에 따라
@@ -52,9 +51,16 @@ DATED_ROUTES = {
     **ROUTES,
     "/trend": [{**TREND[0], "bizdate": _ymd(_TODAY)},
                {**TREND[1], "bizdate": _ymd(_YESTERDAY)}],
-    "shortSellingTrend": {"result": [
-        {**SHORT_TREND["result"][0], "bizdate": _ymd(_YESTERDAY)},
-        SHORT_TREND["result"][1],
+}
+
+# 공매도는 KRX 에서 POST 로 받는다. 직전 거래일 기준이라는 걸 드러내려고
+# 최신 행을 어제로 잡는다.
+_slash = lambda d: d.strftime("%Y/%m/%d")
+DATED_KRX = {
+    **KRX_POST,
+    "MDCSTAT30101": {"OutBlock_1": [
+        {**KRX_TRADES["OutBlock_1"][1], "TRD_DD": _slash(_YESTERDAY)},
+        KRX_TRADES["OutBlock_1"][0],
     ]},
 }
 
@@ -75,7 +81,7 @@ LLM_OK = {
 
 
 def run(**kw) -> dict:
-    payload = {"routes": ROUTES, **kw}
+    payload = {"routes": ROUTES, "krxRoutes": KRX_POST, **kw}
     proc = subprocess.run(
         ["node", str(HARNESS)],
         input=json.dumps(payload, ensure_ascii=False),
@@ -136,7 +142,7 @@ class TestPipelineRuns:
 
     def test_todays_supply_and_yesterdays_short_are_distinguished(self):
         """수급은 오늘, 공매도는 어제 것이다. 앱이 둘을 뭉뚱그리면 안 된다."""
-        r = run(routes=DATED_ROUTES, useLlm=False)
+        r = run(routes=DATED_ROUTES, krxRoutes=DATED_KRX, useLlm=False)
         by_key = {s["key"]: s["text"] for s in r["result"]["attribution"]["signals"]}
         assert "오늘 수급" in by_key["supply"]
         assert "장 마감 후에 공시" in by_key["short"], "당일 공매도는 장중에 존재하지 않는다"

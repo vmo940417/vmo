@@ -249,11 +249,22 @@ TREND = [
      "organPureBuyQuant": "-100,000", "individualPureBuyQuant": "900,000"},
 ]
 
-SHORT_TREND = {"result": [
-    {"bizdate": "20260805", "shortSellingQuant": "1,500,000",
-     "shortSellingRatio": "12.4", "shortSellingBalanceRatio": "1.85"},
-    {"bizdate": "20260804", "shortSellingQuant": "700,000", "shortSellingRatio": "6.0"},
+KRX_ISIN = {"block1": [{"full_code": "KR7005930003", "short_code": "005930"}]}
+
+# KRX 는 과거->현재 순으로 준다. 파서가 최신순으로 뒤집어야 한다.
+KRX_TRADES = {"OutBlock_1": [
+    {"TRD_DD": "2026/08/04", "CVSRTSELL_TRDVOL": "700,000", "TRDVAL_WT": "6.0"},
+    {"TRD_DD": "2026/08/05", "CVSRTSELL_TRDVOL": "1,500,000",
+     "CVSRTSELL_TRDVAL": "350,000,000,000", "TRDVAL_WT": "12.4"},
 ]}
+KRX_BALANCE = {"OutBlock_1": [{"TRD_DD": "2026/08/05", "BAL_RTO": "1.85"}]}
+
+# 본문(bld)으로 갈리는 POST 픽스처.
+KRX_POST = {
+    "finder_srtisu": KRX_ISIN,
+    "MDCSTAT30101": KRX_TRADES,
+    "MDCSTAT30501": KRX_BALANCE,
+}
 
 FRGN_HTML = """
 <table><tr><th>날짜</th><th>종가</th></tr>
@@ -264,34 +275,31 @@ FRGN_HTML = """
 <tr><td colspan="9">&nbsp;</td></tr></table>
 """
 
-SHORT_HTML = """
-<table><tr><th>일자</th><th>공매도 거래량</th><th>비중</th></tr>
-<tr><td>2026.08.05</td><td>1,500,000</td><td>12.40</td></tr>
-<tr><td>안내문구</td><td>-</td><td>-</td></tr></table>
-"""
-
-
 class TestSupplyDemand:
-    def _supply(self, extra: dict) -> dict:
+    def _supply(self, extra: dict, post: dict | None = None) -> dict:
         routes = {"/index/KOSPI/basic": INDEX, **ROUTES, **extra}
-        return run(routes, ["supply"])
+        return run(routes, ["supply"], postRoutes=KRX_POST if post is None else post)
 
     def test_json_endpoint(self):
-        s = self._supply({"/trend": TREND, "shortSellingTrend": SHORT_TREND})["supply"]
+        s = self._supply({"/trend": TREND})["supply"]
         assert s["today"]["foreign"] == -1_200_000
         assert s["today"]["unit"] == "주"
         assert s["today"]["date"] == "2026-08-06"
         assert len(s["history"]) == 2
+
+    def test_krx_short_selling(self):
+        """네이버 공매도는 죽었다. KRX 에서 받아 최신순으로 정렬돼야 한다."""
+        s = self._supply({"/trend": TREND})["supply"]
+        assert s["short"]["date"] == "2026-08-05"
         assert s["short"]["ratio"] == 12.4
         assert s["short"]["balance_ratio"] == 1.85
+        assert [r["date"] for r in s["short_history"]] == ["2026-08-05", "2026-08-04"]
 
-    def test_html_fallback(self):
-        """JSON 이 죽어도 오래된 HTML 화면에서 긁어온다."""
-        s = self._supply({"frgn.naver": FRGN_HTML, "short_trade.naver": SHORT_HTML})["supply"]
+    def test_flows_html_fallback(self):
+        """수급 JSON 이 죽어도 오래된 HTML 화면에서 긁어온다."""
+        s = self._supply({"frgn.naver": FRGN_HTML})["supply"]
         assert s["today"]["foreign"] == -1_200_000
         assert s["today"]["institution"] == 300_000
-        assert s["short"]["ratio"] == 12.4
-        assert s["short"]["volume"] is None, "찍어서 맞힌 숫자를 넣으면 안 된다"
 
     def test_amount_unit_preserved(self):
         rows = [{"bizdate": "20260806", "foreignerPureBuyAmount": "-274,000,000,000"}]
@@ -299,8 +307,13 @@ class TestSupplyDemand:
         assert s["today"]["unit"] == "원" and s["today"]["foreign"] == -274_000_000_000
 
     def test_all_endpoints_down(self):
-        s = self._supply({})["supply"]
+        s = self._supply({}, post={})["supply"]
         assert s["today"] is None and s["short"] is None and s["history"] == []
+
+    def test_krx_failure_does_not_break_flows(self):
+        """공매도가 죽어도 수급은 나와야 한다."""
+        s = self._supply({"/trend": TREND}, post={})["supply"]
+        assert s["today"] is not None and s["short"] is None
 
     def test_unreadable_response_leaves_a_sample(self):
         got = self._supply({"/trend": {"unexpected": [{"a": 1}]}})

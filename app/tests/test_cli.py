@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from server import cli  # noqa: E402
 from server.providers.naver import NaverProvider  # noqa: E402
-from tests.test_providers import FRGN_HTML, SHORT_TREND, TREND, handler  # noqa: E402
+from tests.test_providers import FRGN_HTML, TREND, handler, krx_handler  # noqa: E402
 
 
 def provider_factory(h):
@@ -31,10 +31,10 @@ class TestSelftest:
     async def test_reports_supply(self, monkeypatch, capsys):
         def full(request: httpx.Request) -> httpx.Response:
             url = str(request.url)
+            if "data.krx.co.kr" in url:
+                return krx_handler(request)
             if "/trend" in url:
                 return httpx.Response(200, json=TREND)
-            if "shortSellingTrend" in url:
-                return httpx.Response(200, json=SHORT_TREND)
             return handler(request)
 
         monkeypatch.setattr(cli, "NaverProvider", provider_factory(full))
@@ -50,7 +50,7 @@ class TestSelftest:
             url = str(request.url)
             if "frgn.naver" in url:
                 return httpx.Response(200, text=FRGN_HTML)
-            if "short" in url.lower() or "/trend" in url:
+            if "data.krx.co.kr" in url or "/trend" in url:
                 return httpx.Response(404, json={})
             return handler(request)
 

@@ -23,7 +23,8 @@ from typing import Any, Optional
 
 import httpx
 
-from ..models import InvestorFlow, MarketContext, NewsItem, Quote, ShortSale, SupplyDemand
+from ..models import InvestorFlow, MarketContext, NewsItem, Quote, SupplyDemand
+from . import krx
 
 UA = ("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) "
       "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1")
@@ -348,7 +349,8 @@ class NaverProvider:
         """
         flows, shorts = await asyncio.gather(
             self._investor_flows(code, days, now),
-            self._short_sales(code, days),
+            # 공매도는 네이버가 더 이상 개별종목 API 로 주지 않아 원출처(KRX)에서 받는다.
+            krx.short_sales(self._client, self.report, code, days),
         )
         return SupplyDemand(
             today=flows[0] if flows else None,
@@ -376,25 +378,6 @@ class NaverProvider:
         rows = parse_frgn_html(html or "", days, now)
         if not rows and html:
             self.report.note_sample("frgn.naver", html)
-        return rows
-
-    async def _short_sales(self, code: str, days: int) -> list[ShortSale]:
-        for name, url in (
-            ("shortSellingTrend", f"https://m.stock.naver.com/api/stock/{code}/shortSellingTrend?pageSize={days}&page=1"),
-            ("shortStockTrend", f"https://m.stock.naver.com/api/stock/{code}/shortStockTrend?pageSize={days}&page=1"),
-        ):
-            data = await self._get_json(name, url)
-            rows = parse_short_rows(data, days)
-            if rows:
-                return rows
-            if data is not None:
-                self.report.note_sample(name, data)
-
-        html = await self._get_text(
-            "short_trade.naver", f"https://finance.naver.com/item/short_trade.naver?code={code}")
-        rows = parse_short_html(html or "", days)
-        if not rows and html:
-            self.report.note_sample("short_trade.naver", html)
         return rows
 
     # -- 뉴스 -------------------------------------------------------------
@@ -560,59 +543,6 @@ def parse_frgn_html(html: str, limit: int = 10,
             foreign_hold_ratio=_f(cells[8]) if len(cells) > 8 else None,
             provisional=_is_provisional(date, now),
         ))
-        if len(out) >= limit:
-            break
-    return out
-
-
-SHORT_VOLUME_KEYS = ("shortSellingQuant", "shortSellingVolume", "shortQuant",
-                     "shortSellingTradingVolume", "quant")
-SHORT_VALUE_KEYS = ("shortSellingAmount", "shortSellingValue", "shortAmount",
-                    "shortSellingTradingValue", "amount")
-SHORT_RATIO_KEYS = ("shortSellingRatio", "shortSellingWeight", "shortRatio", "ratio", "weight")
-SHORT_BALANCE_QTY_KEYS = ("shortSellingBalanceQuant", "balanceQuant", "remainQuant")
-SHORT_BALANCE_RATIO_KEYS = ("shortSellingBalanceRatio", "balanceRatio", "remainRatio")
-
-
-def parse_short_rows(data: Any, limit: int = 10) -> list[ShortSale]:
-    out: list[ShortSale] = []
-    for row in _rows_of(data)[:limit]:
-        volume = _f(_first(row, *SHORT_VOLUME_KEYS))
-        value = _f(_first(row, *SHORT_VALUE_KEYS))
-        ratio = _f(_first(row, *SHORT_RATIO_KEYS))
-        if volume is None and value is None and ratio is None:
-            continue
-        out.append(ShortSale(
-            date=_norm_date(_first(row, "bizdate", "localTradedAt", "tradeDate", "date", "dt")),
-            volume=volume, value=value, ratio=ratio,
-            balance_qty=_f(_first(row, *SHORT_BALANCE_QTY_KEYS)),
-            balance_ratio=_f(_first(row, *SHORT_BALANCE_RATIO_KEYS)),
-        ))
-    return out
-
-
-def parse_short_html(html: str, limit: int = 10) -> list[ShortSale]:
-    """finance.naver.com/item/short_trade.naver 의 일별 표.
-
-    HTML 표에서는 '비중(%)' 칸만 읽는다. 공매도 거래량은 같은 행의 종가·거래량과
-    자릿수가 비슷해서 열 위치를 확신하지 못하면 구분할 방법이 없고, 그걸 찍어서
-    맞히려다 틀리면 없는 숫자를 사실처럼 보여주게 된다. 비중은 소수점이 붙은
-    100 이하 값이라 오인할 여지가 없으므로 이것만 취한다.
-    """
-    out: list[ShortSale] = []
-    for row_html in _TR_RE.findall(html):
-        cells = _cells(row_html)
-        if len(cells) < 3 or not _DATE_CELL_RE.match(cells[0]):
-            continue
-        ratio = None
-        for cell in cells[1:]:
-            value = _f(cell)
-            if value is not None and ("." in cell or "%" in cell) and 0 <= value <= 100:
-                ratio = value
-                break
-        if ratio is None:
-            continue
-        out.append(ShortSale(date=_norm_date(cells[0]), ratio=ratio))
         if len(out) >= limit:
             break
     return out

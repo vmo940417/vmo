@@ -24,9 +24,22 @@ globalThis.Native = {
     }
     return JSON.stringify({ ok: false, status: 404, error: 'fixture: no route' });
   },
+  // KRX 는 한 주소로 POST 하고 bld 만 바꾸므로 본문을 보고 갈라야 한다.
+  httpPost(url, headers, body) {
+    for (const [pattern, resp] of Object.entries(input.postRoutes || {})) {
+      if (body.includes(pattern)) {
+        if (resp === null) return JSON.stringify({ ok: false, status: 500, error: 'fixture: down' });
+        return JSON.stringify({ ok: true, status: 200,
+          body: typeof resp === 'string' ? resp : JSON.stringify(resp) });
+      }
+    }
+    return JSON.stringify({ ok: false, status: 404, error: 'fixture: no post route' });
+  },
 };
 
-new Function(fs.readFileSync(path.join(ASSETS, 'naver.js'), 'utf8'))();
+for (const f of ['krx.js', 'naver.js']) {
+  new Function(fs.readFileSync(path.join(ASSETS, f), 'utf8'))();
+}
 
 const client = new globalThis.Naver.Client();
 const out = {};

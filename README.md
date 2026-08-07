@@ -355,7 +355,9 @@ app/
     main.py                    FastAPI (PC용)
     lite.py                    표준 라이브러리 서버 (폰/데스크톱 앱용)
     desktop.py                 데스크톱 앱 (터미널 없이 창 + 브라우저)
-    providers/naver.py         네이버 수집 (다중 엔드포인트 폴백)
+    providers/
+      naver.py                 네이버 수집 (시세·지수·뉴스·수급)
+      krx.py                   KRX 공매도 (네이버가 안 주는 유일한 항목)
     analysis/
       attribution.py           등락률 분해, 타이밍 판별, 뉴스 스코어링
       llm.py                   Claude 서술
@@ -370,14 +372,14 @@ app/
     stockwhy.ico               윈도우 아이콘
   requirements-lite.txt        폰용 최소 의존성 (httpx 하나)
   tools/make_icons.py          아이콘 생성 (Pillow 필요, 실행에는 불필요)
-  tests/                       407개
+  tests/                       440개
 android/                       안드로이드 네이티브 앱 (WebView + HTTP 브리지)
 mobile/termux-setup.sh         안드로이드 설치 스크립트 (APK 이전 방식)
 .claude/skills/stock-why/      대화창용 스킬
 ```
 
 ```bash
-cd app && python -m pytest    # 407 passed
+cd app && python -m pytest    # 440 passed
 ```
 
 테스트는 2026-08-06 실제 장중 시세를 픽스처로 쓰고, 네이버 응답은
@@ -391,6 +393,13 @@ cd app && python -m pytest    # 407 passed
 동작하지만 공식 계약이 아니다. 그래서 provider 는 엔드포인트마다 후보를 여러 개
 두고, 일부가 죽어도 예외 대신 결측으로 흘려보내며(분석 단계가 결측을 감당한다),
 무엇이 실패했는지 `diagnostics` 에 남긴다. 이상하면 `--selftest` 부터 돌린다.
+
+**공매도는 KRX 에서 직접 받는다.** 네이버는 개별종목 공매도를 더 이상 API 로
+주지 않는다 — 윈도우 빌드 진단에서 확인했다(`shortSellingTrend`/`shortStockTrend`
+404, `short_trade.naver` 는 종목 메인 페이지로 리다이렉트). 그래서 원출처인
+KRX 정보데이터시스템에서 받는다. KRX 는 6자리 코드가 아니라 ISIN 을 받으므로
+검색 엔드포인트로 먼저 변환한다. **공매도는 장 마감 후에 집계되므로 장중에는
+직전 거래일 값이 최선이다** — 화면과 프롬프트에 그 날짜를 항상 함께 띄운다.
 
 **업종 등락률은 근사값이다.** 네이버 업종 지수 엔드포인트가 신뢰도가 낮아서
 `peers.py` 의 테마별 대표 종목을 시가총액 가중 평균해서 쓴다. 피어를 못 찾으면

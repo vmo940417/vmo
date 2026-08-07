@@ -19,7 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from server.providers.naver import (  # noqa: E402
     NaverProvider, _weighted_sector_rate, build_context, market_of,
-    parse_flow_rows, parse_frgn_html, parse_short_html, parse_short_rows,
+    parse_flow_rows, parse_frgn_html,
 )
 from server.models import Quote  # noqa: E402
 
@@ -268,14 +268,6 @@ TREND = [
      "organPureBuyQuant": "-50,000", "individualPureBuyQuant": "-350,000"},
 ]
 
-SHORT_TREND = {"result": [
-    {"bizdate": "20260805", "shortSellingQuant": "1,500,000",
-     "shortSellingAmount": "350,000,000,000", "shortSellingRatio": "12.4",
-     "shortSellingBalanceRatio": "1.85"},
-    {"bizdate": "20260804", "shortSellingQuant": "700,000", "shortSellingRatio": "6.0"},
-    {"bizdate": "20260801", "shortSellingQuant": "600,000", "shortSellingRatio": "5.0"},
-]}
-
 FRGN_HTML = """
 <table><tr><th>날짜</th><th>종가</th></tr>
 <tr><td class="tc">2026.08.06</td><td>228,500</td>
@@ -286,14 +278,6 @@ FRGN_HTML = """
     <td>12,000,000</td><td>-100,000</td><td>-800,000</td>
     <td>2,991,200,000</td><td>50.14</td></tr>
 <tr><td colspan="9">&nbsp;</td></tr>
-</table>
-"""
-
-SHORT_HTML = """
-<table><tr><th>일자</th><th>공매도 거래량</th><th>비중</th></tr>
-<tr><td>2026.08.05</td><td>1,500,000</td><td>12.40</td></tr>
-<tr><td>2026.08.04</td><td>700,000</td><td>6.00</td></tr>
-<tr><td>안내문구</td><td>-</td><td>-</td></tr>
 </table>
 """
 
@@ -355,36 +339,37 @@ class TestFrgnHtmlParsing:
         assert parse_frgn_html("") == []
 
 
-class TestShortParsing:
-    def test_reads_json_rows(self):
-        rows = parse_short_rows(SHORT_TREND)
-        assert len(rows) == 3
-        assert rows[0].date == "2026-08-05"
-        assert rows[0].ratio == 12.4
-        assert rows[0].volume == 1_500_000
-        assert rows[0].balance_ratio == 1.85
+KRX_ISIN = {"block1": [{"full_code": "KR7005930003", "short_code": "005930",
+                        "codeName": "삼성전자"}]}
 
-    def test_reads_html_ratio_only(self):
-        """HTML 에서는 비중만 읽는다 — 거래량 열 위치를 확신할 수 없다."""
-        rows = parse_short_html(SHORT_HTML)
-        assert [r.ratio for r in rows] == [12.4, 6.0]
-        assert all(r.volume is None for r in rows), "찍어서 맞힌 숫자를 넣으면 안 된다"
+KRX_TRADES = {"OutBlock_1": [
+    {"TRD_DD": "2026/08/04", "CVSRTSELL_TRDVOL": "700,000",
+     "CVSRTSELL_TRDVAL": "170,000,000,000", "TRDVAL_WT": "6.0"},
+    {"TRD_DD": "2026/08/05", "CVSRTSELL_TRDVOL": "1,500,000",
+     "CVSRTSELL_TRDVAL": "350,000,000,000", "TRDVAL_WT": "12.4"},
+    {"TRD_DD": "2026/08/03", "CVSRTSELL_TRDVOL": "600,000",
+     "CVSRTSELL_TRDVAL": "140,000,000,000", "TRDVAL_WT": "5.0"},
+]}
 
-    def test_html_skips_text_rows(self):
-        assert len(parse_short_html(SHORT_HTML)) == 2
 
-    def test_empty(self):
-        assert parse_short_rows(None) == [] and parse_short_html("") == []
+def krx_handler(request: httpx.Request) -> httpx.Response:
+    """KRX 는 POST 한 주소로 bld 만 바꿔 부르므로 본문을 보고 갈라야 한다."""
+    body = request.content.decode("utf-8")
+    if "finder_srtisu" in body:
+        return httpx.Response(200, json=KRX_ISIN)
+    if "MDCSTAT301" in body or "MDCSTAT300" in body:
+        return httpx.Response(200, json=KRX_TRADES)
+    return httpx.Response(200, json={"OutBlock_1": []})
 
 
 @pytest.mark.asyncio
 class TestSupplyDemandFetch:
     def _handler(self, request: httpx.Request) -> httpx.Response:
         url = str(request.url)
+        if "data.krx.co.kr" in url:
+            return krx_handler(request)
         if "/trend" in url:
             return httpx.Response(200, json=TREND)
-        if "shortSellingTrend" in url:
-            return httpx.Response(200, json=SHORT_TREND)
         return handler(request)
 
     async def test_collects_both(self):
@@ -406,21 +391,34 @@ class TestSupplyDemandFetch:
             s = await p.supply_demand("005930")
         assert s.short_ratio_baseline() == pytest.approx(5.5)
 
-    async def test_falls_back_to_html(self):
+    async def test_flows_fall_back_to_html(self):
         def json_dead(request: httpx.Request) -> httpx.Response:
             url = str(request.url)
+            if "data.krx.co.kr" in url:
+                return krx_handler(request)
             if "frgn.naver" in url:
                 return httpx.Response(200, text=FRGN_HTML)
-            if "short_trade.naver" in url:
-                return httpx.Response(200, text=SHORT_HTML)
-            if "/trend" in url or "shortSelling" in url or "shortStock" in url:
+            if "/trend" in url:
                 return httpx.Response(404, json={})
             return handler(request)
 
         async with make_provider(json_dead) as p:
             s = await p.supply_demand("005930", now=datetime(2026, 8, 6, 14, 0))
         assert s.today is not None and s.today.foreign == -1_200_000
-        assert s.short is not None and s.short.ratio == 12.4
+
+    async def test_short_failure_does_not_break_flows(self):
+        """공매도는 없어도 나머지 분석이 나와야 한다 — 실패 격리 확인."""
+        def krx_dead(request: httpx.Request) -> httpx.Response:
+            if "data.krx.co.kr" in str(request.url):
+                return httpx.Response(500, json={})
+            if "/trend" in str(request.url):
+                return httpx.Response(200, json=TREND)
+            return handler(request)
+
+        async with make_provider(krx_dead) as p:
+            s = await p.supply_demand("005930", now=datetime(2026, 8, 6, 14, 0))
+        assert s.today is not None, "공매도 실패가 수급까지 끌고 내려가면 안 된다"
+        assert s.short is None
 
     async def test_total_failure_is_empty_not_a_crash(self):
         async with make_provider(lambda r: httpx.Response(500, json={})) as p:

@@ -227,7 +227,8 @@
       days = days || 10;
       return {
         today: null, history: [], short: null, short_history: [],
-        ...pack(this.investorFlows(code, days), this.shortSales(code, days)),
+        // 공매도는 네이버가 더 이상 개별종목 API 로 주지 않아 원출처(KRX)에서 받는다.
+        ...pack(this.investorFlows(code, days), global.Krx.shortSales(this, code, days)),
       };
     }
 
@@ -247,24 +248,6 @@
       const html = this.getText('frgn.naver', `https://finance.naver.com/item/frgn.naver?code=${code}`);
       const rows = parseFrgnHtml(html || '', days);
       if (!rows.length && html) this.sample('frgn.naver', html);
-      return rows;
-    }
-
-    shortSales(code, days) {
-      const candidates = [
-        ['shortSellingTrend', `https://m.stock.naver.com/api/stock/${code}/shortSellingTrend?pageSize=${days}&page=1`],
-        ['shortStockTrend', `https://m.stock.naver.com/api/stock/${code}/shortStockTrend?pageSize=${days}&page=1`],
-      ];
-      for (const [name, url] of candidates) {
-        const data = this.getJson(name, url);
-        const rows = parseShortRows(data, days);
-        if (rows.length) return rows;
-        if (data) this.sample(name, data);
-      }
-      const html = this.getText('short_trade.naver',
-        `https://finance.naver.com/item/short_trade.naver?code=${code}`);
-      const rows = parseShortHtml(html || '', days);
-      if (!rows.length && html) this.sample('short_trade.naver', html);
       return rows;
     }
 
@@ -338,15 +321,6 @@
     institution: ['organPureBuyAmount', 'institutionPureBuyAmount', 'organNetBuyAmount'],
     individual: ['individualPureBuyAmount', 'personPureBuyAmount', 'individualNetBuyAmount'],
   };
-
-  const SHORT_VOLUME_KEYS = ['shortSellingQuant', 'shortSellingVolume', 'shortQuant',
-                             'shortSellingTradingVolume', 'quant'];
-  const SHORT_VALUE_KEYS = ['shortSellingAmount', 'shortSellingValue', 'shortAmount',
-                            'shortSellingTradingValue', 'amount'];
-  const SHORT_RATIO_KEYS = ['shortSellingRatio', 'shortSellingWeight', 'shortRatio',
-                            'ratio', 'weight'];
-  const SHORT_BALANCE_QTY_KEYS = ['shortSellingBalanceQuant', 'balanceQuant', 'remainQuant'];
-  const SHORT_BALANCE_RATIO_KEYS = ['shortSellingBalanceRatio', 'balanceRatio', 'remainRatio'];
 
   const DATE_KEYS = ['bizdate', 'localTradedAt', 'localDate', 'tradeDate', 'date', 'dt'];
 
@@ -456,51 +430,6 @@
     return out;
   }
 
-  function parseShortRows(data, limit) {
-    const out = [];
-    for (const row of rowsOf(data).slice(0, limit || 10)) {
-      const volume = num(first(row, ...SHORT_VOLUME_KEYS));
-      const value = num(first(row, ...SHORT_VALUE_KEYS));
-      const ratio = num(first(row, ...SHORT_RATIO_KEYS));
-      if (volume == null && value == null && ratio == null) continue;
-      out.push({
-        date: normDate(first(row, ...DATE_KEYS)),
-        volume, value, ratio,
-        balance_qty: num(first(row, ...SHORT_BALANCE_QTY_KEYS)),
-        balance_ratio: num(first(row, ...SHORT_BALANCE_RATIO_KEYS)),
-      });
-    }
-    return out;
-  }
-
-  /**
-   * finance.naver.com/item/short_trade.naver 의 일별 표.
-   *
-   * HTML 표에서는 '비중(%)' 칸만 읽는다. 공매도 거래량은 같은 행의 종가·거래량과
-   * 자릿수가 비슷해서 열 위치를 확신하지 못하면 구분할 방법이 없고, 찍어서
-   * 맞히려다 틀리면 없는 숫자를 사실처럼 보여주게 된다.
-   */
-  function parseShortHtml(html, limit) {
-    const out = [];
-    for (const rowHtml of htmlRows(html)) {
-      const cells = cellsOf(rowHtml);
-      if (cells.length < 3 || !DATE_CELL_RE.test(cells[0])) continue;
-      let ratio = null;
-      for (const cell of cells.slice(1)) {
-        const v = num(cell);
-        if (v != null && (cell.includes('.') || cell.includes('%')) && v >= 0 && v <= 100) {
-          ratio = v;
-          break;
-        }
-      }
-      if (ratio == null) continue;
-      out.push({ date: normDate(cells[0]), ratio, volume: null, value: null,
-                 balance_qty: null, balance_ratio: null });
-      if (out.length >= (limit || 10)) break;
-    }
-    return out;
-  }
-
   const pack = (flows, shorts) => ({
     today: flows[0] || null, history: flows,
     short: shorts[0] || null, short_history: shorts,
@@ -604,7 +533,7 @@
     String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0');
 
   global.Naver = {
-    Client, marketOf, parseFlowRows, parseFrgnHtml, parseShortRows, parseShortHtml, normDate,
+    Client, marketOf, parseFlowRows, parseFrgnHtml, normDate,
     _num: num, _first: first, _extractHit: extractHit, _parseNews: parseNews,
   };
 })(typeof globalThis !== 'undefined' ? globalThis : this);
