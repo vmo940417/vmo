@@ -208,6 +208,15 @@ class Window:
 
 # --------------------------------------------------------------------------
 
+def headless() -> bool:
+    """창도 브라우저도 없이 서버만 돌린다.
+
+    빌드 검증(CI)에서 쓴다. 창을 띄우는 경로와 서버가 뜨는 경로를 갈라 놓아야
+    "화면이 안 떠서 실패한 건지, 서버가 안 떠서 실패한 건지"를 구분할 수 있다.
+    """
+    return os.getenv("STOCKWHY_NO_WINDOW", "").strip().lower() not in ("", "0", "false", "no")
+
+
 def main() -> int:
     load_env()
     setup_tls()
@@ -216,7 +225,8 @@ def main() -> int:
 
     if running is not None:
         # 이미 떠 있다. 창을 하나 더 띄우지 말고 그 주소를 열어준다.
-        webbrowser.open(app_url(running))
+        if not headless():
+            webbrowser.open(app_url(running))
         return 0
     if port is None:
         _fatal(f"{PORTS[0]}~{PORTS[-1]} 포트를 모두 다른 프로그램이 쓰고 있습니다.")
@@ -224,12 +234,22 @@ def main() -> int:
 
     httpd, thread = start_server(port)
 
-    try:
-        import tkinter as tk
-    except ImportError:
-        # tkinter 가 없는 환경(리눅스 최소 설치 등)에서는 창 없이 서버만 돌린다.
-        print(f"{TITLE}  {app_url(port)}  (Ctrl+C 로 종료)")
-        webbrowser.open(app_url(port))
+    window = None
+    if not headless():
+        try:
+            import tkinter as tk  # noqa: PLC0415
+            window = Window(tk, port, httpd)
+        except Exception:  # noqa: BLE001
+            # tkinter 가 없거나(리눅스 최소 설치) 창을 못 여는 환경(원격 세션,
+            # 잠긴 PC)일 수 있다. 그렇다고 앱까지 죽으면 아이콘을 눌러도 아무
+            # 일이 안 일어난다. 창을 포기하고 서버와 브라우저는 살린다.
+            window = None
+
+    if window is None:
+        if sys.stdout is not None:
+            print(f"{TITLE}  {app_url(port)}  (Ctrl+C 로 종료)")
+        if not headless():
+            webbrowser.open(app_url(port))
         try:
             thread.join()
         except KeyboardInterrupt:

@@ -256,3 +256,62 @@ class TestPackagingFiles:
     def test_spec_has_no_console(self):
         spec = (self.ROOT / "packaging" / "stockwhy.spec").read_text(encoding="utf-8")
         assert "console=False" in spec, "콘솔이 뜨면 이 빌드를 만든 이유가 없어진다"
+
+
+class TestHeadlessMode:
+    """CI 검증용 무창 모드.
+
+    창 경로와 서버 경로를 갈라 놓아야 빌드가 깨졌을 때 "화면이 안 뜬 건지 서버가
+    안 뜬 건지"를 로그만 보고 구분할 수 있다.
+    """
+
+    def test_off_by_default(self, monkeypatch):
+        monkeypatch.delenv("STOCKWHY_NO_WINDOW", raising=False)
+        assert desktop.headless() is False
+
+    @pytest.mark.parametrize("value", ["1", "true", "yes", "on"])
+    def test_on(self, value, monkeypatch):
+        monkeypatch.setenv("STOCKWHY_NO_WINDOW", value)
+        assert desktop.headless() is True
+
+    @pytest.mark.parametrize("value", ["", "0", "false", "no"])
+    def test_off(self, value, monkeypatch):
+        monkeypatch.setenv("STOCKWHY_NO_WINDOW", value)
+        assert desktop.headless() is False
+
+    def test_does_not_open_a_browser(self, monkeypatch):
+        """무창 모드에서 브라우저가 뜨면 CI 러너에 창이 남는다."""
+        opened = []
+        monkeypatch.setenv("STOCKWHY_NO_WINDOW", "1")
+        monkeypatch.setattr(desktop.webbrowser, "open", lambda url: opened.append(url))
+        monkeypatch.setattr(desktop, "find_port", lambda: (None, 8765))
+        assert desktop.main() == 0
+        assert opened == []
+
+
+class TestWindowFailureFallback:
+    """창을 못 띄우는 환경에서도 앱이 죽으면 안 된다.
+
+    원격 데스크톱, 잠긴 세션, tkinter 없는 파이썬 — 창이 안 열릴 이유는 여럿이다.
+    거기서 프로세스가 그냥 죽으면 사용자에겐 '아이콘을 눌렀는데 아무 일도 안
+    일어남' 으로 보인다. 창을 포기하더라도 서버와 브라우저는 살려야 한다.
+    """
+
+    def test_falls_back_to_server_only(self, monkeypatch):
+        opened: list[str] = []
+        monkeypatch.delenv("STOCKWHY_NO_WINDOW", raising=False)
+        monkeypatch.setattr(desktop.webbrowser, "open", lambda url: opened.append(url))
+
+        port = free_port()
+        monkeypatch.setattr(desktop, "PORTS", (port,))
+
+        def explode(tk, *a, **kw):
+            raise RuntimeError("창을 열 수 없음")
+
+        monkeypatch.setattr(desktop, "Window", explode)
+        # 서버가 계속 도는 대신 바로 끝나도록 join 을 즉시 반환시킨다.
+        monkeypatch.setattr(threading.Thread, "join", lambda self, *a, **kw: None)
+
+        assert desktop.main() == 0
+        assert opened, "창이 실패해도 브라우저는 열어야 한다"
+        assert str(port) in opened[0]
