@@ -34,6 +34,11 @@ STATIC = Path(__file__).parent / "static"
 # 폰이나 사내망에 열어둔 서버에서는 아무나 끌 수 있으면 곤란하다.
 ALLOW_QUIT = False
 
+# 사내 프록시나 낯선 도메인에 대한 TLS 협상이 개별 요청 타임아웃을 안 지키고
+# 늘어지는 경우가 있었다. 전체 파이프라인에 상한을 둬서 스레드가 무기한
+# 붙잡히지 않게 한다. 테스트에서 monkeypatch 로 줄여 쓸 수 있게 모듈 상수로 둔다.
+WHY_TIMEOUT_S = 50.0
+
 
 def _truthy(value: str | None, default: bool = True) -> bool:
     if value is None:
@@ -145,10 +150,23 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(422, {"detail": "종목명 또는 코드를 입력하세요."})
         use_llm = _truthy((params.get("llm") or [None])[0])
 
+        async def bounded() -> dict:
+            # 개별 HTTP 요청은 각자 타임아웃이 있지만, 사내 프록시나 낯선
+            # 도메인(KRX 등)에 대한 TLS 협상이 그 타임아웃을 안 지키고 늘어지는
+            # 경우가 실제로 있었다. 그럴 때 이 스레드가 무기한 붙잡히는 대신
+            # 여기서 확실히 끊고 원인을 알 수 있는 오류로 바꾼다.
+            return await asyncio.wait_for(diagnose(query, use_llm=use_llm), timeout=WHY_TIMEOUT_S)
+
         try:
-            result = asyncio.run(diagnose(query, use_llm=use_llm))
+            result = asyncio.run(bounded())
         except NotFound as e:
             return self._json(404, {"detail": str(e)})
+        except asyncio.TimeoutError:
+            return self._json(504, {
+                "detail": f"{WHY_TIMEOUT_S:.0f}초 안에 응답을 못 받았습니다. 네트워크(사내 "
+                          "프록시)가 느리거나 막혀 있을 수 있습니다. '진단'으로 어느 소스가 "
+                          "막혔는지 확인해보세요.",
+            })
         except Exception as e:  # noqa: BLE001
             return self._json(502, {"detail": f"{type(e).__name__}: {e}"})
 

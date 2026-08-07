@@ -142,6 +142,24 @@ class TestApi:
             body = get(f"{unlocked}/api/why", params={"q": "005930", "llm": value}).json()
             assert body["explanation"] is None
 
+    def test_hung_pipeline_times_out(self, unlocked, monkeypatch):
+        """개별 요청 타임아웃을 뚫고 늘어지는 네트워크 경로가 있었다(사내 프록시,
+        낯선 도메인 TLS 협상). 전체 파이프라인에 상한이 없으면 스레드가 무기한
+        붙잡혀 화면은 영원히 '분석 중…' 으로 남는다. 상한이 실제로 끊는지 확인한다.
+        """
+        import asyncio  # noqa: PLC0415
+
+        async def hang(*a, **kw):
+            await asyncio.sleep(10)
+
+        monkeypatch.setattr(lite, "WHY_TIMEOUT_S", 0.2)
+        # lite.py 는 `from .pipeline import diagnose` 로 이름을 로컬에 들여왔으므로
+        # pipeline.diagnose 가 아니라 lite.diagnose 를 바꿔야 실제로 먹는다.
+        monkeypatch.setattr(lite, "diagnose", hang)
+        r = get(f"{unlocked}/api/why", params={"q": "005930", "llm": "false"})
+        assert r.status_code == 504
+        assert "진단" in r.json()["detail"]
+
 
 class TestAuth:
     def test_rejects_without_token(self, locked):
