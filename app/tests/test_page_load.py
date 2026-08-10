@@ -27,10 +27,12 @@ HARNESS = Path(__file__).parent / "js" / "page_load_harness.mjs"
 pytestmark = pytest.mark.skipif(shutil.which("node") is None, reason="node 없음")
 
 
-def run(html: str, stub_app: bool = False) -> dict:
+def run(html: str, stub_app: bool = False, load_real_scripts: bool = False,
+        probe: str = "") -> dict:
     proc = subprocess.run(
         ["node", str(HARNESS)],
-        input=json.dumps({"html": html, "stubApp": stub_app}),
+        input=json.dumps({"html": html, "stubApp": stub_app,
+                          "loadRealScripts": load_real_scripts, "probe": probe}),
         capture_output=True, text=True, timeout=30,
     )
     assert proc.returncode == 0, f"하니스 실패:\n{proc.stderr}"
@@ -47,3 +49,43 @@ class TestAndroidPageLoads:
     def test_no_top_level_exception(self):
         r = run("android/app/src/main/assets/index.html", stub_app=True)
         assert r["ok"], r.get("error")
+
+
+class TestAndroidWatchlistRoundTripOnRealPage:
+    """App 을 스텁으로 갈아끼우면 인라인 스크립트와 app.js/attribution.js 사이가
+    실제로 어긋나 있어도 못 잡는다 — 실제 파일을 전부 로드해서 화면 흐름
+    그대로(첫 로딩 -> 관심종목 추가 -> 칩 갱신)를 검증한다."""
+
+    ANDROID = "android/app/src/main/assets/index.html"
+
+    def test_default_samples_shown_when_watchlist_empty(self):
+        r = run(self.ANDROID, load_real_scripts=True)
+        assert r["ok"], r.get("error")
+        chips = r["elements"]["chips"]["innerHTML"]
+        assert "삼성전자" in chips  # DEFAULT_SAMPLES 중 하나
+        assert "관심종목에 추가" in chips  # 안내 문구
+
+    def test_star_then_chip_shows_starred_item(self):
+        """☆ 를 눌러 관심종목에 담으면(WL.add) 상단 칩이 그 종목으로 바뀌어야 한다."""
+        probe = """
+        WL.add('005930', '삼성전자');
+        renderChips();
+        globalThis.__PROBE__ = { chips: document.getElementById('chips').innerHTML };
+        """
+        r = run(self.ANDROID, load_real_scripts=True, probe=probe)
+        assert r["ok"], r.get("error")
+        chips = r["probe"]["chips"]
+        assert "삼성전자" in chips
+        assert "관심종목에서 제거" in chips  # 기본 샘플이 아니라 실제 항목 칩이어야 한다
+        assert "관심종목에 추가" not in chips  # 기본 샘플 안내 문구는 빠져야 한다
+
+    def test_remove_falls_back_to_default_samples(self):
+        probe = """
+        WL.add('005930', '삼성전자');
+        WL.remove('005930');
+        renderChips();
+        globalThis.__PROBE__ = { chips: document.getElementById('chips').innerHTML };
+        """
+        r = run(self.ANDROID, load_real_scripts=True, probe=probe)
+        assert r["ok"], r.get("error")
+        assert "관심종목에 추가" in r["probe"]["chips"]
