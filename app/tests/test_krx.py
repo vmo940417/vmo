@@ -230,6 +230,38 @@ class TestShortSales:
             rows = await krx.short_sales(c, report, "005930", today=datetime(2026, 8, 6))
         assert rows[0].ratio == 12.4 and rows[0].balance_ratio is None
 
+    async def test_warms_up_session_before_stat_queries(self):
+        """srt/STAT 계열은 세션 쿠키 없이는 파라미터가 뭐든 400 LOGOUT 을 준다
+        (실기기 CI 탐침으로 확인됨) — POST 전에 메인 화면을 GET 해서
+        세션을 먼저 받아야 한다."""
+        seen: list[tuple[str, str]] = []
+
+        def spy(request: httpx.Request) -> httpx.Response:
+            seen.append((request.method, str(request.url)))
+            if request.method == "GET":
+                return httpx.Response(200, text="<html></html>")
+            return full_handler(request)
+
+        report = ProviderReport()
+        async with make_client(spy) as c:
+            await krx.short_sales(c, report, "005930", today=datetime(2026, 8, 6))
+        assert any(m == "GET" and "data.krx.co.kr" in u for m, u in seen), \
+            "세션 워밍업 GET 이 없으면 실기기에서 STAT 조회가 전부 400 LOGOUT 난다"
+
+    async def test_session_warmup_failure_does_not_block_the_rest(self):
+        """워밍업 GET 이 죽어도(네트워크 문제 등) 이후 POST 시도 자체는 계속돼야
+        한다 — 워밍업 실패가 곧 공매도 조회 포기를 뜻하면 안 된다."""
+        def get_dies(request: httpx.Request) -> httpx.Response:
+            if request.method == "GET":
+                raise httpx.ConnectError("워밍업 실패")
+            return full_handler(request)
+
+        report = ProviderReport()
+        async with make_client(get_dies) as c:
+            rows = await krx.short_sales(c, report, "005930", today=datetime(2026, 8, 6))
+        assert rows and rows[0].ratio == 12.4
+        assert any(n == "krx/session" for n, _ in report.failed)
+
     async def test_date_window_covers_holidays(self):
         """공매도는 마감 후 집계라 오늘 것이 없다. 창이 좁으면 빈손으로 끝난다."""
         seen: list[str] = []

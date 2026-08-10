@@ -9,6 +9,9 @@ import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import org.json.JSONObject
 import java.io.BufferedReader
+import java.net.CookieHandler
+import java.net.CookieManager
+import java.net.CookiePolicy
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.zip.GZIPInputStream
@@ -28,6 +31,13 @@ class MainActivity : AppCompatActivity() {
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // KRX(data.krx.co.kr)의 개별종목 공매도 조회는 세션 쿠키(JSESSIONID)가
+        // 없으면 파라미터가 뭐든 400 LOGOUT 을 준다. HttpURLConnection 은 기본으로
+        // 쿠키를 저장/재전송하지 않으므로, 전역 CookieManager 를 깔아 브라우저처럼
+        // 요청 사이에 쿠키가 자동으로 유지되게 한다(krx.js 가 먼저 메인 화면을
+        // GET 해서 세션을 받아온다).
+        CookieHandler.setDefault(CookieManager(null, CookiePolicy.ACCEPT_ALL))
 
         web = WebView(this).apply {
             settings.javaScriptEnabled = true

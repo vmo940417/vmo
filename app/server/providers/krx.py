@@ -25,6 +25,7 @@ report.samples 에 응답 앞부분을 남긴다.
 
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timedelta
 from typing import Any, Optional
 
@@ -103,6 +104,23 @@ def _rows(data: Any) -> list[dict]:
     return []
 
 
+MAIN_PAGE = "https://data.krx.co.kr/contents/MDC/MDI/mdiLoader/index.cmd?menuId=MDC0201020403"
+
+
+async def _ensure_session(client: httpx.AsyncClient, report) -> None:
+    """getJsonData.cmd 의 srt/STAT 계열(개별종목 공매도)은 세션 쿠키가 없으면
+    파라미터가 뭐든 전부 'HTTP 400: LOGOUT' 을 준다 — 탐침 스크립트로 bld/
+    파라미터 조합을 전부 돌려봐도 예외 없이 똑같이 실패해서 확인했다.
+    (반면 ISIN 조회 같은 단순 finder 엔드포인트는 세션 없이도 통과한다.)
+    브라우저가 화면을 열 때처럼 메인 화면을 한 번 GET 해서 JSESSIONID 를
+    먼저 받아두면, 같은 httpx 클라이언트의 쿠키잔에 저장되어 이후 POST 에
+    자동으로 실린다."""
+    try:
+        await client.get(MAIN_PAGE, headers=HEADERS, timeout=10.0)
+    except Exception as e:  # noqa: BLE001 - 워밍업 실패해도 이후 POST 가 그대로
+        report.note_fail("krx/session", f"{type(e).__name__}: {e}")
+
+
 async def _post(client: httpx.AsyncClient, report, name: str, payload: dict) -> Optional[dict]:
     try:
         r = await client.post(URL, data=payload, headers=HEADERS, timeout=10.0)
@@ -173,7 +191,8 @@ async def short_sales(client: httpx.AsyncClient, report, code: str,
     start = (today - timedelta(days=days * 2 + 10)).strftime("%Y%m%d")
     end = today.strftime("%Y%m%d")
 
-    isu = await isin(client, report, code)
+    # ISIN 조회는 세션이 필요 없는 엔드포인트라 워밍업과 동시에 보내도 된다.
+    isu, _ = await asyncio.gather(isin(client, report, code), _ensure_session(client, report))
     if not isu:
         return []
 

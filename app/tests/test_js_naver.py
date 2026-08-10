@@ -335,6 +335,20 @@ class TestSupplyDemand:
         assert s["short"]["balance_ratio"] == 1.85
         assert [r["date"] for r in s["short_history"]] == ["2026-08-05", "2026-08-04"]
 
+    def test_krx_session_is_warmed_up(self):
+        """srt/STAT 계열은 세션 쿠키 없이는 전부 400 LOGOUT 이 난다 — POST 전에
+        메인 화면을 GET 해서 세션을 먼저 받아야 한다."""
+        got = self._supply({"/trend": TREND})
+        assert any("data.krx.co.kr" in u for u in got["getCalls"])
+
+    def test_krx_error_body_is_surfaced(self):
+        """상태 코드만 남으면 '400' 만 보고 파라미터를 찍어 맞히게 된다 — KRX 가
+        본문에 적어주는 이유(LOGOUT 등)까지 진단에 남아야 한다."""
+        post = {**KRX_POST, "MDCSTAT30101": {"__raw": True, "ok": False, "status": 400, "body": "LOGOUT"},
+                "MDCSTAT30001": {"__raw": True, "ok": False, "status": 400, "body": "LOGOUT"}}
+        got = self._supply({"/trend": TREND}, post=post)
+        assert any("LOGOUT" in f["error"] for f in got["report"]["failed"])
+
     def test_flows_html_fallback(self):
         """수급 JSON 이 죽어도 오래된 HTML 화면에서 긁어온다."""
         s = self._supply({"frgn.naver": FRGN_HTML})["supply"]

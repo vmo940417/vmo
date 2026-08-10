@@ -13,12 +13,16 @@ const ASSETS = path.resolve(here, '../../../android/app/src/main/assets');
 
 const input = JSON.parse(fs.readFileSync(0, 'utf8'));
 
-// 가짜 브리지: URL 을 보고 픽스처를 돌려준다.
+// 가짜 브리지: URL 을 보고 픽스처를 돌려준다. GET 호출은 세션 워밍업(krx.js
+// ensureSession)이 실제로 일어났는지 확인할 수 있게 기록해 둔다.
+const getCalls = [];
 globalThis.Native = {
   httpGet(url) {
+    getCalls.push(url);
     for (const [pattern, resp] of Object.entries(input.routes)) {
       if (url.includes(pattern)) {
         if (resp === null) return JSON.stringify({ ok: false, status: 500, error: 'fixture: down' });
+        if (resp && resp.__raw) return JSON.stringify(resp);
         return JSON.stringify({ ok: true, status: 200, body: typeof resp === 'string' ? resp : JSON.stringify(resp) });
       }
     }
@@ -29,6 +33,9 @@ globalThis.Native = {
     for (const [pattern, resp] of Object.entries(input.postRoutes || {})) {
       if (body.includes(pattern)) {
         if (resp === null) return JSON.stringify({ ok: false, status: 500, error: 'fixture: down' });
+        // __raw: 있는 그대로(상태 코드/본문 텍스트까지) 돌려준다 — 실패 응답의
+        // 본문 텍스트(예: "LOGOUT")를 흉내 낼 때 쓴다.
+        if (resp && resp.__raw) return JSON.stringify(resp);
         return JSON.stringify({ ok: true, status: 200,
           body: typeof resp === 'string' ? resp : JSON.stringify(resp) });
       }
@@ -55,5 +62,6 @@ if (input.want.includes('news')) {
   }));
 }
 out.report = client.report;
+out.getCalls = getCalls;
 
 process.stdout.write(JSON.stringify(out));

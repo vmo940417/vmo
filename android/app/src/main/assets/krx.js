@@ -83,6 +83,24 @@
       .map((k) => encodeURIComponent(k) + '=' + encodeURIComponent(params[k])).join('&');
   }
 
+  const MAIN_PAGE = 'https://data.krx.co.kr/contents/MDC/MDI/mdiLoader/index.cmd?menuId=MDC0201020403';
+
+  // srt/STAT 계열(개별종목 공매도)은 세션 쿠키(JSESSIONID)가 없으면 파라미터가
+  // 뭐든 전부 'HTTP 400: LOGOUT' 을 준다 — CI 탐침으로 bld/파라미터 조합을 전부
+  // 돌려봐도 예외 없이 똑같이 실패해서 확인했다(ISIN 조회 같은 단순 finder
+  // 엔드포인트는 세션 없이도 통과한다). 브라우저가 화면을 열 때처럼 메인 화면을
+  // 한 번 GET 해서 세션을 먼저 받아둔다 — Native 쪽에 전역 CookieManager 가
+  // 깔려 있어(MainActivity.kt) 이 응답의 Set-Cookie 가 이후 POST 에 자동으로
+  // 실린다.
+  function ensureSession(client) {
+    if (typeof Native === 'undefined') return;
+    try {
+      Native.httpGet(MAIN_PAGE, JSON.stringify(HEADERS));
+    } catch (e) {
+      client.report.failed.push({ endpoint: 'krx/session', error: 'bridge: ' + e.message });
+    }
+  }
+
   function post(client, name, params) {
     if (typeof Native === 'undefined') {
       client.report.failed.push({ endpoint: name, error: 'Native 브리지 없음' });
@@ -96,7 +114,10 @@
       return null;
     }
     if (!raw.ok) {
-      client.report.failed.push({ endpoint: name, error: raw.error || ('HTTP ' + raw.status) });
+      // 상태 코드만 남기면 "400" 만 보고 파라미터를 찍어 맞히게 된다 — KRX 는
+      // 무엇이 잘못됐는지를 본문에 적어준다(예: "LOGOUT").
+      const detail = raw.error || (`HTTP ${raw.status}` + (raw.body ? `: ${raw.body.slice(0, 200)}` : ''));
+      client.report.failed.push({ endpoint: name, error: detail });
       return null;
     }
     try {
@@ -163,6 +184,7 @@
 
     const isu = isin(client, code);
     if (!isu) return [];
+    ensureSession(client);
 
     const base = {
       isuCd: isu, isuCd2: isu, strtDd: ymd(start), endDd: ymd(today),
