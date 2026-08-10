@@ -154,6 +154,46 @@ class TestOther:
         assert items[0].url == "https://n.news.naver.com/mnews/article/018/0006012345"
         assert items[0].when() == "08/06 14:43"
 
+    async def test_news_sorted_newest_first(self):
+        """네이버가 순서를 뒤죽박죽으로 줘도 화면엔 최신순으로 나와야 한다."""
+        mixed = [{
+            "items": [
+                {"title": "오래된 기사", "datetime": "20260805090000",
+                 "officeId": "015", "articleId": "1"},
+                {"title": "가장 최신 기사", "datetime": "20260806144322",
+                 "officeId": "018", "articleId": "2"},
+                {"title": "중간 기사", "datetime": "20260806090000",
+                 "officeId": "015", "articleId": "3"},
+            ]
+        }]
+
+        def h(request: httpx.Request) -> httpx.Response:
+            if "/news/stock/" in str(request.url):
+                return httpx.Response(200, json=mixed)
+            return handler(request)
+
+        async with make_provider(h) as p:
+            items = await p.news("005930")
+        assert [i.title for i in items] == ["가장 최신 기사", "중간 기사", "오래된 기사"]
+
+    async def test_news_without_date_sorts_last(self):
+        mixed = [{
+            "items": [
+                {"title": "날짜 없는 기사", "officeId": "015", "articleId": "1"},
+                {"title": "날짜 있는 기사", "datetime": "20260806090000",
+                 "officeId": "015", "articleId": "2"},
+            ]
+        }]
+
+        def h(request: httpx.Request) -> httpx.Response:
+            if "/news/stock/" in str(request.url):
+                return httpx.Response(200, json=mixed)
+            return handler(request)
+
+        async with make_provider(h) as p:
+            items = await p.news("005930")
+        assert [i.title for i in items] == ["날짜 있는 기사", "날짜 없는 기사"]
+
     async def test_unparseable_date_is_reported(self):
         """아는 형식 셋 다 못 맞히면 날짜가 통째로 빈 채로 뜬다 — 다음 진단에서
         바로 형태를 볼 수 있게 샘플로 남겨야 한다."""

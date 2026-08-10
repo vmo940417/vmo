@@ -424,9 +424,11 @@ class NaverProvider:
                     title=title, published_at=dt, url=url,
                     press=_first(it, "officeName", "press"), source="naver",
                 ))
-                if len(out) >= limit:
-                    return out
-        return out
+        # 응답 순서가 항상 최신순이라는 보장이 없어(그룹이 섞이면 순서가
+        # 뒤바뀌는 경우가 있다) 최신순으로 다시 정렬한다. 날짜를 못 읽은
+        # 기사는 맨 뒤로 보낸다.
+        out.sort(key=lambda n: n.published_at or datetime.min, reverse=True)
+        return out[:limit]
 
 
 # --------------------------------------------------------------------------

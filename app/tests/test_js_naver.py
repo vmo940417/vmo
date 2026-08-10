@@ -209,6 +209,28 @@ class TestOther:
         assert out["news"][0]["published_at"] is None
         assert out["report"]["samples"].get("news_datetime") == "완전히-다른-형식"
 
+    def test_news_sorted_newest_first(self):
+        """네이버가 순서를 뒤죽박죽으로 줘도 화면엔 최신순으로 나와야 한다."""
+        mixed = [
+            {"items": [{"title": "오래된 기사", "datetime": "20260805090000",
+                        "officeId": "015", "articleId": "1"}]},
+            {"items": [{"title": "가장 최신 기사", "datetime": "20260806144322",
+                        "officeId": "018", "articleId": "2"},
+                       {"title": "중간 기사", "datetime": "20260806090000",
+                        "officeId": "015", "articleId": "3"}]},
+        ]
+        out = run({"/news/stock/": mixed}, ["news"])
+        assert [n["title"] for n in out["news"]] == ["가장 최신 기사", "중간 기사", "오래된 기사"]
+
+    def test_news_without_date_sorts_last(self):
+        mixed = [{"items": [
+            {"title": "날짜 없는 기사", "officeId": "015", "articleId": "1"},
+            {"title": "날짜 있는 기사", "datetime": "20260806090000",
+             "officeId": "015", "articleId": "2"},
+        ]}]
+        out = run({"/news/stock/": mixed}, ["news"])
+        assert [n["title"] for n in out["news"]] == ["날짜 있는 기사", "날짜 없는 기사"]
+
 
 # --------------------------------------------------------------------------
 # 시장 구분

@@ -499,10 +499,16 @@
                             : (first(it, 'linkUrl', 'url') || null),
           press: first(it, 'officeName', 'press') || null,
         });
-        if (out.length >= limit) return out;
       }
     }
-    return out;
+    // 응답 순서가 항상 최신순이라는 보장이 없어(그룹이 섞이면 순서가
+    // 뒤바뀌는 경우가 있다) 최신순으로 다시 정렬한다. 날짜를 못 읽은
+    // 기사는 맨 뒤로 보낸다. (-Infinity 끼리 빼면 NaN 이 나와 정렬이
+    // 흔들릴 수 있어 유효한 최솟값을 센티널로 쓴다.)
+    const NO_DATE = -8640000000000000;
+    const ts = (n) => (n.published_at ? n.published_at.getTime() : NO_DATE);
+    out.sort((a, b) => ts(b) - ts(a));
+    return out.slice(0, limit);
   }
 
   function parseDt(raw) {
