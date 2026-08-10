@@ -184,6 +184,29 @@
 const $ = s => document.querySelector(s);
 const out = $('#out'), form = $('#f'), qEl = $('#q'), goEl = $('#go');
 
+// 토큰이 켜져 있으면 ?t=... 로 한 번만 받아 저장하고, 이후엔 헤더로 보낸다.
+// URL 에 계속 달고 다니면 공유하다 실수로 새어나가기 쉽다.
+const TOKEN_KEY = 'stockwhy_token';
+(function captureToken() {
+  const t = new URLSearchParams(location.search).get('t');
+  if (!t) return;
+  try { localStorage.setItem(TOKEN_KEY, t); } catch (e) {}
+  history.replaceState({}, '', location.pathname);
+})();
+const token = () => { try { return localStorage.getItem(TOKEN_KEY); } catch (e) { return null; } };
+
+const nf = n => n == null ? '-' : n.toLocaleString('ko-KR');
+const cls = v => v > 0 ? 'up' : v < 0 ? 'down' : 'flat';
+
+// 이번 질의에 실제로 든 토큰과 비용. 추정이 아니라 API 응답의 usage 값이다.
+function costLabel(c) {
+  if (!c) return ' · LLM 미사용';
+  const tok = `${nf(c.input_tokens)}+${nf(c.output_tokens)} 토큰`;
+  if (c.usd == null) return ` · ${tok}`;
+  return ` · ${tok} · ${Math.round(c.krw)}원`;
+}
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
 // 매번 종목명을 입력하지 않도록, 확인해본 종목을 별표로 찍어두면 다음부터
 // 칩 한 번 터치로 바로 조회된다. 관심종목이 하나도 없을 때만 시작 예시를 보여준다.
 const DEFAULT_SAMPLES = ['삼성전자', 'SK하이닉스', '한화오션', 'LG에너지솔루션', '알테오젠', 'HD현대일렉트릭'];
@@ -230,29 +253,6 @@ $('#chips').addEventListener('click', e => {
   qEl.value = go.dataset.code || go.dataset.name;
   form.requestSubmit();
 });
-
-// 토큰이 켜져 있으면 ?t=... 로 한 번만 받아 저장하고, 이후엔 헤더로 보낸다.
-// URL 에 계속 달고 다니면 공유하다 실수로 새어나가기 쉽다.
-const TOKEN_KEY = 'stockwhy_token';
-(function captureToken() {
-  const t = new URLSearchParams(location.search).get('t');
-  if (!t) return;
-  try { localStorage.setItem(TOKEN_KEY, t); } catch (e) {}
-  history.replaceState({}, '', location.pathname);
-})();
-const token = () => { try { return localStorage.getItem(TOKEN_KEY); } catch (e) { return null; } };
-
-const nf = n => n == null ? '-' : n.toLocaleString('ko-KR');
-const cls = v => v > 0 ? 'up' : v < 0 ? 'down' : 'flat';
-
-// 이번 질의에 실제로 든 토큰과 비용. 추정이 아니라 API 응답의 usage 값이다.
-function costLabel(c) {
-  if (!c) return ' · LLM 미사용';
-  const tok = `${nf(c.input_tokens)}+${nf(c.output_tokens)} 토큰`;
-  if (c.usd == null) return ` · ${tok}`;
-  return ` · ${tok} · ${Math.round(c.krw)}원`;
-}
-const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
 // 응답이 영영 안 오면 스피너가 새로고침 전까지 무한히 돈다. 서버가 죽은 게 아니라
 // 네트워크 경로 하나가 막힌 경우(사내 프록시, 낯선 도메인에 대한 TLS 검사 지연 등)
