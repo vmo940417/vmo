@@ -236,11 +236,21 @@ class TestNewsScoring:
             NewsItem(title="삼성전자 실적 우려 확대", published_at=datetime(2026, 8, 6, 14, 40)),
         ]
         ranked = score_news(news, q, a, now=now)
-        assert ranked[0]["time"] == "14:40"
+        assert ranked[0]["time"] == "08/06 14:40"
 
     def test_empty_news_is_safe(self):
         a = analyze(samsung(), kospi_context())
         assert score_news([], samsung(), a) == []
+
+    def test_time_includes_the_date(self):
+        """시간만으로는 어제 기사와 오늘 기사를 구분할 수 없다."""
+        q, a = samsung(), analyze(samsung(), kospi_context())
+        news = [NewsItem(title="x", published_at=datetime(2026, 8, 5, 9, 5))]
+        assert score_news(news, q, a)[0]["time"] == "08/05 09:05"
+
+    def test_time_missing_when_no_date(self):
+        q, a = samsung(), analyze(samsung(), kospi_context())
+        assert score_news([NewsItem(title="x")], q, a)[0]["time"] == "--/-- --:--"
 
 
 # --------------------------------------------------------------------------

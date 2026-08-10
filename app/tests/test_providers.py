@@ -152,7 +152,7 @@ class TestOther:
         assert items[0].title == '삼성전자, 넷리스트와 "특허 소송" 합의'
         assert "<b>" not in items[1].title
         assert items[0].url == "https://n.news.naver.com/mnews/article/018/0006012345"
-        assert items[0].when() == "14:43"
+        assert items[0].when() == "08/06 14:43"
 
     async def test_resolve_by_code_skips_search(self):
         async with make_provider() as p:

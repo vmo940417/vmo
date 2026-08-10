@@ -128,6 +128,30 @@
     },
   };
 
+  // -- 관심종목 ------------------------------------------------------------
+  //
+  // 매번 종목명을 입력하지 않도록, 확인해본 종목을 찜해두면 다음부터 칩 한 번
+  // 터치로 바로 조회된다. Settings 와 같은 저장소(Native prefs 또는
+  // localStorage)를 써서 앱을 지우기 전까지는 남는다.
+
+  const Watchlist = {
+    KEY: 'watchlist',
+    all() {
+      try { return JSON.parse(Settings.get(this.KEY) || '[]'); } catch (e) { return []; }
+    },
+    has(code) { return !!code && this.all().some((it) => it.code === code); },
+    add(code, name) {
+      if (!code) return;
+      const list = this.all().filter((it) => it.code !== code);
+      list.unshift({ code, name: name || code });
+      // 저장소를 무한정 먹지 않도록 최근 30개만 남긴다.
+      Settings.set(this.KEY, JSON.stringify(list.slice(0, 30)));
+    },
+    remove(code) {
+      Settings.set(this.KEY, JSON.stringify(this.all().filter((it) => it.code !== code)));
+    },
+  };
+
   // -- 사용량 누적 -------------------------------------------------------
 
   const Usage = {
@@ -297,5 +321,5 @@
     };
   }
 
-  global.App = { diagnose, Settings, Usage, costOf, peersFor, themeOf, sectorRate };
+  global.App = { diagnose, Settings, Usage, Watchlist, costOf, peersFor, themeOf, sectorRate };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

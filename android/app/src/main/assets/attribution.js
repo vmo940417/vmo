@@ -493,7 +493,7 @@
 
       return {
         title: item.title,
-        time: item.published_at ? hhmm(item.published_at) : '--:--',
+        time: item.published_at ? hhmm(item.published_at) : '--/-- --:--',
         url: item.url || null,
         press: item.press || null,
         categories: cats,
@@ -506,7 +506,10 @@
     return scored;
   }
 
+  // 시간만으로는 어제 기사인지 오늘 기사인지 구분이 안 된다 — 날짜를 같이 낸다.
+  // 파이썬의 strftime('%m/%d %H:%M') 과 같은 형태로 맞춘다.
   const hhmm = (d) =>
+    String(d.getMonth() + 1).padStart(2, '0') + '/' + String(d.getDate()).padStart(2, '0') + ' ' +
     String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
 
   global.Attribution = {

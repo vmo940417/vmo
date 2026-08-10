@@ -59,7 +59,8 @@ class NewsItem:
     source: str = "unknown"
 
     def when(self) -> str:
-        return self.published_at.strftime("%H:%M") if self.published_at else "--:--"
+        """시간만으로는 어제 기사인지 오늘 기사인지 구분이 안 된다 — 날짜를 같이 낸다."""
+        return self.published_at.strftime("%m/%d %H:%M") if self.published_at else "--/-- --:--"
 
 
 @dataclass

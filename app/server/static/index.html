@@ -52,12 +52,24 @@
   }
   button:disabled { opacity: .5; cursor: default; }
 
-  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 24px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 24px; align-items: center; }
   .chip {
-    padding: 5px 11px; font-size: 12.5px; border-radius: 999px; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 5px 6px 5px 11px; font-size: 12.5px; border-radius: 999px;
     border: 1px solid var(--line); background: transparent; color: var(--dim);
   }
   .chip:hover { color: var(--fg); border-color: var(--faint); }
+  .chip-go { background: none; border: 0; color: inherit; font: inherit; cursor: pointer; padding: 0; }
+  .chip-x {
+    background: none; border: 0; color: var(--faint); cursor: pointer;
+    font-size: 14px; line-height: 1; padding: 0 2px 0 4px;
+  }
+  .chip-x:hover { color: var(--up); }
+  .chip-hint { font-size: 11.5px; color: var(--faint); }
+  .star {
+    background: none; border: 0; font-size: 21px; line-height: 1; color: var(--accent);
+    cursor: pointer; padding: 0 2px 0 0; flex: none;
+  }
 
   .card {
     background: var(--panel); border: 1px solid var(--line);
@@ -172,11 +184,50 @@
 const $ = s => document.querySelector(s);
 const out = $('#out'), form = $('#f'), qEl = $('#q'), goEl = $('#go');
 
-const SAMPLES = ['삼성전자', 'SK하이닉스', '한화오션', 'LG에너지솔루션', '알테오젠', 'HD현대일렉트릭'];
-$('#chips').innerHTML = SAMPLES.map(s => `<button type="button" class="chip">${s}</button>`).join('');
+// 매번 종목명을 입력하지 않도록, 확인해본 종목을 별표로 찍어두면 다음부터
+// 칩 한 번 터치로 바로 조회된다. 관심종목이 하나도 없을 때만 시작 예시를 보여준다.
+const DEFAULT_SAMPLES = ['삼성전자', 'SK하이닉스', '한화오션', 'LG에너지솔루션', '알테오젠', 'HD현대일렉트릭'];
+const WATCHLIST_KEY = 'stockwhy_watchlist';
+
+const Watchlist = {
+  all() {
+    try { return JSON.parse(localStorage.getItem(WATCHLIST_KEY) || '[]'); } catch (e) { return []; }
+  },
+  has(code) { return !!code && this.all().some(it => it.code === code); },
+  add(code, name) {
+    if (!code) return;
+    const list = this.all().filter(it => it.code !== code);
+    list.unshift({ code, name: name || code });
+    try { localStorage.setItem(WATCHLIST_KEY, JSON.stringify(list.slice(0, 30))); } catch (e) {}
+  },
+  remove(code) {
+    const list = this.all().filter(it => it.code !== code);
+    try { localStorage.setItem(WATCHLIST_KEY, JSON.stringify(list)); } catch (e) {}
+  },
+};
+
+function renderChips() {
+  const list = Watchlist.all();
+  const chips = $('#chips');
+  if (list.length) {
+    chips.innerHTML = list.map(it => `<span class="chip">
+        <button type="button" class="chip-go" data-code="${esc(it.code)}">${esc(it.name)}</button>
+        <button type="button" class="chip-x" data-code="${esc(it.code)}" aria-label="관심종목에서 제거">×</button>
+      </span>`).join('');
+  } else {
+    chips.innerHTML = DEFAULT_SAMPLES.map(name => `<span class="chip">
+        <button type="button" class="chip-go" data-name="${esc(name)}">${esc(name)}</button>
+      </span>`).join('') + '<span class="chip-hint">결과 화면의 ☆ 를 눌러 관심종목에 추가하세요</span>';
+  }
+}
+renderChips();
+
 $('#chips').addEventListener('click', e => {
-  if (!e.target.classList.contains('chip')) return;
-  qEl.value = e.target.textContent;
+  const rm = e.target.closest('.chip-x');
+  if (rm) { Watchlist.remove(rm.dataset.code); renderChips(); return; }
+  const go = e.target.closest('.chip-go');
+  if (!go) return;
+  qEl.value = go.dataset.code || go.dataset.name;
   form.requestSubmit();
 });
 
@@ -247,6 +298,8 @@ function render(d) {
   // 시세 헤더
   parts.push(`<div class="card">
     <div class="ticker">
+      <button type="button" class="star" id="starBtn" data-code="${esc(q.code)}" data-name="${esc(q.name)}"
+              aria-label="관심종목">${Watchlist.has(q.code) ? '★' : '☆'}</button>
       <span class="tname">${esc(q.name)}</span>
       <span class="tcode">${esc(q.code)} · ${esc(q.market)}${q.sector_name ? ' · ' + esc(q.sector_name) : ''}</span>
       <span class="tprice ${cls(q.change_rate)}">${nf(q.price)}</span>
@@ -322,6 +375,13 @@ function render(d) {
   out.innerHTML = parts.join('');
   const rf = document.getElementById('rf');
   if (rf) rf.addEventListener('click', () => form.requestSubmit());
+  const starBtn = document.getElementById('starBtn');
+  if (starBtn) starBtn.addEventListener('click', () => {
+    const code = starBtn.dataset.code, name = starBtn.dataset.name;
+    if (Watchlist.has(code)) { Watchlist.remove(code); starBtn.textContent = '☆'; }
+    else { Watchlist.add(code, name); starBtn.textContent = '★'; }
+    renderChips();
+  });
   loadUsage();
 }
 
