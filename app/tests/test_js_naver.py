@@ -209,6 +209,16 @@ class TestOther:
         assert out["news"][0]["published_at"] is None
         assert out["report"]["samples"].get("news_datetime") == "완전히-다른-형식"
 
+    def test_news_datetime_without_seconds_is_parsed(self):
+        """실기기 진단으로 확인된 실제 형태: 초 없이 분까지만 12자리
+        (202608100930). news_datetime 샘플로 잡혔던 값 그대로 회귀 테스트."""
+        news = [{"items": [{"title": "초 없는 날짜 기사", "datetime": "202608100930",
+                            "officeId": "015", "articleId": "1"}]}]
+        out = run({"/news/stock/": news}, ["news"])
+        assert out["news"][0]["published_at"] is not None
+        assert out["news"][0]["published_at"].startswith("2026-08-10T09:30")
+        assert "news_datetime" not in out["report"]["samples"]
+
     def test_news_sorted_newest_first(self):
         """네이버가 순서를 뒤죽박죽으로 줘도 화면엔 최신순으로 나와야 한다."""
         mixed = [

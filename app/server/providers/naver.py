@@ -406,7 +406,14 @@ class NaverProvider:
                 dt = None
                 raw_dt = _first(it, "datetime", "officeDateTime", "dt")
                 if raw_dt:
-                    for fmt in ("%Y%m%d%H%M%S", "%Y-%m-%d %H:%M:%S", "%Y.%m.%d %H:%M"):
+                    # 주의: strptime 은 %M/%S 자리 수를 유연하게 먹어서, 초 없는
+                    # 12자리(202608100930)를 %Y%m%d%H%M%S 로 먼저 시도하면
+                    # 예외 없이 "09:03:00" 같은 엉뚱한 값으로 잘못 파싱된다
+                    # (뒷자리 "30" 을 M=3, S=0 으로 쪼개버림). 그래서 짧은
+                    # 포맷을 먼저 시도한다 — 14자리 문자열은 12자리 포맷으로
+                    # 파싱하면 "unconverted data remains" 로 정상적으로 실패한다.
+                    for fmt in ("%Y%m%d%H%M", "%Y%m%d%H%M%S",
+                                "%Y-%m-%d %H:%M:%S", "%Y.%m.%d %H:%M"):
                         try:
                             dt = datetime.strptime(str(raw_dt), fmt)
                             break

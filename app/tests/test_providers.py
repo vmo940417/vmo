@@ -154,6 +154,23 @@ class TestOther:
         assert items[0].url == "https://n.news.naver.com/mnews/article/018/0006012345"
         assert items[0].when() == "08/06 14:43"
 
+    async def test_news_datetime_without_seconds_is_parsed(self):
+        """실기기 진단으로 확인된 실제 형태: 초 없이 분까지만 12자리
+        (202608100930). news_datetime 샘플로 잡혔던 값 그대로 회귀 테스트."""
+        news = [{"items": [{"title": "초 없는 날짜 기사", "datetime": "202608100930",
+                            "officeId": "015", "articleId": "1"}]}]
+
+        def h(request: httpx.Request) -> httpx.Response:
+            if "/news/stock/" in str(request.url):
+                return httpx.Response(200, json=news)
+            return handler(request)
+
+        async with make_provider(h) as p:
+            items = await p.news("005930")
+        assert items[0].published_at is not None
+        assert items[0].when() == "08/10 09:30"
+        assert "news_datetime" not in p.report.samples
+
     async def test_news_sorted_newest_first(self):
         """네이버가 순서를 뒤죽박죽으로 줘도 화면엔 최신순으로 나와야 한다."""
         mixed = [{
