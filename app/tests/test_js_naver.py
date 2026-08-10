@@ -201,6 +201,14 @@ class TestOther:
         out = run({"/news/stock/": None}, ["news"])
         assert out["news"] == []
 
+    def test_unparseable_date_is_reported(self):
+        """아는 형식 두 개 다 못 맞히면 날짜가 통째로 빈 채로 뜬다 — 다음 진단에서
+        바로 형태를 볼 수 있게 샘플로 남겨야 한다."""
+        odd_news = [{"items": [{"title": "이상한 날짜 기사", "datetime": "완전히-다른-형식"}]}]
+        out = run({"/news/stock/": odd_news}, ["news"])
+        assert out["news"][0]["published_at"] is None
+        assert out["report"]["samples"].get("news_datetime") == "완전히-다른-형식"
+
 
 # --------------------------------------------------------------------------
 # 시장 구분

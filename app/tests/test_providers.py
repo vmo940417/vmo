@@ -154,6 +154,21 @@ class TestOther:
         assert items[0].url == "https://n.news.naver.com/mnews/article/018/0006012345"
         assert items[0].when() == "08/06 14:43"
 
+    async def test_unparseable_date_is_reported(self):
+        """아는 형식 셋 다 못 맞히면 날짜가 통째로 빈 채로 뜬다 — 다음 진단에서
+        바로 형태를 볼 수 있게 샘플로 남겨야 한다."""
+        odd_news = [{"items": [{"title": "이상한 날짜 기사", "datetime": "완전히-다른-형식"}]}]
+
+        def h(request: httpx.Request) -> httpx.Response:
+            if "/news/stock/" in str(request.url):
+                return httpx.Response(200, json=odd_news)
+            return handler(request)
+
+        async with make_provider(h) as p:
+            items = await p.news("005930")
+        assert items[0].published_at is None
+        assert p.report.samples.get("news_datetime") == "완전히-다른-형식"
+
     async def test_resolve_by_code_skips_search(self):
         async with make_provider() as p:
             assert await p.resolve("005930") == ("005930", "삼성전자")

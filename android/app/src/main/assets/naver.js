@@ -257,7 +257,7 @@
       limit = limit || 25;
       const d = this.getJson('news/stock',
         `https://m.stock.naver.com/api/news/stock/${code}?pageSize=${limit}&page=1`);
-      return parseNews(d, limit);
+      return parseNews(d, limit, this);
     }
   }
 
@@ -469,7 +469,7 @@
     return null;
   }
 
-  function parseNews(data, limit) {
+  function parseNews(data, limit, client) {
     const out = [];
     if (!Array.isArray(data)) return out;
     for (const group of data) {
@@ -484,6 +484,12 @@
 
         const rawDt = first(it, 'datetime', 'officeDateTime', 'dt');
         const published = parseDt(rawDt);
+        // 값은 왔는데 우리 정규식 두 개 중 어느 것도 못 맞히면 날짜가 통째로
+        // 빈 채로 화면에 뜬다. report.samples 에 남겨서 다음 진단에서 바로
+        // 형태를 보고 정규식을 맞출 수 있게 한다(다른 엔드포인트들과 같은 방식).
+        if (rawDt && !published && client && !client.report.samples.news_datetime) {
+          client.sample('news_datetime', rawDt);
+        }
         const oid = first(it, 'officeId', 'oid');
         const aid = first(it, 'articleId', 'aid');
         out.push({

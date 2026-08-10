@@ -508,9 +508,13 @@
 
   // 시간만으로는 어제 기사인지 오늘 기사인지 구분이 안 된다 — 날짜를 같이 낸다.
   // 파이썬의 strftime('%m/%d %H:%M') 과 같은 형태로 맞춘다.
-  const hhmm = (d) =>
-    String(d.getMonth() + 1).padStart(2, '0') + '/' + String(d.getDate()).padStart(2, '0') + ' ' +
-    String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  const hhmm = (d) => {
+    // 날짜 파싱이 깨진 값을 넘기면 new Date(NaN,...) 이 나올 수 있다. 그 상태로
+    // 포맷하면 "NaN/NaN NaN:NaN" 이 찍히므로, 차라리 결측 자리표시자로 뭉갠다.
+    if (!(d instanceof Date) || Number.isNaN(d.getTime())) return '--/-- --:--';
+    return String(d.getMonth() + 1).padStart(2, '0') + '/' + String(d.getDate()).padStart(2, '0') + ' ' +
+      String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  };
 
   global.Attribution = {
     analyze, decompose, classifyTiming, scoreNews, categorize, tone,

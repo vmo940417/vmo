@@ -271,3 +271,26 @@ class TestNewsParity:
     def test_same_times(self, both):
         got, want = both
         assert [n["time"] for n in got] == [n["time"] for n in want]
+
+
+class TestNewsTimeGuardsAgainstInvalidDates:
+    """날짜 파싱이 깨진 값을 넘겨도 'NaN/NaN NaN:NaN' 같은 쓰레기가 찍히면 안 된다.
+
+    실기기에서 새 날짜 형식을 만나면 이 경로를 타게 된다 — 정규식이 못 맞히면
+    파이썬 쪽은 애초에 None 으로 떨어지지만(datetime.fromisoformat 이 예외를
+    던지므로 이 사례는 파이썬과 나란히 비교할 수 없다), JS 의 hhmm() 은 자체
+    방어가 있어야 한다.
+    """
+
+    NAME = "반도체 동반 급락 (시장 주도)"
+
+    def test_invalid_date_falls_back_to_placeholder(self):
+        case = next(c for c in CASES if c["name"] == self.NAME)
+        payload = {
+            "now": NOW.isoformat(),
+            "cases": [{**case, "news": [
+                {"title": "날짜가 깨진 기사", "published_at": "이건-날짜가-아니다"},
+            ]}],
+        }
+        result = run_js(payload)["cases"][0]["news"][0]
+        assert result["time"] == "--/-- --:--"

@@ -386,10 +386,10 @@ class NaverProvider:
         data = await self._get_json(
             "news/stock",
             f"https://m.stock.naver.com/api/news/stock/{code}?pageSize={limit}&page=1")
-        return self._parse_news(data, limit)
+        return self._parse_news(data, limit, self.report)
 
     @staticmethod
-    def _parse_news(data: Any, limit: int) -> list[NewsItem]:
+    def _parse_news(data: Any, limit: int, report: Optional[ProviderReport] = None) -> list[NewsItem]:
         out: list[NewsItem] = []
         if not isinstance(data, list):
             return out
@@ -412,6 +412,11 @@ class NaverProvider:
                             break
                         except ValueError:
                             continue
+                    # 값은 왔는데 아는 형식 셋 중 어느 것도 못 맞히면 날짜가
+                    # 통째로 빈 채로 화면에 뜬다. 다음 진단에서 바로 형태를
+                    # 보고 포맷을 맞출 수 있게 응답을 남긴다.
+                    if dt is None and report is not None and "news_datetime" not in report.samples:
+                        report.note_sample("news_datetime", raw_dt)
                 oid, aid = _first(it, "officeId", "oid"), _first(it, "articleId", "aid")
                 url = (f"https://n.news.naver.com/mnews/article/{oid}/{aid}"
                        if oid and aid else _first(it, "linkUrl", "url"))
