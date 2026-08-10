@@ -499,11 +499,28 @@
         categories: cats,
         tone: t,
         score: Math.round(score * 100) / 100,
+        // 화면에는 최신순으로 보여줘야 해서 원본 시각을 같이 들고 다닌다.
+        // (관련도 순서로 LLM 프롬프트를 만들 때만 이 정렬을 그대로 쓰고,
+        // 최종 응답을 만들 때 _dt 기준으로 다시 정렬한다.)
+        _dt: item.published_at ? item.published_at.getTime() : null,
       };
     });
 
     scored.sort((a, b) => b.score - a.score);
     return scored;
+  }
+
+  // score_news() 결과를 화면 표시용으로 최신순 재정렬한다. 관련도 점수
+  // 순서는 LLM 근거 자료를 만들 때만 쓰고, 사용자가 보는 '관련 뉴스' 목록은
+  // 최신 기사가 위로 오는 게 자연스럽다. 날짜를 못 읽은 기사는 맨 뒤로
+  // 보낸다. 내부용 _dt 필드는 결과에서 제거한다.
+  function sortNewsByRecency(scored) {
+    const NO_DATE = -8640000000000000;
+    const out = scored.slice().sort((a, b) =>
+      (b._dt === null || b._dt === undefined ? NO_DATE : b._dt) -
+      (a._dt === null || a._dt === undefined ? NO_DATE : a._dt));
+    out.forEach((d) => { delete d._dt; });
+    return out;
   }
 
   // 시간만으로는 어제 기사인지 오늘 기사인지 구분이 안 된다 — 날짜를 같이 낸다.
@@ -517,7 +534,7 @@
   };
 
   global.Attribution = {
-    analyze, decompose, classifyTiming, scoreNews, categorize, tone,
+    analyze, decompose, classifyTiming, scoreNews, sortNewsByRecency, categorize, tone,
     supplySignals, toEok, streak, shortBaseline, isFresh, shortIsFresh, round0,
     DRIVER_LABEL, INVESTOR_LABEL,
   };

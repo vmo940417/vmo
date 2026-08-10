@@ -9,7 +9,7 @@ from typing import Any, Optional
 
 from . import usage
 from .analysis import llm
-from .analysis.attribution import analyze, score_news
+from .analysis.attribution import analyze, score_news, sort_news_by_recency
 from .models import NewsItem, Quote
 from .peers import peers_for, theme_of
 from .pricing import cost_of, format_cost
@@ -55,6 +55,10 @@ async def diagnose(query: str, use_llm: bool = True,
         cost = _cost_of(explanation)
         usage.record(query, quote.code, cost)
 
+    # LLM 근거 자료는 관련도 순서를 그대로 쓰고(위에서 이미 넘김), 화면에
+    # 보여줄 목록만 최신순으로 다시 정렬한다.
+    news_for_display = sort_news_by_recency(ranked_news[:15])
+
     return {
         "query": query,
         "as_of": started.isoformat(timespec="seconds"),
@@ -62,7 +66,7 @@ async def diagnose(query: str, use_llm: bool = True,
         "quote": _quote_dict(quote),
         "context": _context_dict(ctx),
         "attribution": attribution.as_dict(),
-        "news": ranked_news[:15],
+        "news": news_for_display,
         "explanation": explanation,
         "cost": cost,
         "diagnostics": provider_report,

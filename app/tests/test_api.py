@@ -51,10 +51,36 @@ class TestPipeline:
         assert r["context"]["peers"], "피어가 비어 있으면 업종 분해가 안 된다"
         assert r["context"]["sector_rate"] is not None
 
-    async def test_news_scored_and_sorted(self):
+    async def test_news_shown_newest_first(self):
+        """관련도 점수는 LLM 근거를 고를 때만 쓰고, 화면에는 최신순으로 보여야 한다."""
         r = await pipeline.diagnose("005930", use_llm=False)
-        scores = [n["score"] for n in r["news"]]
-        assert scores == sorted(scores, reverse=True)
+        times = [n["time"] for n in r["news"]]
+        assert times == sorted(times, reverse=True)
+        assert all("_dt" not in n for n in r["news"]), "내부용 _dt 필드가 응답에 새면 안 된다"
+
+    async def test_news_recency_wins_over_score(self, monkeypatch):
+        """관련도 점수가 더 높아도, 화면 순서는 무조건 최신 기사가 위로 온다."""
+        odd_news = [{"items": [
+            # 관련도는 높지만(종목명+수주 재료 언급) 더 오래된 기사
+            {"title": "삼성전자, 대규모 수주 계약 체결…사상 최대",
+             "datetime": "20260806090000", "officeId": "015", "articleId": "1"},
+            # 관련도는 낮지만 더 최신인 기사
+            {"title": "오늘의 날씨", "datetime": "20260806143000",
+             "officeId": "015", "articleId": "2"},
+        ]}]
+
+        def h(request: httpx.Request) -> httpx.Response:
+            if "/news/stock/" in str(request.url):
+                return httpx.Response(200, json=odd_news)
+            return handler(request)
+
+        def factory(*args, **kwargs):
+            return NaverProvider(client=httpx.AsyncClient(transport=httpx.MockTransport(h)))
+
+        monkeypatch.setattr(pipeline, "NaverProvider", factory)
+
+        r = await pipeline.diagnose("005930", use_llm=False)
+        assert r["news"][0]["title"] == "오늘의 날씨"
 
     async def test_llm_skipped_without_key(self):
         r = await pipeline.diagnose("005930", use_llm=True)

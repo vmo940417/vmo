@@ -556,7 +556,24 @@ def score_news(news: list[NewsItem], quote: Quote, attribution: Attribution,
             "categories": cats,
             "tone": t,
             "score": round(score, 2),
+            # 화면에는 최신순으로 보여줘야 해서 원본 시각을 같이 들고 다닌다.
+            # ("관련도 순 뉴스" 로 LLM 프롬프트를 만들 때만 이 정렬 순서를
+            # 그대로 쓰고, 최종 응답을 만들 때 _dt 기준으로 다시 정렬한다.)
+            "_dt": item.published_at.isoformat() if item.published_at else None,
         })
 
     scored.sort(key=lambda d: d["score"], reverse=True)
     return scored
+
+
+def sort_news_by_recency(scored: list[dict]) -> list[dict]:
+    """score_news() 결과를 화면 표시용으로 최신순 재정렬한다.
+
+    관련도 점수 순서는 LLM 에게 줄 근거 자료를 고를 때만 쓰고, 사용자가 보는
+    '관련 뉴스' 목록은 최신 기사가 위로 오는 게 자연스럽다. 날짜를 못 읽은
+    기사는 맨 뒤로 보낸다. 내부용 _dt 필드는 결과에서 제거한다.
+    """
+    out = sorted(scored, key=lambda d: d.get("_dt") or "", reverse=True)
+    for d in out:
+        d.pop("_dt", None)
+    return out

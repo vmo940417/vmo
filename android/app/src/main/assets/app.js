@@ -311,9 +311,13 @@
       }
     }
 
+    // LLM 근거 자료는 관련도 순서를 그대로 쓰고(위에서 이미 넘김), 화면에
+    // 보여줄 목록만 최신순으로 다시 정렬한다.
+    const newsForDisplay = global.Attribution.sortNewsByRecency(news.slice(0, 15));
+
     return {
       query, quote, context: ctx, attribution,
-      news: news.slice(0, 15),
+      news: newsForDisplay,
       explanation, cost,
       elapsed_ms: Date.now() - started,
       as_of: new Date(),

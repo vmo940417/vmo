@@ -121,10 +121,12 @@ class TestPipelineRuns:
         assert len(ctx["peers"]) > 0
         assert ctx["sector_rate"] is not None
 
-    def test_news_scored(self, base):
+    def test_news_shown_newest_first(self, base):
+        """관련도 점수는 LLM 근거를 고를 때만 쓰고, 화면에는 최신순으로 보여야 한다."""
         news = base["result"]["news"]
-        assert news and [n["score"] for n in news] == sorted(
-            [n["score"] for n in news], reverse=True)
+        assert news and [n["time"] for n in news] == sorted(
+            [n["time"] for n in news], reverse=True)
+        assert all("_dt" not in n for n in news), "내부용 _dt 필드가 응답에 새면 안 된다"
 
     def test_index_used(self, base):
         assert base["result"]["context"]["index_rate"] == -4.58
