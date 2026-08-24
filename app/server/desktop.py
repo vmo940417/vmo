@@ -177,20 +177,22 @@ class Window:
 
         self._label(self.root, "설정", size=11).pack(anchor="w", **pad)
         self._label(self.root,
-                    "Claude API 키를 비워두면 규칙 기반 분석만 합니다.\n"
-                    "분해·타이밍·수급·뉴스는 키 없이도 그대로 나옵니다.\n"
-                    "KRX 아이디/비밀번호를 비워두면 개별종목 공매도만 빠집니다\n"
-                    "(본인 KRX Data Marketplace 로그인 계정 — 자동 로그인 수집이라 과도하게\n"
-                    "쓰면 계정이 제재될 수 있습니다).",
+                    "키를 비워두면 규칙 기반 분석만 합니다.\n"
+                    "분해·타이밍·수급·뉴스는 키 없이도 그대로 나옵니다.",
                     size=8, color=DIM, justify="left").pack(anchor="w", pady=(2, 8), **pad)
 
+        # KRX_ID/KRX_PW(로그인 세션으로 개별종목 공매도를 받는 기능)는 여기 UI
+        # 에 안 둔다 — pykrx 가 필요로 하는 pandas/numpy 를 이 exe 에는 일부러
+        # 안 넣었다(넣었더니 VC++ 런타임이 없는 PC에서 exe 가 더블클릭해도
+        # 아무 반응 없이 죽었다). 그 상태에서 입력란만 보여주면 사용자가 실제
+        # 계정을 넣어도 조용히 안 먹혀서 더 헷갈린다. .env 를 직접 편집해서
+        # 쓰는 경우(소스에서 직접 실행)에는 config.has_krx_credentials() 가
+        # 그대로 인식한다.
         self.fields: dict[str, object] = {}
         for key, label, show in (
             ("ANTHROPIC_API_KEY", "Claude API 키", "•"),
             ("STOCKWHY_MODEL", "모델 (비우면 claude-sonnet-5)", None),
             ("STOCKWHY_CA_BUNDLE", "회사 CA 인증서 경로 (선택)", None),
-            ("KRX_ID", "KRX Data Marketplace 아이디 (선택 — 개별종목 공매도용)", None),
-            ("KRX_PW", "KRX Data Marketplace 비밀번호", "•"),
         ):
             self._label(self.root, label, size=9, color=DIM).pack(anchor="w", **pad)
             entry = tk.Entry(self.root, width=52, show=show or "")

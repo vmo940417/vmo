@@ -38,6 +38,13 @@ bld/파라미터 조합을 다 돌려봐도 예외 없이 똑같이 실패해서
 계정 제재 위험이 있으므로 저빈도 조회로 제한하는 게 안전하다. pykrx 는
 pandas/numpy 를 끌고 오는 무거운 의존성이라, 계정이 없는 환경(대부분의
 사용자)에서는 아예 import 되지 않는다(호출 시점에만 지연 import).
+
+배포용 stockwhy.exe 에는 pykrx(및 pandas/numpy)를 일부러 안 넣는다
+(packaging/stockwhy.spec 의 excludes 참고) — 한 번 넣어봤다가 VC++ 런타임이
+없는 PC 에서 exe 가 더블클릭해도 아무 반응 없이 죽는 사고가 났다. 그래서
+이 로그인 경로는 "pip install -r requirements.txt" 로 소스에서 직접 실행할
+때만 실제로 동작한다. exe 에서는 이 함수가 항상 ImportError 로 실패하고
+조용히 익명 경로로 폴백한다 — 그것도 정상 동작이다.
 """
 
 from __future__ import annotations

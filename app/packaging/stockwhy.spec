@@ -19,11 +19,6 @@ a = Analysis(
         # 빠지면 사내망에서 인증서 오류로 아무것도 안 되므로 못박아 둔다.
         "truststore",
         "dotenv",
-        # krx.py 안에서 KRX_ID/KRX_PW 가 설정됐을 때만 지연 import 되므로
-        # 정적 분석으로 못 잡는다 — 계정이 있는 사용자 빌드에서 빠지면
-        # "모듈 없음"으로 조용히 실패한다.
-        "pykrx",
-        "pykrx.website.krx.market.core",
     ],
     excludes=[
         # 서버는 lite.py(표준 라이브러리)를 쓴다. FastAPI/uvicorn 은 컴파일
@@ -32,10 +27,19 @@ a = Analysis(
         # anthropic SDK 도 뺀다. llm.py 는 SDK 가 없으면 httpx 로 같은 API 를
         # 직접 호출하도록 이미 되어 있어서, 빠져도 기능 차이가 없다.
         "anthropic",
+        # pykrx(+pandas/numpy) 는 한 번 넣어봤다가 뺐다 — 실사용자 PC에서
+        # exe 가 더블클릭해도 아무 반응 없이 죽는 사고가 났다(콘솔이 없어
+        # 원인 메시지도 안 남는다). CI(윈도우 러너)는 기본 이미지에 VC++
+        # 런타임이 깔려 있어 통과했지만, 일반 PC는 그게 없을 수 있다 —
+        # numpy/pandas 계열 C 확장이 흔히 부딪히는 문제다. KRX 로그인
+        # 공매도는 없어도 되는 부가 기능인데 이것 때문에 앱 전체가 죽는
+        # 건 받아들일 수 없다. pykrx 는 krx.py 안에서 지연 import 라
+        # 여기서 빠지면 ImportError 로 조용히 넘어가 익명 경로로 폴백한다
+        # (KRX_ID/KRX_PW 를 설정해도 이 exe 에서는 로그인 경로가 그냥
+        # 안 먹는다 — "pip install -r requirements.txt" 로 소스에서 직접
+        # 돌리는 환경에서만 동작).
+        "pykrx", "pandas", "numpy",
         # 테스트/노트북 계열이 딸려오는 것을 막는다.
-        # numpy 는 예전엔 여기서 뺐지만, pykrx(KRX 로그인 공매도 조회)가
-        # pandas 를 통해 실제로 필요로 해서 더는 못 뺀다 — exe 가 커지는
-        # 대가를 감수하고 넣는다(사용자 확인됨).
         "pytest", "PIL", "tkinter.test", "test",
     ],
     noarchive=False,

@@ -30,7 +30,7 @@ jobs:
         working-directory: app
         run: |
           python -m pip install --upgrade pip
-          pip install httpx python-dotenv truststore pyinstaller pykrx
+          pip install httpx python-dotenv truststore pyinstaller
 
       - name: Build exe
         working-directory: app
