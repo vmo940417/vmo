@@ -275,3 +275,76 @@ class TestShortSales:
             await krx.short_sales(c, report, "005930", days=10, today=datetime(2026, 8, 6))
         trade = next(b for b in seen if "MDCSTAT" in b)
         assert "strtDd=20260707" in trade and "endDd=20260806" in trade
+
+
+@pytest.mark.asyncio
+class TestShortSalesViaPykrx:
+    """KRX_ID/KRX_PW 가 있을 때만 켜지는 로그인 경로.
+
+    실제 pykrx 는 여기서 안 깔려 있고(개발 컨테이너는 KRX 접근도 막혀 있어
+    검증도 불가), _fetch_short_status_sync 를 갈아끼워서 배선(우선순위,
+    익명 경로로의 폴백, 계정 없을 때 건드리지 않는지)만 검증한다. KRX_ID/
+    KRX_PW 는 monkeypatch.setenv/delenv 로만 건드려서 테스트가 끝나면
+    자동으로 원래 값으로 복원된다."""
+
+    async def test_used_when_credentials_present(self, monkeypatch):
+        """계정이 있으면 로그인 경로를 먼저 쓰고, 익명 STAT 조회는 아예 안 나가야 한다."""
+        monkeypatch.setenv("KRX_ID", "me")
+        monkeypatch.setenv("KRX_PW", "secret")
+        monkeypatch.setattr(krx, "_fetch_short_status_sync",
+                            lambda isu, s, e: TRADES["OutBlock_1"])
+
+        seen: list[str] = []
+
+        def spy(request: httpx.Request) -> httpx.Response:
+            seen.append(request.content.decode("utf-8"))
+            return full_handler(request)
+
+        report = ProviderReport()
+        async with make_client(spy) as c:
+            rows = await krx.short_sales(c, report, "005930", today=datetime(2026, 8, 6))
+        assert rows and rows[0].ratio == 12.4
+        assert not any("MDCSTAT" in b for b in seen), "로그인 조회가 되면 익명 STAT 을 또 칠 필요가 없다"
+        assert any(n == "krx/pykrx" for n in report.ok)
+
+    async def test_falls_back_to_anonymous_when_login_path_empty(self, monkeypatch):
+        """로그인 조회가 비어도(휴장 등) 밑져야 본전 — 기존 익명 경로를 마저 시도한다."""
+        monkeypatch.setenv("KRX_ID", "me")
+        monkeypatch.setenv("KRX_PW", "secret")
+        monkeypatch.setattr(krx, "_fetch_short_status_sync", lambda isu, s, e: [])
+
+        report = ProviderReport()
+        async with make_client(full_handler) as c:
+            rows = await krx.short_sales(c, report, "005930", today=datetime(2026, 8, 6))
+        assert rows and rows[0].ratio == 12.4  # 익명 경로(full_handler)의 결과
+
+    async def test_login_failure_does_not_break_the_rest(self, monkeypatch):
+        """pykrx 가 없거나 로그인이 실패해도 예외가 밖으로 안 새고, 익명 경로로 넘어가야 한다."""
+        monkeypatch.setenv("KRX_ID", "me")
+        monkeypatch.setenv("KRX_PW", "wrong-password")
+
+        def boom(isu, s, e):
+            raise ModuleNotFoundError("No module named 'pykrx'")
+        monkeypatch.setattr(krx, "_fetch_short_status_sync", boom)
+
+        report = ProviderReport()
+        async with make_client(full_handler) as c:
+            rows = await krx.short_sales(c, report, "005930", today=datetime(2026, 8, 6))
+        assert rows and rows[0].ratio == 12.4
+        assert any(n == "krx/pykrx" and "ModuleNotFoundError" in e for n, e in report.failed)
+
+    async def test_skipped_when_no_credentials(self, monkeypatch):
+        """계정이 없으면 로그인 경로를 아예 건드리지 않아야 한다(기존 동작 그대로)."""
+        monkeypatch.delenv("KRX_ID", raising=False)
+        monkeypatch.delenv("KRX_PW", raising=False)
+
+        def should_not_be_called(isu, s, e):
+            raise AssertionError("계정 없이 pykrx 경로를 타면 안 된다")
+        monkeypatch.setattr(krx, "_fetch_short_status_sync", should_not_be_called)
+
+        report = ProviderReport()
+        async with make_client(full_handler) as c:
+            rows = await krx.short_sales(c, report, "005930", today=datetime(2026, 8, 6))
+        assert rows and rows[0].ratio == 12.4
+        assert not any(n == "krx/pykrx" for n in report.ok)
+        assert not any(n == "krx/pykrx" for n, _ in report.failed)

@@ -248,6 +248,17 @@ class TestUserConfig:
         body = path.read_text(encoding="utf-8")
         assert "sk-test" in body and "claude-opus-5" in body
 
+    def test_krx_credentials_need_both_id_and_password(self, monkeypatch):
+        monkeypatch.delenv("KRX_ID", raising=False)
+        monkeypatch.delenv("KRX_PW", raising=False)
+        assert not config.has_krx_credentials()
+
+        monkeypatch.setenv("KRX_ID", "me")
+        assert not config.has_krx_credentials()  # 비밀번호가 없으면 아직 아니다
+
+        monkeypatch.setenv("KRX_PW", "secret")
+        assert config.has_krx_credentials()
+
 
 class TestPackagedDepsOnly:
     """실행 파일에는 fastapi/uvicorn/anthropic 을 넣지 않는다.

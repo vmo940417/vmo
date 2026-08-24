@@ -21,6 +21,23 @@
 
 응답 스키마는 공개 문서가 없어서 여기서도 키 후보를 넓게 잡고, 못 읽으면
 report.samples 에 응답 앞부분을 남긴다.
+
+로그인 세션 (KRX_ID / KRX_PW)
+------------------------------
+KRX Data Marketplace 개편 이후, 개별종목 공매도(MDCSTAT30001/30101)는 익명
+요청이면 파라미터가 뭐든 무조건 `400: LOGOUT` 이다 — CI 탐침으로 27가지
+bld/파라미터 조합을 다 돌려봐도 예외 없이 똑같이 실패해서 확인했다. 앞서
+붙여본 "메인 화면 먼저 GET 해서 세션 쿠키만 받기"로는 안 뚫렸다.
+
+`KRX_ID`/`KRX_PW` 환경변수(사용자 본인의 KRX Data Marketplace 로그인 계정)가
+설정돼 있으면, pykrx(sharebook-kr/pykrx) 의 로그인 세션 기능으로 먼저
+시도한다. 계정이 없으면 이 데이터만 빠진 채로 나머지 분석은 그대로 나간다 —
+공매도는 원래도 선택적 부가 정보다.
+
+주의: 자동 로그인·수집이 KRX 약관상 명시적으로 허용되는지는 확인되지 않았다.
+계정 제재 위험이 있으므로 저빈도 조회로 제한하는 게 안전하다. pykrx 는
+pandas/numpy 를 끌고 오는 무거운 의존성이라, 계정이 없는 환경(대부분의
+사용자)에서는 아예 import 되지 않는다(호출 시점에만 지연 import).
 """
 
 from __future__ import annotations
@@ -31,6 +48,7 @@ from typing import Any, Optional
 
 import httpx
 
+from ..config import has_krx_credentials
 from ..models import ShortSale
 
 URL = "https://data.krx.co.kr/comm/bldAttendant/getJsonData.cmd"
@@ -183,6 +201,41 @@ def merge_balance(sales: list[ShortSale], data: Any) -> list[ShortSale]:
     return sales
 
 
+def _fetch_short_status_sync(isu_cd: str, fromdate: str, todate: str) -> list[dict]:
+    """MDCSTAT30001(개별종목 공매도 종합정보)을 pykrx 의 로그인 세션 기능으로
+    받는다. pykrx 는 동기(블로킹) 라이브러리라 반드시 asyncio.to_thread 로만
+    불러야 한다 — 직접 호출하면 이벤트 루프가 그동안 막힌다.
+
+    pykrx 가 안 깔려 있거나 로그인이 실패하면 예외를 그대로 던진다. 호출부
+    (_short_sales_via_pykrx)에서 잡아 report 에 남기고 빈 목록으로 넘어간다.
+    """
+    from pykrx.website.krx.market.core import 개별종목_공매도_종합정보
+    df = 개별종목_공매도_종합정보().fetch(strtDd=fromdate, endDd=todate, isuCd=isu_cd)
+    return df.to_dict(orient="records")
+
+
+async def _short_sales_via_pykrx(report, isu: str, days: int, today: datetime) -> list[ShortSale]:
+    """KRX_ID/KRX_PW 로 로그인해서 받는 경로. 실패해도 예외를 밖으로 던지지
+    않는다 — 계정 문제 하나로 나머지 분석까지 막히면 안 된다."""
+    start = (today - timedelta(days=days * 2 + 10)).strftime("%Y%m%d")
+    end = today.strftime("%Y%m%d")
+    try:
+        rows = await asyncio.to_thread(_fetch_short_status_sync, isu, start, end)
+    except Exception as e:  # noqa: BLE001 - pykrx 미설치/로그인 실패 등, 사유는 report 에 남긴다
+        report.note_fail("krx/pykrx", f"{type(e).__name__}: {e}")
+        return []
+
+    data = {"OutBlock_1": rows}
+    sales = parse_trades(data, days)
+    if not sales:
+        if rows:
+            report.note_sample("krx/pykrx", rows[:3])
+        return []
+    merge_balance(sales, data)  # 종합정보 응답에 잔고 컬럼이 같이 오면 이 자리에서 채워진다
+    report.note_ok("krx/pykrx")
+    return sales
+
+
 async def short_sales(client: httpx.AsyncClient, report, code: str,
                       days: int = 10, today: Optional[datetime] = None) -> list[ShortSale]:
     """개별종목 일별 공매도(거래 + 잔고). 실패하면 빈 목록."""
@@ -195,6 +248,17 @@ async def short_sales(client: httpx.AsyncClient, report, code: str,
     isu, _ = await asyncio.gather(isin(client, report, code), _ensure_session(client, report))
     if not isu:
         return []
+
+    # KRX Data Marketplace 개편 이후 STAT 계열(MDCSTAT30001/30101)은 로그인
+    # 세션 없이는 파라미터가 뭐든 무조건 400 LOGOUT 이다 — CI 탐침으로 확인된
+    # 사실이라 익명 세션 워밍업으로는 못 뚫는다. 로그인 계정(KRX_ID/KRX_PW)이
+    # 설정돼 있으면 먼저 시도한다.
+    if has_krx_credentials():
+        sales = await _short_sales_via_pykrx(report, isu, days, today)
+        if sales:
+            return sales
+        # 로그인 조회가 비었어도(휴장/계정 문제 등) 밑져야 본전이니 아래
+        # 익명 경로를 마저 시도한다 — 실패 사유는 report 에 이미 남아 있다.
 
     base = {
         "isuCd": isu, "isuCd2": isu, "strtDd": start, "endDd": end,

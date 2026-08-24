@@ -21,7 +21,7 @@ import socket
 import sys
 
 from . import usage
-from .config import access_token, has_api_key, load_env, model_name, setup_tls
+from .config import access_token, has_api_key, has_krx_credentials, load_env, model_name, setup_tls
 from .pipeline import NotFound, diagnose, render_text
 from .providers.naver import NaverProvider
 
@@ -119,9 +119,15 @@ async def source_report() -> tuple[list[str], int]:
         ))
         # 공매도는 없어도 나머지 분석이 다 나오므로 통과/실패 집계에서는 뺀다.
         short = supply.short
-        short_line = (f"{short.date} 기준 비중 {short.ratio}%"
-                      if short and short.ratio is not None
-                      else "가져오지 못함 — 당일 공매도는 원래 장 마감 후 공시됩니다")
+        if short and short.ratio is not None:
+            short_line = f"{short.date} 기준 비중 {short.ratio}%"
+        elif not has_krx_credentials():
+            # 대부분은 이게 진짜 이유다 — KRX 가 로그인 세션 없이는 무조건
+            # 400 LOGOUT 을 준다(파라미터 문제가 아님). "장 마감 후 공시"
+            # 메시지만 보이면 계정만 없어도 그런 줄 알고 넘어가게 된다.
+            short_line = "가져오지 못함 — KRX_ID/KRX_PW 미설정(로그인 세션 필요, 선택 기능)"
+        else:
+            short_line = "가져오지 못함 — 당일 공매도는 원래 장 마감 후 공시됩니다"
 
         report = p.report.as_dict()
 

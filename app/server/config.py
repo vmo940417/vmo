@@ -118,6 +118,15 @@ def has_api_key() -> bool:
     return bool(os.getenv("ANTHROPIC_API_KEY"))
 
 
+def has_krx_credentials() -> bool:
+    """KRX Data Marketplace 로그인 계정(개인)이 등록돼 있는지.
+
+    개별종목 공매도(MDCSTAT30001)는 로그인 세션 없이는 무조건 400 LOGOUT 이라
+    (파라미터 문제가 아니라 KRX 쪽 개편으로 확인됨), 계정이 없으면 그 데이터는
+    그냥 빠진 채로 나간다 — 앱의 나머지 기능에는 영향이 없다."""
+    return bool(os.getenv("KRX_ID")) and bool(os.getenv("KRX_PW"))
+
+
 def ca_bundle() -> str | None:
     """직접 지정한 CA 번들 경로(.pem). truststore 로도 안 될 때의 탈출구."""
     path = os.getenv("STOCKWHY_CA_BUNDLE", "").strip()

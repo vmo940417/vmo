@@ -177,8 +177,11 @@ class Window:
 
         self._label(self.root, "설정", size=11).pack(anchor="w", **pad)
         self._label(self.root,
-                    "키를 비워두면 규칙 기반 분석만 합니다.\n"
-                    "분해·타이밍·수급·뉴스는 키 없이도 그대로 나옵니다.",
+                    "Claude API 키를 비워두면 규칙 기반 분석만 합니다.\n"
+                    "분해·타이밍·수급·뉴스는 키 없이도 그대로 나옵니다.\n"
+                    "KRX 아이디/비밀번호를 비워두면 개별종목 공매도만 빠집니다\n"
+                    "(본인 KRX Data Marketplace 로그인 계정 — 자동 로그인 수집이라 과도하게\n"
+                    "쓰면 계정이 제재될 수 있습니다).",
                     size=8, color=DIM, justify="left").pack(anchor="w", pady=(2, 8), **pad)
 
         self.fields: dict[str, object] = {}
@@ -186,6 +189,8 @@ class Window:
             ("ANTHROPIC_API_KEY", "Claude API 키", "•"),
             ("STOCKWHY_MODEL", "모델 (비우면 claude-sonnet-5)", None),
             ("STOCKWHY_CA_BUNDLE", "회사 CA 인증서 경로 (선택)", None),
+            ("KRX_ID", "KRX Data Marketplace 아이디 (선택 — 개별종목 공매도용)", None),
+            ("KRX_PW", "KRX Data Marketplace 비밀번호", "•"),
         ):
             self._label(self.root, label, size=9, color=DIM).pack(anchor="w", **pad)
             entry = tk.Entry(self.root, width=52, show=show or "")

@@ -45,7 +45,33 @@ class TestSelftest:
         assert code == 0
 
     async def test_missing_short_data_is_not_a_failure(self, monkeypatch, capsys):
-        """공매도가 없어도 나머지 분석은 다 나온다 — 실패로 세면 안 된다."""
+        """공매도가 없어도 나머지 분석은 다 나온다 — 실패로 세면 안 된다.
+
+        KRX_ID/KRX_PW 가 없는 게 진짜 이유일 때가 대부분이라, 이제 메시지가
+        그걸 짚어준다("장 마감 후 공시" 라고만 하면 계정만 없어도 그런 줄
+        알고 넘어가게 된다)."""
+        monkeypatch.delenv("KRX_ID", raising=False)
+        monkeypatch.delenv("KRX_PW", raising=False)
+
+        def no_short(request: httpx.Request) -> httpx.Response:
+            url = str(request.url)
+            if "frgn.naver" in url:
+                return httpx.Response(200, text=FRGN_HTML)
+            if "data.krx.co.kr" in url or "/trend" in url:
+                return httpx.Response(404, json={})
+            return handler(request)
+
+        monkeypatch.setattr(cli, "NaverProvider", provider_factory(no_short))
+        code = await cli.selftest()
+        out = capsys.readouterr().out
+        assert "KRX_ID/KRX_PW 미설정" in out
+        assert code == 0, "공매도 결측으로 진단이 실패해선 안 된다"
+
+    async def test_missing_short_data_with_credentials_set(self, monkeypatch, capsys):
+        """계정은 있는데 그래도 못 받으면(휴장 등) 원래 메시지가 나와야 한다."""
+        monkeypatch.setenv("KRX_ID", "me")
+        monkeypatch.setenv("KRX_PW", "secret")
+
         def no_short(request: httpx.Request) -> httpx.Response:
             url = str(request.url)
             if "frgn.naver" in url:
@@ -58,7 +84,7 @@ class TestSelftest:
         code = await cli.selftest()
         out = capsys.readouterr().out
         assert "장 마감 후 공시" in out
-        assert code == 0, "공매도 결측으로 진단이 실패해선 안 된다"
+        assert code == 0
 
     async def test_unreadable_response_is_shown(self, monkeypatch, capsys):
         """스키마가 어긋났을 때 응답 앞부분을 보여줘야 파서를 고칠 수 있다."""
