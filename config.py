@@ -5,43 +5,25 @@
 import os
 
 # ── 채널/콘텐츠 ───────────────────────────────────────────────
-CHANNEL_TOPIC = "지식・상식・명언 쇼츠"
+CHANNEL_TOPIC = "아침을 여는 활력 명언 쇼츠"
 TIMEZONE = "Asia/Seoul"
 
-# 날짜(연중 일수)에 따라 매일 하나씩 순환되는 소주제 카테고리.
-# generate_script.py 가 오늘의 카테고리를 고르고, LLM 프롬프트/폴백 풀 필터링에 사용한다.
+# 단일 주제 채널이라 카테고리는 하나뿐이지만, generate_script.py/background.py 등이
+# "카테고리" 개념으로 색상·프롬프트를 다루므로 리스트 형태를 그대로 유지한다.
 CATEGORIES = [
-    "과학 상식",
-    "역사 한 조각",
-    "심리 상식",
-    "명언 한마디",
-    "우주 이야기",
-    "동물 상식",
-    "경제·생활 상식",
-    "건강 상식",
-    "언어·어원 상식",
-    "인체 상식",
+    "아침 활력 명언",
 ]
 
-# 카테고리별 배경 그라디언트 컬러 (hex, [top, bottom])
+# 카테고리별 배경 그라디언트 컬러 (hex, [top, bottom]). 활기찬 아침 느낌의 선셋/선라이즈 톤.
 CATEGORY_COLORS = {
-    "과학 상식": ("#0f2027", "#2c5364"),
-    "역사 한 조각": ("#3a1c71", "#6a3093"),
-    "심리 상식": ("#232526", "#414345"),
-    "명언 한마디": ("#141e30", "#243b55"),
-    "우주 이야기": ("#000000", "#1b2735"),
-    "동물 상식": ("#134e5e", "#71b280"),
-    "경제·생활 상식": ("#0f0c29", "#302b63"),
-    "건강 상식": ("#093028", "#237a57"),
-    "언어·어원 상식": ("#1a2980", "#26d0ce"),
-    "인체 상식": ("#4b0082", "#8a2be2"),
+    "아침 활력 명언": ("#ff5f6d", "#ffc371"),
 }
 
 # ── 영상 스타일 ───────────────────────────────────────────────
 VIDEO_WIDTH = 1080
 VIDEO_HEIGHT = 1920
 VIDEO_FPS = 30
-MAX_DURATION_SEC = 58  # 쇼츠 판정 기준(60초 이내) 여유를 둔 상한
+MAX_DURATION_SEC = 12  # 목표 10초 내외 쇼츠 (여유를 살짝 둔 상한)
 
 FONT_PATH_KR = os.environ.get(
     "FONT_PATH_KR", "/usr/share/fonts/truetype/nanum/NanumGothicBold.ttf"
@@ -58,12 +40,12 @@ TTS_RATE = os.environ.get("TTS_RATE", "+0%")
 ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-5")
 
 # ── YouTube 업로드 ────────────────────────────────────────────
-YOUTUBE_CATEGORY_ID = "27"  # Education
-DEFAULT_TAGS = ["shorts", "지식", "상식", "꿀팁", "명언", "지식상식", "몰랐던사실"]
+YOUTUBE_CATEGORY_ID = "22"  # People & Blogs (동기부여/자기계발 계열 콘텐츠에 흔히 사용)
+DEFAULT_TAGS = ["shorts", "명언", "동기부여", "아침명언", "오늘의명언", "좋은글귀", "힘내자"]
 MADE_FOR_KIDS = False
 
 # 업로드 시점 대비 실제 공개(publish) 목표 시각 (해당 시간대 로컬 기준, HH:MM)
-PUBLISH_TIME_LOCAL = os.environ.get("PUBLISH_TIME_LOCAL", "06:00")
+PUBLISH_TIME_LOCAL = os.environ.get("PUBLISH_TIME_LOCAL", "03:00")
 
 # ── 경로 ──────────────────────────────────────────────────────
 OUTPUT_DIR = os.environ.get("OUTPUT_DIR", "output")

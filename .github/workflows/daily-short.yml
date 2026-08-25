@@ -2,8 +2,8 @@ name: 매일 쇼츠 자동 생성 & 업로드
 
 on:
   schedule:
-    # UTC 19:30 = KST 04:30 (다음날). 06:00 KST 공개를 목표로 여유 있게 생성/업로드한다.
-    - cron: "30 19 * * *"
+    # UTC 17:00 = KST 02:00 (다음날). 03:00 KST 공개를 목표로 1시간 여유를 두고 생성/업로드한다.
+    - cron: "0 17 * * *"
   workflow_dispatch:
     inputs:
       dry_run:

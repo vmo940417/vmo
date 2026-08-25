@@ -1,8 +1,8 @@
-# vmo — 지식・상식・명언 쇼츠 자동 생성 & 매일 업로드
+# vmo — 아침 활력 명언 쇼츠 자동 생성 & 매일 업로드
 
-"지식/상식/명언" 주제로 매일 새로운 유튜브 쇼츠(세로, 60초 이내)를 자동으로 만들고,
-**매일 06:00(KST)**에 자동으로 채널에 공개하는 파이프라인입니다. GitHub Actions
-스케줄 워크플로우로 돌아가므로 별도의 서버가 필요 없습니다.
+"하루를 활기차게 시작하는 명언" 주제로 매일 새로운 유튜브 쇼츠(세로, **10초 내외**)를
+자동으로 만들고, **매일 03:00(KST)**에 자동으로 채널에 공개하는 파이프라인입니다.
+GitHub Actions 스케줄 워크플로우로 돌아가므로 별도의 서버가 필요 없습니다.
 
 ## 파이프라인 구성
 
@@ -54,8 +54,8 @@ YOUTUBE_CLIENT_ID=xxx YOUTUBE_CLIENT_SECRET=yyy python3 scripts/get_refresh_toke
 
 ### 1-4. 워크플로우 확인
 
-`.github/workflows/daily-short.yml` 이 매일 **UTC 19:30 (KST 04:30)**에 실행되어,
-06:00 KST를 목표 공개 시각(`publishAt`)으로 예약 업로드합니다. 필요하면
+`.github/workflows/daily-short.yml` 이 매일 **UTC 17:00 (KST 02:00)**에 실행되어,
+03:00 KST를 목표 공개 시각(`publishAt`)으로 예약 업로드합니다. 필요하면
 `cron` 값이나 `config.py`의 `PUBLISH_TIME_LOCAL`을 수정하세요.
 
 ## 2. 테스트하기
