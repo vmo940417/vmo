@@ -32,9 +32,14 @@ jobs:
           python-version: "3.11"
 
       - name: 시스템 패키지 설치 (ffmpeg, 한글 폰트)
+        timeout-minutes: 5
+        env:
+          # DEBIAN_FRONTEND를 지정하지 않으면 일부 패키지의 debconf 프롬프트(예: 시간대 설정)가
+          # 입력을 기다리며 무한 대기해 워크플로우가 멈출 수 있다. 비대화형 모드로 고정한다.
+          DEBIAN_FRONTEND: noninteractive
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y ffmpeg fonts-nanum fontconfig
+          sudo apt-get install -y --no-install-recommends ffmpeg fonts-nanum fontconfig
           fc-cache -f
 
       - name: 파이썬 의존성 설치
