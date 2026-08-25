@@ -82,6 +82,22 @@ PYTHONPATH=. DRY_RUN=1 python3 scripts/run_daily.py
 - `scripts/generate_script.py`의 `SYSTEM_PROMPT`: LLM에게 주는 대본 작성 가이드라인
 - `scripts/build_video.py`, `scripts/background.py`, `scripts/thumbnail.py`: 영상/썸네일 비주얼 스타일
 
+### 목소리 톤 조정 (`TTS_VOICE` / `TTS_RATE` / `TTS_PITCH`)
+
+무료 TTS(edge-tts)에는 한국어 "아역/아기" 전용 목소리가 따로 없어서, 기본 성인 여성
+목소리(`ko-KR-SunHiNeural`)의 피치를 높이고(`+45Hz`) 속도를 살짝 올려(`+15%`) 다섯 살
+아이 같은 통통 튀는 느낌을 흉내내고 있습니다. 완벽한 아역 목소리는 아니니, 더 조정하고
+싶다면 `config.py` 값을 바꾸거나 워크플로우/로컬 실행 시 환경변수로 덮어쓰면 됩니다.
+
+```bash
+TTS_PITCH="+60Hz" TTS_RATE="+20%" PYTHONPATH=. DRY_RUN=1 python3 scripts/run_daily.py
+```
+
+더 또렷하고 차분한 톤으로 되돌리려면 `TTS_PITCH=+0Hz TTS_RATE=+0%`로 설정하세요.
+진짜 아역 성우 톤이 꼭 필요하다면, ElevenLabs·Typecast 같은 유료 TTS 서비스의 아역
+보이스로 교체하는 방법도 있습니다(이 경우 `scripts/tts.py`를 해당 서비스 API 호출로
+바꿔야 합니다).
+
 ## 4. 운영상 꼭 알아둘 점 (유튜브 정책 & 저작권)
 
 - **대량 생산/반복 콘텐츠 정책**: 유튜브는 창작적 노력이 거의 없는 대량 자동 생성 콘텐츠를

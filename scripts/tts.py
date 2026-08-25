@@ -16,7 +16,15 @@ import config
 
 
 async def synthesize(text: str, audio_path: str, srt_path: str):
-    communicate = edge_tts.Communicate(text, config.TTS_VOICE, rate=config.TTS_RATE)
+    communicate = edge_tts.Communicate(
+        text,
+        config.TTS_VOICE,
+        rate=config.TTS_RATE,
+        pitch=config.TTS_PITCH,
+        # 기본값(SentenceBoundary)으로는 자막을 문장 단위로만 주기 때문에, 단어 단위
+        # 타이밍이 필요한 build_video.py의 자막 재구성 로직을 위해 명시적으로 지정한다.
+        boundary="WordBoundary",
+    )
     submaker = edge_tts.SubMaker()
 
     with open(audio_path, "wb") as audio_file:

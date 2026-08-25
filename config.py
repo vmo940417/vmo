@@ -33,8 +33,12 @@ FONT_PATH_KR_REGULAR = os.environ.get(
 )
 
 # ── TTS ───────────────────────────────────────────────────────
+# edge-tts(무료)에는 한국어 "아역/아기" 전용 목소리가 따로 없어서, 기본 성인 여성 목소리의
+# 피치를 올리고 속도를 살짝 높여 다섯 살 아이처럼 귀엽고 통통 튀는 톤을 흉내낸다.
+# 더 또렷하게/차분하게 하고 싶으면 TTS_PITCH를 낮추거나 TTS_RATE를 "+0%"에 가깝게 조정하면 된다.
 TTS_VOICE = os.environ.get("TTS_VOICE", "ko-KR-SunHiNeural")
-TTS_RATE = os.environ.get("TTS_RATE", "+0%")
+TTS_RATE = os.environ.get("TTS_RATE", "+15%")
+TTS_PITCH = os.environ.get("TTS_PITCH", "+45Hz")
 
 # ── LLM 대본 생성 ─────────────────────────────────────────────
 ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-5")
