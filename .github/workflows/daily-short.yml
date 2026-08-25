@@ -1,0 +1,75 @@
+name: 매일 쇼츠 자동 생성 & 업로드
+
+on:
+  schedule:
+    # UTC 19:30 = KST 04:30 (다음날). 06:00 KST 공개를 목표로 여유 있게 생성/업로드한다.
+    - cron: "30 19 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "true면 영상만 생성하고 유튜브 업로드는 건너뜁니다"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-short
+  cancel-in-progress: false
+
+jobs:
+  generate-and-upload:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Python 설정
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 시스템 패키지 설치 (ffmpeg, 한글 폰트)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg fonts-nanum fontconfig
+          fc-cache -f
+
+      - name: 파이썬 의존성 설치
+        run: pip install -r requirements.txt
+
+      - name: 파이프라인 실행
+        env:
+          DRY_RUN: ${{ inputs.dry_run == true && '1' || '' }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+        run: python3 scripts/run_daily.py
+
+      - name: 생성된 영상/썸네일 아티팩트 업로드 (확인용)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-short-output
+          path: |
+            output/*.mp4
+            output/*.jpg
+            output/script.json
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: 사용 이력(state/history.json) 커밋
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add state/history.json
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: 오늘의 업로드 이력 갱신 [skip ci]"
+            git push
+          else
+            echo "변경된 이력이 없습니다."
+          fi
