@@ -1,0 +1,136 @@
+"""
+output/{script.json, audio.mp3, captions.srt, duration.txt} 를 받아
+최종 쇼츠 영상(output/video.mp4)을 만든다.
+
+구성:
+  1) 카테고리 색상의 세로형 배경 이미지 생성 (background.py)
+  2) 제목 텍스트를 상단에 오버레이한 배경(background_title.png) 생성 (PIL)
+  3) 단어 단위 자막(SRT)을 읽기 좋은 줄 단위로 재구성해 .ass 자막으로 저장 (srt_utils.py)
+  4) ffmpeg로 배경(천천히 줌인) + 오디오 + 자막을 하나의 mp4로 합성
+"""
+import json
+import os
+import subprocess
+import textwrap
+
+from PIL import Image, ImageDraw, ImageFont
+
+import config
+import fonts
+from background import make_background
+from srt_utils import group_cues, parse_srt, write_ass
+
+
+def _draw_title(bg: Image.Image, title: str) -> Image.Image:
+    img = bg.convert("RGB")
+    draw = ImageDraw.Draw(img, "RGBA")
+    font = ImageFont.truetype(fonts.bold_font_path(), 78)
+
+    max_chars_per_line = 11
+    lines = textwrap.wrap(title, width=max_chars_per_line) or [title]
+
+    line_heights = []
+    line_widths = []
+    for line in lines:
+        bbox = draw.textbbox((0, 0), line, font=font)
+        line_widths.append(bbox[2] - bbox[0])
+        line_heights.append(bbox[3] - bbox[1])
+
+    padding_x, padding_y, line_gap = 56, 40, 18
+    block_w = max(line_widths) + padding_x * 2
+    block_h = sum(line_heights) + line_gap * (len(lines) - 1) + padding_y * 2
+    block_x = (config.VIDEO_WIDTH - block_w) // 2
+    block_y = int(config.VIDEO_HEIGHT * 0.10)
+
+    draw.rounded_rectangle(
+        [block_x, block_y, block_x + block_w, block_y + block_h],
+        radius=32,
+        fill=(0, 0, 0, 120),
+    )
+
+    y = block_y + padding_y
+    for line, lw, lh in zip(lines, line_widths, line_heights):
+        x = (config.VIDEO_WIDTH - lw) // 2
+        draw.text((x, y), line, font=font, fill=(255, 255, 255, 255))
+        y += lh + line_gap
+
+    return img
+
+
+def _build_caption_ass(raw_srt_path: str, out_path: str):
+    with open(raw_srt_path, "r", encoding="utf-8") as f:
+        word_cues = parse_srt(f.read())
+    grouped = group_cues(word_cues, max_chars=14)
+    write_ass(
+        grouped,
+        out_path,
+        play_res_x=config.VIDEO_WIDTH,
+        play_res_y=config.VIDEO_HEIGHT,
+        font_name="NanumGothic",
+        font_size=64,
+        margin_v=260,
+        margin_lr=60,
+    )
+
+
+def _run_ffmpeg(cwd: str, duration: float):
+    total_frames = max(1, round(duration * config.VIDEO_FPS))
+    zoom_expr = "min(zoom+0.0006,1.12)"
+    vf = (
+        f"zoompan=z='{zoom_expr}':d={total_frames}:s={config.VIDEO_WIDTH}x{config.VIDEO_HEIGHT}"
+        f":fps={config.VIDEO_FPS}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)',"
+        f"subtitles=captions.ass:fontsdir=/usr/share/fonts"
+    )
+    cmd = [
+        "ffmpeg",
+        "-y",
+        "-loop",
+        "1",
+        "-i",
+        "background_title.png",
+        "-i",
+        "audio.mp3",
+        "-vf",
+        vf,
+        "-c:v",
+        "libx264",
+        "-pix_fmt",
+        "yuv420p",
+        "-c:a",
+        "aac",
+        "-b:a",
+        "160k",
+        "-t",
+        f"{duration:.3f}",
+        "-movflags",
+        "+faststart",
+        "video.mp4",
+    ]
+    subprocess.run(cmd, cwd=cwd, check=True)
+
+
+def main():
+    out_dir = os.path.abspath(config.OUTPUT_DIR)
+
+    with open(os.path.join(out_dir, "script.json"), "r", encoding="utf-8") as f:
+        script_data = json.load(f)
+    with open(os.path.join(out_dir, "duration.txt")) as f:
+        duration = float(f.read().strip())
+
+    seed = abs(hash(script_data["title"])) % (2**31)
+    bg = make_background(script_data["category"], seed)
+    bg_with_title = _draw_title(bg, script_data["title"])
+    bg_with_title.save(os.path.join(out_dir, "background_title.png"))
+
+    _build_caption_ass(
+        os.path.join(out_dir, "captions.srt"),
+        os.path.join(out_dir, "captions.ass"),
+    )
+
+    _run_ffmpeg(out_dir, duration)
+
+    print(f"[build_video] video -> {os.path.join(out_dir, 'video.mp4')}")
+
+
+if __name__ == "__main__":
+    main()
