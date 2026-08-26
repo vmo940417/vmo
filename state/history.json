@@ -8,7 +8,8 @@
     "긍정의 힘",
     "오늘도 파이팅",
     "속도보다 방향",
-    "다시 일어서기"
+    "다시 일어서기",
+    "나만의 속도"
   ],
   "uploads": [
     {
@@ -63,6 +64,12 @@
       "title": "다시 일어서기",
       "category": "아침 활력 명언",
       "video_id": "5ohETMqzSXI",
+      "publish_at": null
+    },
+    {
+      "title": "나만의 속도",
+      "category": "아침 활력 명언",
+      "video_id": "ETNAPWtF-Hw",
       "publish_at": null
     }
   ]
