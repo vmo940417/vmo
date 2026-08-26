@@ -7,7 +7,8 @@ output/{script.json, audio.mp3, captions.srt, duration.txt} 를 받아
      (ai_background.py), 없거나 실패하면 카테고리 색상의 그라디언트로 대체한다 (background.py)
   2) 제목 텍스트를 상단에 오버레이한 배경(background_title.png) 생성 (PIL)
   3) 단어 단위 자막(SRT)을 읽기 좋은 줄 단위로 재구성해 .ass 자막으로 저장 (srt_utils.py)
-  4) ffmpeg로 배경(천천히 줌인) + 오디오 + 자막을 하나의 mp4로 합성
+  4) 은은한 배경음악을 절차적으로 생성 (bgm.py), 실패/비활성화 시 내레이션만 사용
+  5) ffmpeg로 배경(천천히 줌인) + 내레이션(+배경음악) + 자막을 하나의 mp4로 합성
 """
 import json
 import os
@@ -20,6 +21,7 @@ import config
 import fonts
 from ai_background import generate_ai_background
 from background import make_background
+from bgm import generate_bgm
 from srt_utils import group_cues, parse_srt, write_ass
 
 
@@ -75,7 +77,7 @@ def _build_caption_ass(raw_srt_path: str, out_path: str):
     )
 
 
-def _run_ffmpeg(cwd: str, duration: float):
+def _run_ffmpeg(cwd: str, duration: float, has_bgm: bool):
     total_frames = max(1, round(duration * config.VIDEO_FPS))
     # 최종 배율(1.12배)에 도달하는 시점이 영상 길이와 무관하게 항상 6~7초 근처로 고정되어
     # 있으면, 영상이 길어질수록 뒷부분이 줌 없이 정지된 것처럼 밋밋해 보인다.
@@ -84,22 +86,37 @@ def _run_ffmpeg(cwd: str, duration: float):
     zoom_target = 1.12
     zoom_increment = (zoom_target - 1.0) / total_frames
     zoom_expr = f"min(zoom+{zoom_increment:.8f},{zoom_target})"
-    vf = (
-        f"zoompan=z='{zoom_expr}':d={total_frames}:s={config.VIDEO_WIDTH}x{config.VIDEO_HEIGHT}"
+    video_filter = (
+        f"[0:v]zoompan=z='{zoom_expr}':d={total_frames}:s={config.VIDEO_WIDTH}x{config.VIDEO_HEIGHT}"
         f":fps={config.VIDEO_FPS}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)',"
-        f"subtitles=captions.ass:fontsdir=/usr/share/fonts"
+        f"subtitles=captions.ass:fontsdir=/usr/share/fonts[vout]"
     )
+
+    inputs = ["-loop", "1", "-i", "background_title.png", "-i", "audio.mp3"]
+    if has_bgm:
+        # 배경음악은 내레이션과 별도 트랙으로 섞는다. normalize=0으로 amix해서 내레이션
+        # 볼륨이 절반으로 깎이지 않게 하고(배경음악은 이미 bgm.py에서 아주 작게 렌더링됨),
+        # 대신 두 트랙을 그대로 더한다.
+        inputs += ["-i", "bgm.mp3"]
+        filter_complex = (
+            f"{video_filter};"
+            f"[1:a][2:a]amix=inputs=2:duration=first:normalize=0[aout]"
+        )
+        audio_map = "[aout]"
+    else:
+        filter_complex = video_filter
+        audio_map = "1:a"
+
     cmd = [
         "ffmpeg",
         "-y",
-        "-loop",
-        "1",
-        "-i",
-        "background_title.png",
-        "-i",
-        "audio.mp3",
-        "-vf",
-        vf,
+        *inputs,
+        "-filter_complex",
+        filter_complex,
+        "-map",
+        "[vout]",
+        "-map",
+        audio_map,
         "-c:v",
         "libx264",
         "-pix_fmt",
@@ -139,7 +156,11 @@ def main():
         os.path.join(out_dir, "captions.ass"),
     )
 
-    _run_ffmpeg(out_dir, duration)
+    has_bgm = generate_bgm(duration, seed, os.path.join(out_dir, "bgm.mp3"))
+    if has_bgm:
+        print("[build_video] 배경음악 추가")
+
+    _run_ffmpeg(out_dir, duration, has_bgm)
 
     print(f"[build_video] video -> {os.path.join(out_dir, 'video.mp4')}")
 

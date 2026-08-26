@@ -14,8 +14,9 @@ GitHub Actions 스케줄 워크플로우로 돌아가므로 별도의 서버가 
 |---|---|---|
 | 대본 생성 | `scripts/generate_script.py` | Claude API (`ANTHROPIC_API_KEY` 있을 때), 없으면 `scripts/topics_pool.json` 폴백 |
 | 음성 합성 | `scripts/tts.py` | [edge-tts](https://github.com/rany2/edge-tts) (무료, API 키 불필요) |
-| 영상 합성 | `scripts/build_video.py` | 배경(AI 생성 또는 PIL 그라디언트) + ffmpeg 줌인 + 자막(.ass) 번인 |
+| 영상 합성 | `scripts/build_video.py` | 배경(AI 생성 또는 PIL 그라디언트) + ffmpeg 줌인 + 배경음악 + 자막(.ass) 번인 |
 | 배경 이미지 | `scripts/ai_background.py` | Replicate API로 애니메 풍경 이미지 생성 (`REPLICATE_API_TOKEN` 있을 때), 없으면 `background.py`의 그라디언트로 대체 |
+| 배경음악 | `scripts/bgm.py` | 외부 음원 없이 ffmpeg 오디오 필터로 은은한 앰비언트 패드 톤을 직접 합성 (저작권 문제 없음) |
 | 썸네일 | `scripts/thumbnail.py` | PIL |
 | 업로드 | `scripts/upload_youtube.py` | YouTube Data API v3 (OAuth refresh token) |
 | 오케스트레이션 | `scripts/run_daily.py` | 위 단계를 순서대로 실행 |
@@ -74,7 +75,20 @@ AI 배경을 사용하고, 등록하지 않으면 지금처럼 그라디언트 �
 화풍 문구는 자유롭게 수정해도 됩니다. 일시적으로 끄고 싶으면 시크릿을 지우거나,
 환경변수 `AI_BACKGROUND_ENABLED=0`을 주면 됩니다.
 
-### 1-5. 워크플로우 확인
+### 1-5. (선택) 배경음악 끄기/볼륨 조정
+
+기본적으로 모든 영상에 아주 은은한 배경음악(앰비언트 패드 톤)이 자동으로 깔립니다.
+외부 음원 파일을 전혀 쓰지 않고 `scripts/bgm.py`가 ffmpeg 오디오 필터만으로 그 자리에서
+합성하기 때문에 저작권 문제가 없고, 날마다 다른 코드(화음)로 돌아가며 분위기가 살짝
+바뀝니다. 끄고 싶거나 볼륨을 조정하고 싶으면 워크플로우/로컬 실행 시 환경변수로 덮어쓰면
+됩니다.
+
+```bash
+BGM_ENABLED=0 PYTHONPATH=. DRY_RUN=1 python3 scripts/run_daily.py   # 배경음악 끄기
+BGM_VOLUME=0.08 PYTHONPATH=. DRY_RUN=1 python3 scripts/run_daily.py # 더 작게 (기본값 0.15)
+```
+
+### 1-6. 워크플로우 확인
 
 `.github/workflows/daily-short.yml` 이 매일 **UTC 17:00 (KST 02:00)**에 실행되어,
 03:00 KST를 목표 공개 시각(`publishAt`)으로 예약 업로드합니다. 필요하면
@@ -104,6 +118,7 @@ PYTHONPATH=. DRY_RUN=1 python3 scripts/run_daily.py
 - `scripts/generate_script.py`의 `SYSTEM_PROMPT`: LLM에게 주는 대본 작성 가이드라인
 - `scripts/build_video.py`, `scripts/background.py`, `scripts/thumbnail.py`: 영상/썸네일 비주얼 스타일
 - `scripts/ai_background.py`: AI 배경 이미지의 장면 목록/화풍 프롬프트 (1-4 참고)
+- `scripts/bgm.py`: 배경음악 코드(화음) 목록/볼륨 (1-5 참고)
 
 ### 목소리 톤 조정 (`TTS_VOICE` / `TTS_RATE` / `TTS_PITCH`)
 
