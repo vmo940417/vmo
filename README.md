@@ -14,12 +14,16 @@ GitHub Actions 스케줄 워크플로우로 돌아가므로 별도의 서버가 
 |---|---|---|
 | 대본 생성 | `scripts/generate_script.py` | Claude API (`ANTHROPIC_API_KEY` 있을 때), 없으면 `scripts/topics_pool.json` 폴백 |
 | 음성 합성 | `scripts/tts.py` | [edge-tts](https://github.com/rany2/edge-tts) (무료, API 키 불필요) |
-| 영상 합성 | `scripts/build_video.py` | PIL로 생성한 그라디언트 배경 + ffmpeg 줌인 + 자막(.ass) 번인 |
+| 영상 합성 | `scripts/build_video.py` | 배경(AI 생성 또는 PIL 그라디언트) + ffmpeg 줌인 + 자막(.ass) 번인 |
+| 배경 이미지 | `scripts/ai_background.py` | Replicate API로 애니메 풍경 이미지 생성 (`REPLICATE_API_TOKEN` 있을 때), 없으면 `background.py`의 그라디언트로 대체 |
 | 썸네일 | `scripts/thumbnail.py` | PIL |
 | 업로드 | `scripts/upload_youtube.py` | YouTube Data API v3 (OAuth refresh token) |
 | 오케스트레이션 | `scripts/run_daily.py` | 위 단계를 순서대로 실행 |
 
-모든 소재(배경, 폰트)는 코드로 직접 생성하므로 스톡 영상/이미지 라이선스 문제가 없습니다.
+폰트는 오픈소스(나눔글꼴)를 쓰고, 배경은 기본적으로 코드로 직접 생성해서 스톡 영상/이미지
+라이선스 문제가 없습니다. `REPLICATE_API_TOKEN`을 등록하면 매일 새로운 애니메 풍경 이미지를
+AI로 생성해 배경으로 쓰도록 확장할 수도 있습니다 (아래 1-4 참고, 캐릭터 없이 풍경만 생성해
+특정 저작권 캐릭터를 닮은 이미지가 나올 위험을 피했습니다).
 
 ## 1. 처음 설정하기
 
@@ -51,8 +55,26 @@ YOUTUBE_CLIENT_ID=xxx YOUTUBE_CLIENT_SECRET=yyy python3 scripts/get_refresh_toke
 | `YOUTUBE_CLIENT_SECRET` | 1-1에서 발급받은 클라이언트 보안 비밀 | ✅ |
 | `YOUTUBE_REFRESH_TOKEN` | 1-2에서 발급받은 refresh token | ✅ |
 | `ANTHROPIC_API_KEY` | Claude API 키 (매일 새로운 대본을 LLM으로 생성하고 싶다면) | 선택 (없으면 `topics_pool.json` 폴백 사용) |
+| `REPLICATE_API_TOKEN` | Replicate API 토큰 (매일 새로운 애니메 배경 이미지를 AI로 생성하고 싶다면) | 선택 (없으면 그라디언트 배경 사용) |
 
-### 1-4. 워크플로우 확인
+### 1-4. (선택) AI 배경 이미지 설정 — Replicate
+
+배경을 매일 새로운 애니메 풍경 이미지로 만들고 싶다면:
+
+1. https://replicate.com 가입 후 결제 수단 등록 (사용한 만큼만 청구되는 종량제)
+2. **Account → API tokens**에서 토큰 발급
+3. GitHub Secrets에 `REPLICATE_API_TOKEN`으로 등록 (위 1-3 표 참고)
+
+**비용**: 이미지 1장(`animagine-xl-3.1` 모델 기준)에 약 $0.004(≈5~6원). 하루 1장이면
+연간 2천원 안팎이라 사실상 부담 없는 수준입니다. 등록만 하면 다음 실행부터 자동으로
+AI 배경을 사용하고, 등록하지 않으면 지금처럼 그라디언트 배경을 계속 사용합니다.
+
+캐릭터가 아니라 "아침 분위기의 풍경"만 그리도록 프롬프트를 설계해뒀습니다
+(`scripts/ai_background.py`의 `SCENES`/`STYLE_SUFFIX`/`NEGATIVE_PROMPT`). 장면 목록이나
+화풍 문구는 자유롭게 수정해도 됩니다. 일시적으로 끄고 싶으면 시크릿을 지우거나,
+환경변수 `AI_BACKGROUND_ENABLED=0`을 주면 됩니다.
+
+### 1-5. 워크플로우 확인
 
 `.github/workflows/daily-short.yml` 이 매일 **UTC 17:00 (KST 02:00)**에 실행되어,
 03:00 KST를 목표 공개 시각(`publishAt`)으로 예약 업로드합니다. 필요하면
@@ -81,6 +103,7 @@ PYTHONPATH=. DRY_RUN=1 python3 scripts/run_daily.py
 - `scripts/topics_pool.json`: LLM 없이도 쓸 수 있는 폴백 대본 풀 (자유롭게 추가/수정 가능)
 - `scripts/generate_script.py`의 `SYSTEM_PROMPT`: LLM에게 주는 대본 작성 가이드라인
 - `scripts/build_video.py`, `scripts/background.py`, `scripts/thumbnail.py`: 영상/썸네일 비주얼 스타일
+- `scripts/ai_background.py`: AI 배경 이미지의 장면 목록/화풍 프롬프트 (1-4 참고)
 
 ### 목소리 톤 조정 (`TTS_VOICE` / `TTS_RATE` / `TTS_PITCH`)
 

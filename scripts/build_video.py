@@ -3,7 +3,8 @@ output/{script.json, audio.mp3, captions.srt, duration.txt} 를 받아
 최종 쇼츠 영상(output/video.mp4)을 만든다.
 
 구성:
-  1) 카테고리 색상의 세로형 배경 이미지 생성 (background.py)
+  1) 배경 이미지 준비: REPLICATE_API_TOKEN이 있으면 애니메 풍경 이미지를 AI로 생성하고
+     (ai_background.py), 없거나 실패하면 카테고리 색상의 그라디언트로 대체한다 (background.py)
   2) 제목 텍스트를 상단에 오버레이한 배경(background_title.png) 생성 (PIL)
   3) 단어 단위 자막(SRT)을 읽기 좋은 줄 단위로 재구성해 .ass 자막으로 저장 (srt_utils.py)
   4) ffmpeg로 배경(천천히 줌인) + 오디오 + 자막을 하나의 mp4로 합성
@@ -17,6 +18,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 import config
 import fonts
+from ai_background import generate_ai_background
 from background import make_background
 from srt_utils import group_cues, parse_srt, write_ass
 
@@ -124,7 +126,11 @@ def main():
         duration = float(f.read().strip())
 
     seed = abs(hash(script_data["title"])) % (2**31)
-    bg = make_background(script_data["category"], seed)
+    bg = generate_ai_background(seed)
+    if bg is None:
+        bg = make_background(script_data["category"], seed)
+    else:
+        print("[build_video] AI 배경(Replicate) 사용")
     bg_with_title = _draw_title(bg, script_data["title"])
     bg_with_title.save(os.path.join(out_dir, "background_title.png"))
 
