@@ -7,7 +7,7 @@ output/{script.json, audio.mp3, captions.srt, duration.txt} 를 받아
      (ai_background.py), 없거나 실패하면 카테고리 색상의 그라디언트로 대체한다 (background.py)
   2) 제목 텍스트를 상단에 오버레이한 배경(background_title.png) 생성 (PIL)
   3) 단어 단위 자막(SRT)을 읽기 좋은 줄 단위로 재구성해 .ass 자막으로 저장 (srt_utils.py)
-  4) 은은한 배경음악을 절차적으로 생성 (bgm.py), 실패/비활성화 시 내레이션만 사용
+  4) assets/bgm/의 실제 음원으로 배경음악 준비 (bgm.py), 음원이 없거나 비활성화 시 내레이션만 사용
   5) ffmpeg로 배경(천천히 줌인) + 내레이션(+배경음악) + 자막을 하나의 mp4로 합성
 """
 import json
@@ -95,8 +95,8 @@ def _run_ffmpeg(cwd: str, duration: float, has_bgm: bool):
     inputs = ["-loop", "1", "-i", "background_title.png", "-i", "audio.mp3"]
     if has_bgm:
         # 배경음악은 내레이션과 별도 트랙으로 섞는다. normalize=0으로 amix해서 내레이션
-        # 볼륨이 절반으로 깎이지 않게 하고(배경음악은 이미 bgm.py에서 아주 작게 렌더링됨),
-        # 대신 두 트랙을 그대로 더한다.
+        # 볼륨이 절반으로 깎이지 않게 하고(배경음악은 이미 bgm.py에서 loudnorm으로 목표
+        # 라우드니스에 맞춰 렌더링됨), 대신 두 트랙을 그대로 더한다.
         inputs += ["-i", "bgm.mp3"]
         filter_complex = (
             f"{video_filter};"
