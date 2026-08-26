@@ -75,7 +75,13 @@ def _build_caption_ass(raw_srt_path: str, out_path: str):
 
 def _run_ffmpeg(cwd: str, duration: float):
     total_frames = max(1, round(duration * config.VIDEO_FPS))
-    zoom_expr = "min(zoom+0.0006,1.12)"
+    # 최종 배율(1.12배)에 도달하는 시점이 영상 길이와 무관하게 항상 6~7초 근처로 고정되어
+    # 있으면, 영상이 길어질수록 뒷부분이 줌 없이 정지된 것처럼 밋밋해 보인다.
+    # 따라서 프레임당 증가폭을 총 프레임 수에 비례하게 계산해, 줌인이 클립 전체 길이에
+    # 걸쳐 고르게 진행되도록 한다.
+    zoom_target = 1.12
+    zoom_increment = (zoom_target - 1.0) / total_frames
+    zoom_expr = f"min(zoom+{zoom_increment:.8f},{zoom_target})"
     vf = (
         f"zoompan=z='{zoom_expr}':d={total_frames}:s={config.VIDEO_WIDTH}x{config.VIDEO_HEIGHT}"
         f":fps={config.VIDEO_FPS}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)',"

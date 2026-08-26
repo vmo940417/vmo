@@ -23,7 +23,7 @@ CATEGORY_COLORS = {
 VIDEO_WIDTH = 1080
 VIDEO_HEIGHT = 1920
 VIDEO_FPS = 30
-MAX_DURATION_SEC = 12  # 목표 10초 내외 쇼츠 (여유를 살짝 둔 상한)
+MAX_DURATION_SEC = 24  # 목표 20초 내외 쇼츠 (여유를 살짝 둔 상한)
 
 FONT_PATH_KR = os.environ.get(
     "FONT_PATH_KR", "/usr/share/fonts/truetype/nanum/NanumGothicBold.ttf"
