@@ -39,12 +39,15 @@ def generate_bgm(duration: float, seed: int, out_path: str) -> bool:
 
     freqs = _pick_chord(seed)
     fade = min(2.0, duration / 4)
-    bgm_volume = os.environ.get("BGM_VOLUME", "0.15")
+    # 실제 업로드 테스트에서 기본값(0.15)이 내레이션에 묻혀 거의 안 들린다는 피드백을
+    # 받아 0.4로 상향 조정함 (ffmpeg volumedetect로 측정 시 평균 약 -36dB -> -27dB,
+    # 내레이션 아래에서 또렷이 들리면서도 내레이션을 가리지 않는 수준).
+    bgm_volume = os.environ.get("BGM_VOLUME", "0.4")
 
     filter_complex = (
         f"[0:a][1:a][2:a]amix=inputs=3:duration=longest:normalize=0,"
         f"tremolo=f=0.15:d=0.25,"
-        f"lowpass=f=1400,"
+        f"lowpass=f=2000,"
         f"volume={bgm_volume},"
         f"afade=t=in:d={fade:.2f},"
         f"afade=t=out:st={max(0.0, duration - fade):.2f}:d={fade:.2f}"
