@@ -45,7 +45,10 @@ ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-5")
 
 # ── YouTube 업로드 ────────────────────────────────────────────
 YOUTUBE_CATEGORY_ID = "22"  # People & Blogs (동기부여/자기계발 계열 콘텐츠에 흔히 사용)
-DEFAULT_TAGS = ["shorts", "명언", "동기부여", "아침명언", "오늘의명언", "좋은글귀", "힘내자"]
+# "shorts"는 upload_youtube.py에서 항상 최우선 해시태그(#Shorts)로 별도 처리하므로 여기엔
+# 넣지 않는다. 검색 유입 가능성이 있는 인접 키워드(출근길명언/긍정확언/하루시작)를 추가했다
+# (2026 유튜브 쇼츠 SEO 조사 반영: joinbrands.com, hashtagtools.io).
+DEFAULT_TAGS = ["명언", "동기부여", "아침명언", "오늘의명언", "좋은글귀", "힘내자", "출근길명언", "긍정확언", "하루시작"]
 MADE_FOR_KIDS = False
 
 # 업로드 시점 대비 실제 공개(publish) 목표 시각 (해당 시간대 로컬 기준, HH:MM)

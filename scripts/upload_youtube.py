@@ -55,25 +55,48 @@ def _compute_publish_at() -> str | None:
 
 
 TITLE_SUFFIX = " | 아침 활력 명언"
+TITLE_HASHTAG = "#아침명언"
+
+# 설명란의 첫 3개 해시태그는 유튜브가 제목 위에 클릭 가능한 칩으로 자동 노출한다
+# (2026 유튜브 쇼츠 SEO 조사 반영). 검색 유입이 가장 클 것으로 예상되는 키워드를
+# 맨 앞에 오도록 순서를 고정한다.
+PRIORITY_HASHTAGS = ["Shorts", "아침명언", "동기부여"]
+
+# 해시태그는 3~5개가 적정이고 너무 많이 나열하면 오히려 효과가 떨어진다는 조사 결과를
+# 반영해, 설명란에 "보이는" 해시태그는 이 개수로 제한한다. 나머지 태그들은 검색
+# 매칭용 tags 필드(화면에 노출되지 않음)에는 그대로 다 넣는다.
+DESCRIPTION_HASHTAG_LIMIT = 6
+
+# 설명란 맨 앞에 넣는 키워드 문장. 예전에는 대본 원문으로 바로 시작해서 "아침 명언"
+# 같은 실제 검색어가 설명 앞부분에 전혀 없었는데, 이제 첫 줄에 핵심 키워드를 자연스러운
+# 문장으로 넣어 알고리즘이 주제를 더 쉽게 파악하도록 한다.
+DESCRIPTION_INTRO = "매일 아침 활력을 주는 짧은 명언 🌅 오늘의 명언으로 하루를 시작해보세요."
 
 
 def _build_body(script_data: dict, publish_at: str | None) -> dict:
     # 대본에서 뽑은 제목은 "실패는 과정"처럼 짧고 시적인 문구라 그 자체로는 검색 키워드가
-    # 약하다. 채널 브랜딩도 겸해서 "아침 활력 명언" 고정 접미사를 붙여, 검색에 잘 걸리는
-    # 키워드를 제목에도 노출시킨다.
+    # 약하다. 채널 브랜딩용 접미사 + 검색 키워드 해시태그를 붙여, 검색에 잘 걸리는
+    # 키워드를 제목에도 노출시킨다 (해시태그가 제목에 있으면 분류/노출 우선순위가 올라감).
+    tail = f"{TITLE_SUFFIX} {TITLE_HASHTAG}"
     max_len = 90  # 유튜브 제목 100자 제한에 여유를 둔다
     base_title = script_data["title"]
-    max_base_len = max_len - len(TITLE_SUFFIX)
+    max_base_len = max_len - len(tail)
     if len(base_title) > max_base_len:
         base_title = base_title[:max_base_len]
-    title = f"{base_title}{TITLE_SUFFIX}"
+    title = f"{base_title}{tail}"
+
+    category_tag = script_data["category"].replace(" ", "").replace("·", "")
+    tags = config.DEFAULT_TAGS + [category_tag]
+    # 우선순위 태그를 맨 앞으로, 중복은 제거하고 나머지를 뒤에 붙인다.
+    ordered_tags = PRIORITY_HASHTAGS + [t for t in tags if t not in PRIORITY_HASHTAGS]
+    visible_hashtags = ordered_tags[:DESCRIPTION_HASHTAG_LIMIT]
 
     description = (
+        f"{DESCRIPTION_INTRO}\n\n"
         f"{script_data['script']}\n\n"
         f"매일 아침 하나씩, {config.CHANNEL_TOPIC}!\n"
         f"이 영상은 대본 생성(AI)과 음성 합성(TTS)을 활용해 자동으로 제작되었습니다.\n\n"
-        f"#Shorts #{script_data['category'].replace(' ', '').replace('·', '')} "
-        + " ".join(f"#{t}" for t in config.DEFAULT_TAGS)
+        + " ".join(f"#{t}" for t in visible_hashtags)
     )
 
     status = {
@@ -87,7 +110,7 @@ def _build_body(script_data: dict, publish_at: str | None) -> dict:
         "snippet": {
             "title": title,
             "description": description,
-            "tags": config.DEFAULT_TAGS + [script_data["category"]],
+            "tags": ["shorts"] + tags,
             "categoryId": config.YOUTUBE_CATEGORY_ID,
         },
         "status": status,
