@@ -105,6 +105,12 @@ def generate_ai_background(seed: int):
         prediction = create_resp.json()
         prediction_id = prediction["id"]
 
+        # Replicate 인프라에서 폴링 도중 간헐적으로 5xx(예: 500)를 반환하는 경우가 있다.
+        # 우리 요청 자체의 문제가 아니라 일시적인 서버 쪽 문제일 수 있으므로, 몇 번까지는
+        # 재시도하고 나서야 최종 실패로 간주한다 (4xx는 재시도해도 소용없으므로 즉시 실패).
+        max_transient_errors = 5
+        transient_errors = 0
+
         deadline = time.monotonic() + POLL_TIMEOUT_SEC
         while prediction["status"] not in ("succeeded", "failed", "canceled"):
             if time.monotonic() > deadline:
@@ -112,9 +118,22 @@ def generate_ai_background(seed: int):
                     f"{POLL_TIMEOUT_SEC}초 내에 생성이 끝나지 않음 (status={prediction['status']})"
                 )
             time.sleep(POLL_INTERVAL_SEC)
-            poll_resp = requests.get(f"{API_BASE}/predictions/{prediction_id}", headers=headers, timeout=30)
-            poll_resp.raise_for_status()
-            prediction = poll_resp.json()
+            try:
+                poll_resp = requests.get(f"{API_BASE}/predictions/{prediction_id}", headers=headers, timeout=30)
+                poll_resp.raise_for_status()
+                prediction = poll_resp.json()
+                transient_errors = 0
+            except requests.exceptions.RequestException as poll_exc:
+                status_code = getattr(poll_exc.response, "status_code", None)
+                if status_code is not None and status_code < 500:
+                    raise
+                transient_errors += 1
+                if transient_errors > max_transient_errors:
+                    raise
+                print(
+                    f"[ai_background] 폴링 중 일시적 오류(재시도 {transient_errors}/{max_transient_errors}): {poll_exc}",
+                    file=sys.stderr,
+                )
 
         if prediction["status"] != "succeeded":
             raise RuntimeError(
