@@ -6,7 +6,8 @@
     "새 마음가짐",
     "작은 성취",
     "긍정의 힘",
-    "오늘도 파이팅"
+    "오늘도 파이팅",
+    "속도보다 방향"
   ],
   "uploads": [
     {
@@ -49,6 +50,12 @@
       "title": "오늘도 파이팅",
       "category": "아침 활력 명언",
       "video_id": "XgKcwGHP40s",
+      "publish_at": null
+    },
+    {
+      "title": "속도보다 방향",
+      "category": "아침 활력 명언",
+      "video_id": "dyiSO2ws6JI",
       "publish_at": null
     }
   ]
