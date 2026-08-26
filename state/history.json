@@ -9,7 +9,8 @@
     "오늘도 파이팅",
     "속도보다 방향",
     "다시 일어서기",
-    "나만의 속도"
+    "나만의 속도",
+    "빛나는 하루"
   ],
   "uploads": [
     {
@@ -70,6 +71,12 @@
       "title": "나만의 속도",
       "category": "아침 활력 명언",
       "video_id": "ETNAPWtF-Hw",
+      "publish_at": null
+    },
+    {
+      "title": "빛나는 하루",
+      "category": "아침 활력 명언",
+      "video_id": "cu_GWHLybV8",
       "publish_at": null
     }
   ]
