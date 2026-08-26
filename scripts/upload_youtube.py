@@ -54,10 +54,19 @@ def _compute_publish_at() -> str | None:
     return target.astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+TITLE_SUFFIX = " | 아침 활력 명언"
+
+
 def _build_body(script_data: dict, publish_at: str | None) -> dict:
-    title = script_data["title"]
-    if len(title) > 90:  # 유튜브 제목 100자 제한에 여유를 둔다
-        title = title[:90]
+    # 대본에서 뽑은 제목은 "실패는 과정"처럼 짧고 시적인 문구라 그 자체로는 검색 키워드가
+    # 약하다. 채널 브랜딩도 겸해서 "아침 활력 명언" 고정 접미사를 붙여, 검색에 잘 걸리는
+    # 키워드를 제목에도 노출시킨다.
+    max_len = 90  # 유튜브 제목 100자 제한에 여유를 둔다
+    base_title = script_data["title"]
+    max_base_len = max_len - len(TITLE_SUFFIX)
+    if len(base_title) > max_base_len:
+        base_title = base_title[:max_base_len]
+    title = f"{base_title}{TITLE_SUFFIX}"
 
     description = (
         f"{script_data['script']}\n\n"
