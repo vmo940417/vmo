@@ -19,8 +19,12 @@ import io
 import os
 import random
 import sys
+import time
 
 import config
+
+# 예측(prediction) 완료를 기다리는 최대 시간(초). 콜드 스타트를 감안해 넉넉히 잡는다.
+POLL_TIMEOUT_SEC = 240
 
 # 특정 작품/캐릭터를 연상시키지 않도록 "장면/분위기"만 다루는 소재 목록.
 # seed 기준으로 하나씩 순환 사용해 매일 다른 그림이 나오게 한다.
@@ -61,7 +65,6 @@ def generate_ai_background(seed: int):
         return None
 
     try:
-        import httpx
         import replicate
         import requests
         from PIL import Image
@@ -73,12 +76,16 @@ def generate_ai_background(seed: int):
     prompt = f"{scene}, {STYLE_SUFFIX}"
 
     try:
-        # 모델이 한동안 호출되지 않아 "콜드 스타트"가 걸리면 첫 생성에 1분 이상 걸릴 수 있다.
-        # 기본 타임아웃은 이보다 짧아서 실제로 생성 중인데 타임아웃으로 끊기는 경우가
-        # 있었으므로(운영 중 실측), 넉넉하게 잡는다.
-        client = replicate.Client(api_token=api_token, timeout=httpx.Timeout(280.0, connect=30.0))
-        output = client.run(
-            MODEL,
+        client = replicate.Client(api_token=api_token)
+
+        # client.run()은 내부적으로 "Prefer: wait" 동기 대기를 쓰는데, Replicate 서버가
+        # 이 대기를 최대 60초로 강제 제한한다. 콜드 스타트가 60초를 살짝 넘기면
+        # (실제 운영 중 반복 확인) 타임아웃 예외가 발생해버린다. 그래서 client.run() 대신
+        # 예측(prediction)을 비동기로 생성한 뒤, 우리가 직접 훨씬 더 긴 시간 동안
+        # 짧은 간격으로 상태를 폴링한다 - 각 폴링 요청 자체는 즉시 응답하므로
+        # 서버 측 60초 제한에 걸리지 않는다.
+        prediction = client.predictions.create(
+            model=MODEL,
             input={
                 "prompt": prompt,
                 "aspect_ratio": "9:16",  # 최종 영상(1080x1920)과 동일한 세로 비율
@@ -87,11 +94,23 @@ def generate_ai_background(seed: int):
             },
         )
 
+        deadline = time.monotonic() + POLL_TIMEOUT_SEC
+        while prediction.status not in ("succeeded", "failed", "canceled"):
+            if time.monotonic() > deadline:
+                raise TimeoutError(
+                    f"{POLL_TIMEOUT_SEC}초 내에 생성이 끝나지 않음 (status={prediction.status})"
+                )
+            time.sleep(2)
+            prediction = client.predictions.get(prediction.id)
+
+        if prediction.status != "succeeded":
+            raise RuntimeError(f"prediction 실패: status={prediction.status}, error={prediction.error}")
+
         # Replicate 모델은 버전에 따라 URL 리스트, 단일 URL, 혹은 FileOutput 객체 등
         # 다양한 형태로 결과를 반환한다. 실제로 받은 형태에 맞춰 바이트를 확보한다.
-        image_bytes = _extract_image_bytes(output, requests)
+        image_bytes = _extract_image_bytes(prediction.output, requests)
         if image_bytes is None:
-            raise ValueError(f"예상치 못한 응답 형식: {type(output)}")
+            raise ValueError(f"예상치 못한 응답 형식: {type(prediction.output)}")
 
         img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
         return _cover_resize(img, config.VIDEO_WIDTH, config.VIDEO_HEIGHT)
