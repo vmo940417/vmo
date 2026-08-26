@@ -1,5 +1,5 @@
 """
-Replicate API로 애니메 스타일의 배경(풍경) 이미지를 생성한다.
+Replicate REST API로 애니메 스타일의 배경(풍경) 이미지를 생성한다.
 
 - 캐릭터/인물은 절대 넣지 않는다 (특정 저작권 캐릭터를 닮은 이미지가 나오는 걸 피하고,
   순수하게 "아침 분위기의 애니메풍 풍경"만 다루기 위해 프롬프트 문구로 명시적으로 배제한다.
@@ -9,11 +9,17 @@ Replicate API로 애니메 스타일의 배경(풍경) 이미지를 생성한다
   None을 반환한다. 호출하는 쪽(build_video.py)은 이 경우 기존 절차적 그라디언트 배경으로
   자동 폴백하므로, 이 기능이 꺼져있거나 실패해도 파이프라인 전체가 죽지 않는다.
 
+`replicate` 공식 파이썬 SDK 대신 `requests`로 REST API를 직접 호출한다. SDK(v1.0.7)가
+"모델 이름만으로 실행하는" 공식 모델(예: FLUX 시리즈)의 응답을 파싱할 때 내부 Pydantic
+검증 오류(`version: none is not an allowed value`)를 일으키는 것을 실제 운영 중 확인했기
+때문이다. REST API를 직접 쓰면 이런 SDK 내부 버전 호환성 문제와 무관해진다.
+
 기본 모델은 Black Forest Labs의 FLUX Schnell(`black-forest-labs/flux-schnell`)이다.
 Replicate가 공식으로 관리하는 모델이라 커뮤니티 모델보다 버전/가용성이 안정적이다.
 다른 모델(예: 애니메 특화 커뮤니티 모델)을 쓰고 싶으면 AI_BACKGROUND_MODEL 환경변수로
 바꿀 수 있는데, 그 경우 입력 파라미터 스키마가 다를 수 있으니 해당 모델의 Replicate
-페이지에서 스키마를 먼저 확인하고 아래 input 구성을 맞춰 조정해야 한다.
+페이지에서 스키마를 먼저 확인하고 아래 input 구성을 맞춰 조정해야 한다. 또한 커뮤니티
+모델은 owner/name만으로는 실행할 수 없고 버전 해시가 필요한 경우가 많으니 주의한다.
 """
 import io
 import os
@@ -23,8 +29,11 @@ import time
 
 import config
 
+API_BASE = "https://api.replicate.com/v1"
+
 # 예측(prediction) 완료를 기다리는 최대 시간(초). 콜드 스타트를 감안해 넉넉히 잡는다.
 POLL_TIMEOUT_SEC = 240
+POLL_INTERVAL_SEC = 2
 
 # 특정 작품/캐릭터를 연상시키지 않도록 "장면/분위기"만 다루는 소재 목록.
 # seed 기준으로 하나씩 순환 사용해 매일 다른 그림이 나오게 한다.
@@ -65,7 +74,6 @@ def generate_ai_background(seed: int):
         return None
 
     try:
-        import replicate
         import requests
         from PIL import Image
     except ImportError as exc:
@@ -74,43 +82,49 @@ def generate_ai_background(seed: int):
 
     scene = _pick_scene(seed)
     prompt = f"{scene}, {STYLE_SUFFIX}"
+    headers = {
+        "Authorization": f"Bearer {api_token}",
+        "Content-Type": "application/json",
+    }
 
     try:
-        client = replicate.Client(api_token=api_token)
-
-        # client.run()은 내부적으로 "Prefer: wait" 동기 대기를 쓰는데, Replicate 서버가
-        # 이 대기를 최대 60초로 강제 제한한다. 콜드 스타트가 60초를 살짝 넘기면
-        # (실제 운영 중 반복 확인) 타임아웃 예외가 발생해버린다. 그래서 client.run() 대신
-        # 예측(prediction)을 비동기로 생성한 뒤, 우리가 직접 훨씬 더 긴 시간 동안
-        # 짧은 간격으로 상태를 폴링한다 - 각 폴링 요청 자체는 즉시 응답하므로
-        # 서버 측 60초 제한에 걸리지 않는다.
-        prediction = client.predictions.create(
-            model=MODEL,
-            input={
-                "prompt": prompt,
-                "aspect_ratio": "9:16",  # 최종 영상(1080x1920)과 동일한 세로 비율
-                "output_format": "png",
-                "num_outputs": 1,
+        create_resp = requests.post(
+            f"{API_BASE}/models/{MODEL}/predictions",
+            headers=headers,
+            json={
+                "input": {
+                    "prompt": prompt,
+                    "aspect_ratio": "9:16",  # 최종 영상(1080x1920)과 동일한 세로 비율
+                    "output_format": "png",
+                    "num_outputs": 1,
+                }
             },
+            timeout=30,
         )
+        create_resp.raise_for_status()
+        prediction = create_resp.json()
+        prediction_id = prediction["id"]
 
         deadline = time.monotonic() + POLL_TIMEOUT_SEC
-        while prediction.status not in ("succeeded", "failed", "canceled"):
+        while prediction["status"] not in ("succeeded", "failed", "canceled"):
             if time.monotonic() > deadline:
                 raise TimeoutError(
-                    f"{POLL_TIMEOUT_SEC}초 내에 생성이 끝나지 않음 (status={prediction.status})"
+                    f"{POLL_TIMEOUT_SEC}초 내에 생성이 끝나지 않음 (status={prediction['status']})"
                 )
-            time.sleep(2)
-            prediction = client.predictions.get(prediction.id)
+            time.sleep(POLL_INTERVAL_SEC)
+            poll_resp = requests.get(f"{API_BASE}/predictions/{prediction_id}", headers=headers, timeout=30)
+            poll_resp.raise_for_status()
+            prediction = poll_resp.json()
 
-        if prediction.status != "succeeded":
-            raise RuntimeError(f"prediction 실패: status={prediction.status}, error={prediction.error}")
+        if prediction["status"] != "succeeded":
+            raise RuntimeError(
+                f"prediction 실패: status={prediction['status']}, error={prediction.get('error')}"
+            )
 
-        # Replicate 모델은 버전에 따라 URL 리스트, 단일 URL, 혹은 FileOutput 객체 등
-        # 다양한 형태로 결과를 반환한다. 실제로 받은 형태에 맞춰 바이트를 확보한다.
-        image_bytes = _extract_image_bytes(prediction.output, requests)
+        # 모델에 따라 output이 URL 리스트이거나 단일 URL 문자열일 수 있다.
+        image_bytes = _extract_image_bytes(prediction["output"], requests)
         if image_bytes is None:
-            raise ValueError(f"예상치 못한 응답 형식: {type(prediction.output)}")
+            raise ValueError(f"예상치 못한 응답 형식: {prediction['output']!r}")
 
         img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
         return _cover_resize(img, config.VIDEO_WIDTH, config.VIDEO_HEIGHT)
@@ -124,10 +138,6 @@ def _extract_image_bytes(output, requests_mod):
     if isinstance(output, (list, tuple)) and output:
         output = output[0]
 
-    if hasattr(output, "read"):  # FileOutput 등 파일류 객체
-        return output.read()
-    if isinstance(output, (bytes, bytearray)):
-        return bytes(output)
     if isinstance(output, str) and output.startswith("http"):
         resp = requests_mod.get(output, timeout=120)
         resp.raise_for_status()
@@ -137,10 +147,11 @@ def _extract_image_bytes(output, requests_mod):
 
 def _cover_resize(img, target_w: int, target_h: int):
     """원본 비율을 유지한 채 목표 크기를 꽉 채우도록 리사이즈 후 중앙을 크롭한다."""
+    from PIL import Image
+
     src_w, src_h = img.size
     scale = max(target_w / src_w, target_h / src_h)
     new_w, new_h = round(src_w * scale), round(src_h * scale)
-    from PIL import Image
 
     img = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
     left = (new_w - target_w) // 2
