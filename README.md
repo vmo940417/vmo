@@ -65,7 +65,7 @@ YOUTUBE_CLIENT_ID=xxx YOUTUBE_CLIENT_SECRET=yyy python3 scripts/get_refresh_toke
 2. **Account → API tokens**에서 토큰 발급
 3. GitHub Secrets에 `REPLICATE_API_TOKEN`으로 등록 (위 1-3 표 참고)
 
-**비용**: 이미지 1장(`animagine-xl-3.1` 모델 기준)에 약 $0.004(≈5~6원). 하루 1장이면
+**비용**: 이미지 1장(기본 모델 `black-forest-labs/flux-schnell` 기준)에 약 $0.003(≈4원). 하루 1장이면
 연간 2천원 안팎이라 사실상 부담 없는 수준입니다. 등록만 하면 다음 실행부터 자동으로
 AI 배경을 사용하고, 등록하지 않으면 지금처럼 그라디언트 배경을 계속 사용합니다.
 

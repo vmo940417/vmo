@@ -2,10 +2,18 @@
 Replicate API로 애니메 스타일의 배경(풍경) 이미지를 생성한다.
 
 - 캐릭터/인물은 절대 넣지 않는다 (특정 저작권 캐릭터를 닮은 이미지가 나오는 걸 피하고,
-  순수하게 "아침 분위기의 애니메풍 풍경"만 다루기 위해 프롬프트와 negative_prompt로 제어).
+  순수하게 "아침 분위기의 애니메풍 풍경"만 다루기 위해 프롬프트 문구로 명시적으로 배제한다.
+  기본 모델(FLUX)은 negative_prompt를 지원하지 않으므로, "no people/characters" 지시를
+  긍정 프롬프트 문장 안에 직접 녹여서 전달한다).
 - REPLICATE_API_TOKEN 환경변수가 없거나, API 호출이 실패하거나, 어떤 이유로든 문제가 생기면
   None을 반환한다. 호출하는 쪽(build_video.py)은 이 경우 기존 절차적 그라디언트 배경으로
   자동 폴백하므로, 이 기능이 꺼져있거나 실패해도 파이프라인 전체가 죽지 않는다.
+
+기본 모델은 Black Forest Labs의 FLUX Schnell(`black-forest-labs/flux-schnell`)이다.
+Replicate가 공식으로 관리하는 모델이라 커뮤니티 모델보다 버전/가용성이 안정적이다.
+다른 모델(예: 애니메 특화 커뮤니티 모델)을 쓰고 싶으면 AI_BACKGROUND_MODEL 환경변수로
+바꿀 수 있는데, 그 경우 입력 파라미터 스키마가 다를 수 있으니 해당 모델의 Replicate
+페이지에서 스키마를 먼저 확인하고 아래 input 구성을 맞춰 조정해야 한다.
 """
 import io
 import os
@@ -14,19 +22,8 @@ import sys
 
 import config
 
-# SDXL 계열 모델의 일반적인 세로 버킷 해상도. 최종적으로는 build_video.py 쪽에서
-# VIDEO_WIDTH x VIDEO_HEIGHT(1080x1920)에 맞춰 cover-fit으로 리사이즈/크롭한다.
-GEN_WIDTH = 832
-GEN_HEIGHT = 1216
-
-NEGATIVE_PROMPT = (
-    "text, watermark, signature, logo, caption, subtitle, frame, border, "
-    "person, human, character, face, hands, body, animal, "
-    "blurry, lowres, bad anatomy, deformed, worst quality, low quality, jpeg artifacts"
-)
-
 # 특정 작품/캐릭터를 연상시키지 않도록 "장면/분위기"만 다루는 소재 목록.
-# 오늘 날짜 기준으로 하나씩 순환 사용해 매일 다른 그림이 나오게 한다.
+# seed 기준으로 하나씩 순환 사용해 매일 다른 그림이 나오게 한다.
 SCENES = [
     "sunrise over misty mountains with layered clouds",
     "cozy window sill with a coffee cup, morning sunlight streaming in",
@@ -44,10 +41,11 @@ SCENES = [
 
 STYLE_SUFFIX = (
     "japanese anime background art style, cel-shaded, vibrant sunrise colors, "
-    "cinematic lighting, highly detailed, masterpiece, no characters, empty scenery"
+    "cinematic lighting, highly detailed, masterpiece, empty scenery, "
+    "no people, no characters, no text, no watermark"
 )
 
-MODEL = os.environ.get("AI_BACKGROUND_MODEL", "cjwbw/animagine-xl-3.1")
+MODEL = os.environ.get("AI_BACKGROUND_MODEL", "black-forest-labs/flux-schnell")
 
 
 def _pick_scene(seed: int) -> str:
@@ -79,12 +77,9 @@ def generate_ai_background(seed: int):
             MODEL,
             input={
                 "prompt": prompt,
-                "negative_prompt": NEGATIVE_PROMPT,
-                "width": GEN_WIDTH,
-                "height": GEN_HEIGHT,
-                "guidance_scale": 7,
-                "num_inference_steps": 28,
-                "seed": seed,
+                "aspect_ratio": "9:16",  # 최종 영상(1080x1920)과 동일한 세로 비율
+                "output_format": "png",
+                "num_outputs": 1,
             },
         )
 
