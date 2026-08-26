@@ -61,6 +61,7 @@ def generate_ai_background(seed: int):
         return None
 
     try:
+        import httpx
         import replicate
         import requests
         from PIL import Image
@@ -72,7 +73,10 @@ def generate_ai_background(seed: int):
     prompt = f"{scene}, {STYLE_SUFFIX}"
 
     try:
-        client = replicate.Client(api_token=api_token)
+        # 모델이 한동안 호출되지 않아 "콜드 스타트"가 걸리면 첫 생성에 1분 이상 걸릴 수 있다.
+        # 기본 타임아웃은 이보다 짧아서 실제로 생성 중인데 타임아웃으로 끊기는 경우가
+        # 있었으므로(운영 중 실측), 넉넉하게 잡는다.
+        client = replicate.Client(api_token=api_token, timeout=httpx.Timeout(280.0, connect=30.0))
         output = client.run(
             MODEL,
             input={
@@ -106,7 +110,7 @@ def _extract_image_bytes(output, requests_mod):
     if isinstance(output, (bytes, bytearray)):
         return bytes(output)
     if isinstance(output, str) and output.startswith("http"):
-        resp = requests_mod.get(output, timeout=60)
+        resp = requests_mod.get(output, timeout=120)
         resp.raise_for_status()
         return resp.content
     return None
