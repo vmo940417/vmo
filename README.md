@@ -92,7 +92,7 @@ AI 배경을 사용하고, 등록하지 않으면 지금처럼 그라디언트 �
 
 ```bash
 BGM_ENABLED=0 PYTHONPATH=. DRY_RUN=1 python3 scripts/run_daily.py        # 배경음악 끄기
-BGM_TARGET_LUFS=-26 PYTHONPATH=. DRY_RUN=1 python3 scripts/run_daily.py  # 더 작게 (기본값 -22 LUFS)
+BGM_TARGET_LUFS=-28 PYTHONPATH=. DRY_RUN=1 python3 scripts/run_daily.py  # 더 작게 (기본값 -25 LUFS)
 ```
 
 ### 1-6. 워크플로우 확인

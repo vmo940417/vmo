@@ -14,7 +14,7 @@
   유튜브 오디오 보관함(저작권 걱정 없는 무료 음원) 등에서 받은 실제 음원 파일을
   `assets/bgm/`에 넣어두는 방식으로 전환했다.
 - 어떤 트랙을 쓰든 상대적 크기가 들쭉날쭉하지 않도록, 원본 파일의 raw 볼륨을 그대로 쓰는
-  대신 loudnorm으로 목표 라우드니스(BGM_TARGET_LUFS, 기본 -22 LUFS)에 맞춰 정규화한다.
+  대신 loudnorm으로 목표 라우드니스(BGM_TARGET_LUFS, 기본 -25 LUFS)에 맞춰 정규화한다.
   이렇게 하면 새 트랙을 추가할 때마다 볼륨을 다시 맞춰볼 필요 없이 일관된 크기로 깔린다.
 """
 import glob
@@ -53,7 +53,7 @@ def generate_bgm(duration: float, seed: int, out_path: str) -> bool:
 
     track = _pick_track(seed, tracks)
     fade = min(2.0, duration / 4)
-    target_lufs = os.environ.get("BGM_TARGET_LUFS", "-22")
+    target_lufs = os.environ.get("BGM_TARGET_LUFS", "-25")
     # loudnorm으로 절대 라우드니스를 맞춘 뒤에도, 취향에 맞게 추가로 조정하고 싶을 때를
     # 위해 곱연산 볼륨 조절 여지를 남겨둔다 (기본 1.0 = loudnorm 결과 그대로 사용).
     extra_volume = os.environ.get("BGM_VOLUME", "1.0")
