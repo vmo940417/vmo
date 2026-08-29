@@ -4,10 +4,17 @@ output/{script.json, video.mp4, thumbnail.jpg} 를 유튜브에 업로드한다.
 인증: OAuth 2.0 refresh token 방식 (한 번만 get_refresh_token.py 로 발급받아
 GitHub Secrets 에 저장해두면, 이후 매일 실행 시 브라우저 로그인 없이 자동 갱신된다).
 
-공개 시각: 워크플로우가 목표 공개 시각(config.PUBLISH_TIME_LOCAL, 기본 06:00 KST)보다
-먼저 실행되면 privacyStatus=private + publishAt 예약 게시로 올려서, GitHub Actions의
-cron 지연과 무관하게 유튜브가 정확한 시각에 공개하도록 한다. 이미 그 시각이 지났다면
-바로 공개(public)로 업로드한다.
+공개 시각: 항상 "다음" 목표 공개 시각(config.PUBLISH_TIME_LOCAL, 기본 03:00 KST)에
+맞춰 privacyStatus=private + publishAt 예약 게시로 올린다. 오늘 그 시각이 이미
+지났다면 내일 같은 시각으로 예약한다 - 즉 GitHub Actions의 schedule(cron) 트리거가
+몇 시에 실행되든(정시든, 몇 시간 지연이든) 절대 "즉시 공개"로 새지 않고 항상 정확히
+목표 시각에만 공개된다.
+
+(예전에는 목표 시각이 지났으면 즉시 공개로 처리했는데, 실제 운영에서 GitHub Actions의
+schedule 지연이 예상보다 훨씬 커서(최대 9시간 가까이 관측됨) 이 즉시 공개 경로가
+계속 발동해 매일 03:00 정시 공개가 지켜지지 않는 문제가 있었다. PUBLISH_NOW=1
+환경변수를 주면 이 예약을 건너뛰고 즉시 공개하는데, 이건 수동 테스트로 결과를 바로
+확인하고 싶을 때만 쓴다.)
 """
 import datetime
 import json
@@ -42,15 +49,24 @@ def _build_youtube_client():
 
 
 def _compute_publish_at() -> str | None:
-    """목표 공개 시각(KST 06:00 등)이 아직 미래면 RFC3339 UTC 문자열을 반환하고,
-    이미 지났으면 None(=즉시 공개)을 반환한다."""
+    """다음 목표 공개 시각(KST, config.PUBLISH_TIME_LOCAL)을 RFC3339 UTC 문자열로
+    반환한다. 오늘 그 시각이 이미 지났으면 내일 같은 시각으로 넘긴다 - 그래서 이
+    함수는 (PUBLISH_NOW=1로 강제하지 않는 한) 항상 "미래의 예약 시각"만 반환하고,
+    즉시 공개(None)로 새는 경우가 없다. GitHub Actions cron이 몇 시에 실행되든
+    상관없이 항상 정확히 03:00에만 공개되도록 하기 위한 설계.
+
+    PUBLISH_NOW=1이면 이 예약 로직을 건너뛰고 무조건 None(즉시 공개)을 반환한다
+    (변경 사항을 바로 확인하고 싶은 수동 테스트용)."""
+    if os.environ.get("PUBLISH_NOW") == "1":
+        return None
+
     tz = zoneinfo.ZoneInfo(config.TIMEZONE)
     now = datetime.datetime.now(tz)
     hh, mm = map(int, config.PUBLISH_TIME_LOCAL.split(":"))
     target = now.replace(hour=hh, minute=mm, second=0, microsecond=0)
 
     if target <= now:
-        return None
+        target += datetime.timedelta(days=1)
     return target.astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 

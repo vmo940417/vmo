@@ -4,21 +4,26 @@ on:
   schedule:
     # 목표: 매일 03:00 KST 공개.
     #
-    # GitHub Actions의 schedule(cron) 트리거는 정시 실행을 보장하지 않는다 - 특히
-    # 매 시 정각(:00)에 요청이 몰릴 때는 몇 분에서 길게는 몇 시간까지 지연될 수 있다고
-    # GitHub가 공식 문서에 명시한다 (실제로 2026-08-26 실행에서 예정보다 2시간 지연된 것을
-    # 확인함). 이 지연이 목표 공개 시각(03:00 KST)을 넘겨버리면 upload_youtube.py의
-    # _compute_publish_at()이 "이미 지났다"고 판단해 예약 공개 대신 즉시 공개로 처리한다.
+    # GitHub Actions의 schedule(cron) 트리거는 정시 실행을 보장하지 않는다. 실제
+    # 운영에서 2시간, 심하면 9시간 가까이 지연되는 것을 확인했다 (매 시 정각(:00)에
+    # 요청이 몰릴 때 특히 심하다고 GitHub 공식 문서에도 명시돼 있음). 그래서 "버퍼를
+    # 두고 정시 전에 끝내기"만으로는 지연을 다 못 피한다 - 실제 정시 공개는
+    # upload_youtube.py의 _compute_publish_at()이 "오늘 목표 시각이 지났으면 내일
+    # 같은 시각으로" 예약을 넘기는 방식으로 보장한다 (이 워크플로우가 몇 시에
+    # 실행되든 상관없이 항상 다음 03:00에만 공개됨).
     #
-    # 그래서 워크플로우 자체는 "정시 발동"이 아니라 "충분히 일찍 발동해서, 유튜브의
-    # publishAt 예약 공개 기능이 정확한 03:00 KST에 실제로 세상에 내보내도록" 하는 것이
-    # 목표다. UTC 15:07 = KST 00:07(다음날)에 실행해 목표 시각까지 약 3시간 버퍼를
-    # 두고, 혼잡이 몰리는 정각(:00)을 피해 :07에 실행한다.
+    # 이 cron은 그래도 최대한 목표 시각과 가깝게 맞추기 위한 것일 뿐, 실제 정시
+    # 공개의 핵심 안전장치는 아니다. UTC 15:07 = KST 00:07(다음날)에 실행하고,
+    # 혼잡이 몰리는 정각(:00)을 피해 :07에 실행한다.
     - cron: "7 15 * * *"
   workflow_dispatch:
     inputs:
       dry_run:
         description: "true면 영상만 생성하고 유튜브 업로드는 건너뜁니다"
+        type: boolean
+        default: false
+      publish_now:
+        description: "true면 예약 없이 지금 바로 공개합니다 (결과를 바로 확인하고 싶은 수동 테스트용)"
         type: boolean
         default: false
 
@@ -59,6 +64,7 @@ jobs:
       - name: 파이프라인 실행
         env:
           DRY_RUN: ${{ inputs.dry_run == true && '1' || '' }}
+          PUBLISH_NOW: ${{ inputs.publish_now == true && '1' || '' }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
           YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
