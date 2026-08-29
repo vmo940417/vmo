@@ -10,7 +10,8 @@
     "속도보다 방향",
     "다시 일어서기",
     "나만의 속도",
-    "빛나는 하루"
+    "빛나는 하루",
+    "자신감 충전"
   ],
   "uploads": [
     {
@@ -77,6 +78,12 @@
       "title": "빛나는 하루",
       "category": "아침 활력 명언",
       "video_id": "cu_GWHLybV8",
+      "publish_at": null
+    },
+    {
+      "title": "자신감 충전",
+      "category": "아침 활력 명언",
+      "video_id": "VmBtRZjdAlM",
       "publish_at": null
     }
   ]
