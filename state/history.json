@@ -11,7 +11,8 @@
     "다시 일어서기",
     "나만의 속도",
     "빛나는 하루",
-    "자신감 충전"
+    "자신감 충전",
+    "실패는 과정"
   ],
   "uploads": [
     {
@@ -85,6 +86,12 @@
       "category": "아침 활력 명언",
       "video_id": "VmBtRZjdAlM",
       "publish_at": null
+    },
+    {
+      "title": "실패는 과정",
+      "category": "아침 활력 명언",
+      "video_id": "nKR7tSFtM6I",
+      "publish_at": "2026-08-29T18:00:00Z"
     }
   ]
 }
