@@ -1,8 +1,9 @@
 # vmo — 아침 활력 명언 쇼츠 자동 생성 & 매일 업로드
 
-"하루를 활기차게 시작하는 명언" 주제로 매일 새로운 유튜브 쇼츠(세로, **20초 내외**)를
-자동으로 만들고, **매일 03:00(KST)**에 자동으로 채널에 공개하는 파이프라인입니다.
-GitHub Actions 스케줄 워크플로우로 돌아가므로 별도의 서버가 필요 없습니다.
+"하루를 활기차게 시작하는 명언" 주제로 매일 새로운 유튜브 쇼츠(세로, **20초 내외**, 자작곡
+구간을 붙이면 **최대 약 1분**)를 자동으로 만들고, **매일 03:00(KST)**에 자동으로 채널에
+공개하는 파이프라인입니다. GitHub Actions 스케줄 워크플로우로 돌아가므로 별도의 서버가
+필요 없습니다.
 
 ## 파이프라인 구성
 
@@ -17,6 +18,7 @@ GitHub Actions 스케줄 워크플로우로 돌아가므로 별도의 서버가 
 | 영상 합성 | `scripts/build_video.py` | 배경(AI 생성 또는 PIL 그라디언트) + ffmpeg 줌인 + 배경음악 + 자막(.ass) 번인 |
 | 배경 이미지 | `scripts/ai_background.py` | Replicate API로 애니메 풍경 이미지 생성 (`REPLICATE_API_TOKEN` 있을 때), 없으면 `background.py`의 그라디언트로 대체 |
 | 배경음악 | `scripts/bgm.py` | `assets/bgm/`에 넣어둔 실제 음원(유튜브 오디오 보관함 등 무료/저작권 프리)을 영상 길이에 맞춰 자르고 loudnorm으로 크기를 맞춰 믹싱 |
+| 자작곡 구간 | `scripts/song.py` | `assets/song/`에 지정해둔 곡이 있으면 나레이션 구간 뒤에 이어붙임 (같은 배경 줌인이 끊김 없이 계속됨) |
 | 썸네일 | `scripts/thumbnail.py` | PIL |
 | 업로드 | `scripts/upload_youtube.py` | YouTube Data API v3 (OAuth refresh token) |
 | 오케스트레이션 | `scripts/run_daily.py` | 위 단계를 순서대로 실행 |
@@ -95,7 +97,24 @@ BGM_ENABLED=0 PYTHONPATH=. DRY_RUN=1 python3 scripts/run_daily.py        # 배�
 BGM_TARGET_LUFS=-28 PYTHONPATH=. DRY_RUN=1 python3 scripts/run_daily.py  # 더 작게 (기본값 -25 LUFS)
 ```
 
-### 1-6. 워크플로우 확인 (매일 03:00 KST 자동 공개)
+### 1-6. (선택) 나레이션 뒤에 자작곡 이어붙이기
+
+`assets/song/` 폴더에 곡 파일(mp3 등)을 넣어두면, 나레이션(+배경음악) 구간이 끝난 직후
+그 곡이 이어서 재생되는 영상으로 만들어집니다. 예: 20초 나레이션 + 40초 곡 = 총 1분.
+화면(배경 줌인 애니메이션)은 화면 전환 없이 곡 구간까지 계속 이어지고, 곡 구간에는 자막이
+없습니다.
+
+`assets/bgm/`(매일 자동 순환)와 다르게, 이 폴더는 **곡을 하나만 넣어두고 사용자가 그때그때
+직접 교체**하는 방식입니다 — 자동 순환/랜덤 선택 없이 폴더에 있는(여러 개면 가장 최근에
+넣은) 파일을 그대로 사용합니다. 곡을 바꾸고 싶으면 이 폴더의 파일을 교체하고 커밋하면
+다음 실행부터 반영됩니다. 자세한 내용은 `assets/song/README.md` 참고.
+
+```bash
+SONG_ENABLED=0 PYTHONPATH=. DRY_RUN=1 python3 scripts/run_daily.py         # 자작곡 구간 끄기
+SONG_TARGET_LUFS=-14 PYTHONPATH=. DRY_RUN=1 python3 scripts/run_daily.py   # 더 크게 (기본값 -16 LUFS)
+```
+
+### 1-7. 워크플로우 확인 (매일 03:00 KST 자동 공개)
 
 `.github/workflows/daily-short.yml` 이 매일 **UTC 15:07 (KST 00:07, 다음날)** 무렵에
 실행되어 영상을 만들고, 유튜브에 `publishAt=03:00 KST`(다음 03:00)로 예약 업로드합니다.
@@ -148,6 +167,7 @@ PYTHONPATH=. DRY_RUN=1 python3 scripts/run_daily.py
 - `scripts/build_video.py`, `scripts/background.py`, `scripts/thumbnail.py`: 영상/썸네일 비주얼 스타일
 - `scripts/ai_background.py`: AI 배경 이미지의 장면 목록/화풍 프롬프트 (1-4 참고)
 - `assets/bgm/`: 배경음악 음원 파일 (1-5 참고), `scripts/bgm.py`: 선택/믹싱 로직
+- `assets/song/`: 나레이션 뒤에 이어붙일 자작곡 파일 (1-6 참고), `scripts/song.py`: 준비 로직
 
 ### 목소리 톤 조정 (`TTS_VOICE` / `TTS_RATE` / `TTS_PITCH`)
 
@@ -174,8 +194,9 @@ TTS_PITCH="+60Hz" TTS_RATE="+20%" PYTHONPATH=. DRY_RUN=1 python3 scripts/run_dai
   "변경되었거나 합성된 콘텐츠" 표시가 필요할 수 있습니다. 이 프로젝트는 실존 인물을 다루지
   않지만, 설명란에 AI 활용 사실을 명시해두었습니다(`upload_youtube.py`의 description 참고).
 - **저작권**: 배경/폰트는 모두 코드로 직접 생성하거나 오픈소스 폰트(나눔글꼴)를 사용하므로
-  별도 라이선스 문제가 없습니다. `topics_pool.json`에 직접 소재를 추가할 때는 사실관계와
-  출처를 확인하세요.
+  별도 라이선스 문제가 없습니다. `assets/song/`에 넣는 곡은 본인이 직접 작곡한 자작곡만
+  사용하세요(제3자 저작물을 넣으면 저작권 문제가 생길 수 있습니다). `topics_pool.json`에
+  직접 소재를 추가할 때는 사실관계와 출처를 확인하세요.
 - **업로드 쿼터**: YouTube Data API 기본 일일 쿼터는 10,000 units이며, 영상 1회 업로드에
   약 1,600 units가 소요됩니다. 하루 1편 업로드에는 충분하지만, 테스트 업로드를 반복하면
   금방 소진될 수 있으니 주의하세요.
