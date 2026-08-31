@@ -1,7 +1,7 @@
 # vmo — 아침 활력 명언 쇼츠 자동 생성 & 매일 업로드
 
 "하루를 활기차게 시작하는 명언" 주제로 매일 새로운 유튜브 쇼츠(세로, **20초 내외**, 자작곡
-구간을 붙이면 **최대 약 1분**)를 자동으로 만들고, **매일 03:00(KST)**에 자동으로 채널에
+구간을 붙이면 **약 1~1.5분**)를 자동으로 만들고, **매일 03:00(KST)**에 자동으로 채널에
 공개하는 파이프라인입니다. GitHub Actions 스케줄 워크플로우로 돌아가므로 별도의 서버가
 필요 없습니다.
 
@@ -18,7 +18,7 @@
 | 영상 합성 | `scripts/build_video.py` | 배경(AI 생성 또는 PIL 그라디언트) + ffmpeg 줌인 + 배경음악 + 자막(.ass) 번인 |
 | 배경 이미지 | `scripts/ai_background.py` | Replicate API로 애니메 풍경 이미지 생성 (`REPLICATE_API_TOKEN` 있을 때), 없으면 `background.py`의 그라디언트로 대체 |
 | 배경음악 | `scripts/bgm.py` | `assets/bgm/`에 넣어둔 실제 음원(유튜브 오디오 보관함 등 무료/저작권 프리)을 영상 길이에 맞춰 자르고 loudnorm으로 크기를 맞춰 믹싱 |
-| 자작곡 구간 | `scripts/song.py` | `assets/song/`에 지정해둔 곡이 있으면 나레이션 구간 뒤에 이어붙임 (같은 배경 줌인이 끊김 없이 계속됨) |
+| 자작곡 구간 | `scripts/song.py` | `assets/song/`의 곡들을 KST 날짜 기준으로 매일 번갈아 골라 나레이션 구간 뒤에 이어붙임 (같은 배경 줌인이 끊김 없이 계속됨) |
 | 썸네일 | `scripts/thumbnail.py` | PIL |
 | 업로드 | `scripts/upload_youtube.py` | YouTube Data API v3 (OAuth refresh token) |
 | 오케스트레이션 | `scripts/run_daily.py` | 위 단계를 순서대로 실행 |
@@ -104,10 +104,13 @@ BGM_TARGET_LUFS=-28 PYTHONPATH=. DRY_RUN=1 python3 scripts/run_daily.py  # 더 �
 화면(배경 줌인 애니메이션)은 화면 전환 없이 곡 구간까지 계속 이어지고, 곡 구간에는 자막이
 없습니다.
 
-`assets/bgm/`(매일 자동 순환)와 다르게, 이 폴더는 **곡을 하나만 넣어두고 사용자가 그때그때
-직접 교체**하는 방식입니다 — 자동 순환/랜덤 선택 없이 폴더에 있는(여러 개면 가장 최근에
-넣은) 파일을 그대로 사용합니다. 곡을 바꾸고 싶으면 이 폴더의 파일을 교체하고 커밋하면
-다음 실행부터 반영됩니다. 자세한 내용은 `assets/song/README.md` 참고.
+`assets/bgm/`처럼 순환 선택하지만 기준이 다릅니다 — bgm.py는 영상 제목을 시드로 삼아
+"그날그날 다른 영상 사이에서" 고르는 반면, song.py는 **KST 날짜를 순번으로 삼아 정확히
+번갈아** 선택합니다 (곡을 2개 넣어두면 하루는 A, 다음 날은 B — 무작위가 아니라 날짜
+기준이라 같은 날 여러 번 실행돼도 항상 같은 곡이 나옵니다). 지금은 차분한 곡/활기찬 곡
+2개가 하루걸러 하루 번갈아 나오도록 넣어뒀습니다. 곡을 바꾸거나 추가하고 싶으면 이 폴더의
+파일을 교체/추가하고 커밋하면 다음 실행부터 반영됩니다. 자세한 내용은
+`assets/song/README.md` 참고.
 
 ```bash
 SONG_ENABLED=0 PYTHONPATH=. DRY_RUN=1 python3 scripts/run_daily.py         # 자작곡 구간 끄기
