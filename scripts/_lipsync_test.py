@@ -89,11 +89,21 @@ def main():
         "Content-Type": "application/json",
     }
 
+    # cjwbw/sadtalker는 커뮤니티 모델이라 "owner/name" 단축 엔드포인트(공식 모델 전용)로는
+    # 못 부른다 (실제로 404 확인함). 모델 정보를 먼저 조회해 최신 버전 해시를 얻은 뒤,
+    # 범용 /v1/predictions 엔드포인트에 그 버전을 명시해서 호출해야 한다.
+    print(f"[lipsync_test] {MODEL} 최신 버전 조회 중...")
+    model_resp = requests.get(f"{API_BASE}/models/{MODEL}", headers=headers, timeout=30)
+    model_resp.raise_for_status()
+    version_id = model_resp.json()["latest_version"]["id"]
+    print(f"[lipsync_test] 버전: {version_id}")
+
     print(f"[lipsync_test] Replicate({MODEL}) 예측 생성 요청 중...")
     create_resp = requests.post(
-        f"{API_BASE}/models/{MODEL}/predictions",
+        f"{API_BASE}/predictions",
         headers=headers,
         json={
+            "version": version_id,
             "input": {
                 "source_image": image_data_uri,
                 "driven_audio": audio_data_uri,
