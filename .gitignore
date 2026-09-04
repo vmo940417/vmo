@@ -3,6 +3,7 @@ __pycache__/
 .venv/
 venv/
 output/
+output_nuri/
 *.mp3
 *.mp4
 *.png
@@ -11,6 +12,7 @@ output/
 *.ogg
 !assets/**/*.png
 !assets/**/*.mp3
+!assets/**/*.mp4
 !assets/**/*.m4a
 !assets/**/*.wav
 !assets/**/*.ogg
