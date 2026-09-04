@@ -134,6 +134,10 @@ def main():
 
     if prediction["status"] != "succeeded":
         print(f"[lipsync_test] 실패: status={prediction['status']}, error={prediction.get('error')}", file=sys.stderr)
+        # error 필드가 뭉뚱그려진 메시지("exceptions must derive from BaseException" 등)일
+        # 때, 컨테이너 내부 stdout/stderr가 담긴 logs 필드에 실제 원인이 남아있는 경우가
+        # 많다 (예: 얼굴 인식 실패 등 모델 내부 단계별 에러).
+        print(f"[lipsync_test] 컨테이너 로그:\n{prediction.get('logs')}", file=sys.stderr)
         sys.exit(1)
 
     print(f"[lipsync_test] 성공! output = {prediction['output']}")
