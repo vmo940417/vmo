@@ -15,6 +15,14 @@ schedule 지연이 예상보다 훨씬 커서(최대 9시간 가까이 관측됨
 계속 발동해 매일 03:00 정시 공개가 지켜지지 않는 문제가 있었다. PUBLISH_NOW=1
 환경변수를 주면 이 예약을 건너뛰고 즉시 공개하는데, 이건 수동 테스트로 결과를 바로
 확인하고 싶을 때만 쓴다.)
+
+(추가 수정: "목표 시각이 지났으면 다음 시각으로" 로직만으로는 부족하다는 게 실제
+운영에서 드러났다 - cron이 늦게 돌아 오늘자 실행이 "내일 03:00"으로 롤된 상태에서,
+그 다음날 실행이 운 좋게 제시간에 돌면 똑같이 "오늘(=방금 롤된 그 날짜) 03:00"을
+계산해버려서 두 영상이 정확히 같은 시각에 동시 공개되는 사고가 실제로 발생했다.
+그래서 state/history.json에 기록해둔 마지막 예약 시각을 확인해, 이번 예약이 그것보다
+반드시 뒤가 되도록(같거나 이전이면 하루씩 더 미루는 식으로) 강제한다 - 이러면 cron이
+아무리 불규칙하게 돌아도 발행 시각은 항상 엄격히 증가하기만 해서 겹칠 수가 없다.)
 """
 import datetime
 import json
@@ -48,12 +56,32 @@ def _build_youtube_client():
     return build("youtube", "v3", credentials=creds)
 
 
+def _last_scheduled_publish_at():
+    """state/history.json에 기록된 업로드들 중 가장 최근에 예약된 publish_at을
+    UTC datetime으로 반환한다 (즉시 공개로 올라가 publish_at이 없는 항목은 건너뜀).
+    기록이 없으면 None."""
+    history = load_history()
+    for entry in reversed(history.get("uploads", [])):
+        publish_at = entry.get("publish_at")
+        if publish_at:
+            return datetime.datetime.strptime(publish_at, "%Y-%m-%dT%H:%M:%SZ").replace(
+                tzinfo=datetime.timezone.utc
+            )
+    return None
+
+
 def _compute_publish_at() -> str | None:
     """다음 목표 공개 시각(KST, config.PUBLISH_TIME_LOCAL)을 RFC3339 UTC 문자열로
     반환한다. 오늘 그 시각이 이미 지났으면 내일 같은 시각으로 넘긴다 - 그래서 이
     함수는 (PUBLISH_NOW=1로 강제하지 않는 한) 항상 "미래의 예약 시각"만 반환하고,
     즉시 공개(None)로 새는 경우가 없다. GitHub Actions cron이 몇 시에 실행되든
     상관없이 항상 정확히 03:00에만 공개되도록 하기 위한 설계.
+
+    여기에 더해, 직전에 이미 예약해둔 마지막 시각(state/history.json 기록)보다
+    반드시 뒤가 되도록 강제한다 - cron이 늦게 돌아 오늘자가 "내일 03:00"으로 롤된
+    상태에서 그 다음날 실행이 제시간에 돌아 우연히 같은 날짜를 계산해버리는 충돌을
+    막기 위함이다 (실제로 이 충돌 때문에 서로 다른 두 영상이 같은 시각에 동시
+    공개된 적이 있음). 겹치면 겹치지 않을 때까지 하루씩 더 미룬다.
 
     PUBLISH_NOW=1이면 이 예약 로직을 건너뛰고 무조건 None(즉시 공개)을 반환한다
     (변경 사항을 바로 확인하고 싶은 수동 테스트용)."""
@@ -67,6 +95,12 @@ def _compute_publish_at() -> str | None:
 
     if target <= now:
         target += datetime.timedelta(days=1)
+
+    last_publish_at = _last_scheduled_publish_at()
+    if last_publish_at is not None:
+        while target.astimezone(datetime.timezone.utc) <= last_publish_at:
+            target += datetime.timedelta(days=1)
+
     return target.astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
