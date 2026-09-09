@@ -23,7 +23,8 @@
     "따뜻한 응원",
     "변화의 시작",
     "힘내는 아침",
-    "웃음의 힘"
+    "웃음의 힘",
+    "나를 믿기"
   ],
   "uploads": [
     {
@@ -169,6 +170,12 @@
       "category": "아침 활력 명언",
       "video_id": "zDdJli4gKXA",
       "publish_at": "2026-09-09T18:00:00Z"
+    },
+    {
+      "title": "나를 믿기",
+      "category": "아침 활력 명언",
+      "video_id": "TK6SFPEVOSs",
+      "publish_at": "2026-09-10T18:00:00Z"
     }
   ]
 }
