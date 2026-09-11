@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>두더지 농장 — 씨 뿌리고, 물 주고, 두더지 때려잡는 농장 경영</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="description" content="작물을 심고 물과 비료를 주고, 두더지를 망치로 잡고, 수확물을 시장에 파는 농장 경영 게임. 데스크톱과 모바일 모두 지원합니다.">
+<meta name="theme-color" content="#12200f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="두더지 농장">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+  <header id="hud">
+    <div class="hud-group">
+      <div class="stat coins">🪙 <span id="coins">0</span></div>
+      <div class="stat">Lv.<span id="level">1</span><div class="bar"><i id="expFill"></i></div></div>
+      <div class="stat" id="dayStat"><span id="day">1</span>일차<span id="weather">☀️ 맑음</span><div class="bar day"><i id="dayFill"></i></div></div>
+    </div>
+    <div class="hud-group hud-right">
+      <button class="iconbtn" data-panel="shop">🏪<span>상점</span></button>
+      <button class="iconbtn" data-panel="market">📈<span>시장</span></button>
+      <button class="iconbtn" data-panel="barn">🧺<span>창고</span><b id="barnCount"></b></button>
+      <button class="iconbtn" data-panel="menu">⚙️<span>메뉴</span></button>
+    </div>
+  </header>
+
+  <main id="stage">
+    <canvas id="farm"></canvas>
+    <div id="combo"></div>
+    <div id="quick">
+      <button id="qWater" title="모든 밭에 물 주기 (W)">💧</button>
+      <button id="qHarvest" title="다 자란 작물 모두 수확 (H)">🧺</button>
+    </div>
+    <div id="toasts"></div>
+  </main>
+
+  <footer id="toolbar"></footer>
+</div>
+
+<div id="sheet" hidden>
+  <div class="sheet-body">
+    <div class="sheet-head">
+      <h2 id="sheetTitle">제목</h2>
+      <button class="iconbtn close" id="sheetClose">✕</button>
+    </div>
+    <div class="sheet-content" id="sheetContent"></div>
+  </div>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/util.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/market.js"></script>
+<script src="js/game.js"></script>
+<script src="js/render.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/input.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

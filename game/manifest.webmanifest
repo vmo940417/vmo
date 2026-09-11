@@ -1,0 +1,16 @@
+{
+  "name": "두더지 농장",
+  "short_name": "두더지농장",
+  "description": "씨 뿌리고 물 주고 두더지를 때려잡아 수확물을 시장에 파는 농장 경영 게임",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#12200f",
+  "theme_color": "#12200f",
+  "lang": "ko",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}
