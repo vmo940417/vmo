@@ -1,0 +1,2463 @@
+<!DOCTYPE html>
+<!-- 이 파일은 build_standalone.py가 game/ 폴더의 소스를 합쳐 만든 단일 실행 파일입니다. 직접 수정하지 말고 원본(js/, css/)을 고친 뒤 다시 생성하세요. -->
+
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>두더지 농장 — 씨 뿌리고, 물 주고, 두더지 때려잡는 농장 경영</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="description" content="작물을 심고 물과 비료를 주고, 두더지를 망치로 잡고, 수확물을 시장에 파는 농장 경영 게임. 데스크톱과 모바일 모두 지원합니다.">
+<meta name="theme-color" content="#12200f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="두더지 농장">
+<link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxOTIgMTkyIj4KICA8cmVjdCB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgcng9IjM2IiBmaWxsPSIjMmY2YjJhIi8+CiAgPHJlY3QgeD0iMTgiIHk9IjEwNCIgd2lkdGg9IjE1NiIgaGVpZ2h0PSI3MCIgcng9IjEyIiBmaWxsPSIjOGE1YTMzIi8+CiAgPGcgc3Ryb2tlPSIjNWQzYTIwIiBzdHJva2Utd2lkdGg9IjUiIG9wYWNpdHk9IjAuNiI+CiAgICA8bGluZSB4MT0iMjgiIHkxPSIxMjQiIHgyPSIxNjQiIHkyPSIxMjQiLz4KICAgIDxsaW5lIHgxPSIyOCIgeTE9IjE0NCIgeDI9IjE2NCIgeTI9IjE0NCIvPgogICAgPGxpbmUgeDE9IjI4IiB5MT0iMTY0IiB4Mj0iMTY0IiB5Mj0iMTY0Ii8+CiAgPC9nPgogIDxnIGZpbGw9IiM2YjRhMzMiPgogICAgPGVsbGlwc2UgY3g9Ijk2IiBjeT0iMTA0IiByeD0iMzQiIHJ5PSIzMSIvPgogIDwvZz4KICA8ZWxsaXBzZSBjeD0iOTYiIGN5PSIxMTQiIHJ4PSIxMSIgcnk9IjgiIGZpbGw9IiNmMmEyYTIiLz4KICA8Y2lyY2xlIGN4PSI4NCIgY3k9Ijk2IiByPSI0LjUiIGZpbGw9IiMyMDE0MGMiLz4KICA8Y2lyY2xlIGN4PSIxMDgiIGN5PSI5NiIgcj0iNC41IiBmaWxsPSIjMjAxNDBjIi8+CiAgPGcgc3Ryb2tlPSIjM2Y5YzQ1IiBzdHJva2Utd2lkdGg9IjciIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgZmlsbD0ibm9uZSI+CiAgICA8cGF0aCBkPSJNNDIgMTA0IEMgMzggODIsIDQ2IDcwLCA1MiA2MCIvPgogICAgPHBhdGggZD0iTTE1MCAxMDQgQyAxNTQgODIsIDE0NiA3MCwgMTQwIDYwIi8+CiAgPC9nPgogIDxjaXJjbGUgY3g9IjUyIiBjeT0iNTQiIHI9IjEzIiBmaWxsPSIjZjI4MzNhIi8+CiAgPGNpcmNsZSBjeD0iMTQwIiBjeT0iNTQiIHI9IjEzIiBmaWxsPSIjZTI0NTNjIi8+Cjwvc3ZnPgo=" type="image/svg+xml">
+<link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxOTIgMTkyIj4KICA8cmVjdCB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgcng9IjM2IiBmaWxsPSIjMmY2YjJhIi8+CiAgPHJlY3QgeD0iMTgiIHk9IjEwNCIgd2lkdGg9IjE1NiIgaGVpZ2h0PSI3MCIgcng9IjEyIiBmaWxsPSIjOGE1YTMzIi8+CiAgPGcgc3Ryb2tlPSIjNWQzYTIwIiBzdHJva2Utd2lkdGg9IjUiIG9wYWNpdHk9IjAuNiI+CiAgICA8bGluZSB4MT0iMjgiIHkxPSIxMjQiIHgyPSIxNjQiIHkyPSIxMjQiLz4KICAgIDxsaW5lIHgxPSIyOCIgeTE9IjE0NCIgeDI9IjE2NCIgeTI9IjE0NCIvPgogICAgPGxpbmUgeDE9IjI4IiB5MT0iMTY0IiB4Mj0iMTY0IiB5Mj0iMTY0Ii8+CiAgPC9nPgogIDxnIGZpbGw9IiM2YjRhMzMiPgogICAgPGVsbGlwc2UgY3g9Ijk2IiBjeT0iMTA0IiByeD0iMzQiIHJ5PSIzMSIvPgogIDwvZz4KICA8ZWxsaXBzZSBjeD0iOTYiIGN5PSIxMTQiIHJ4PSIxMSIgcnk9IjgiIGZpbGw9IiNmMmEyYTIiLz4KICA8Y2lyY2xlIGN4PSI4NCIgY3k9Ijk2IiByPSI0LjUiIGZpbGw9IiMyMDE0MGMiLz4KICA8Y2lyY2xlIGN4PSIxMDgiIGN5PSI5NiIgcj0iNC41IiBmaWxsPSIjMjAxNDBjIi8+CiAgPGcgc3Ryb2tlPSIjM2Y5YzQ1IiBzdHJva2Utd2lkdGg9IjciIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgZmlsbD0ibm9uZSI+CiAgICA8cGF0aCBkPSJNNDIgMTA0IEMgMzggODIsIDQ2IDcwLCA1MiA2MCIvPgogICAgPHBhdGggZD0iTTE1MCAxMDQgQyAxNTQgODIsIDE0NiA3MCwgMTQwIDYwIi8+CiAgPC9nPgogIDxjaXJjbGUgY3g9IjUyIiBjeT0iNTQiIHI9IjEzIiBmaWxsPSIjZjI4MzNhIi8+CiAgPGNpcmNsZSBjeD0iMTQwIiBjeT0iNTQiIHI9IjEzIiBmaWxsPSIjZTI0NTNjIi8+Cjwvc3ZnPgo=">
+<style>
+/* 농장 게임 UI — 데스크톱/모바일 공용 반응형 */
+:root {
+  --bg: #12200f;
+  --panel: #1b2a18;
+  --panel-2: #24361f;
+  --line: rgba(255, 255, 255, 0.12);
+  --text: #f2f7ee;
+  --muted: #a9bda2;
+  --accent: #7ed957;
+  --gold: #ffd24a;
+  --danger: #ff6b6b;
+  --radius: 14px;
+  --hud-h: 56px;
+  --tool-h: 78px;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', sans-serif;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+#app {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+/* ---------------- HUD ---------------- */
+#hud {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: linear-gradient(180deg, #1d2e18, #16240f);
+  border-bottom: 1px solid var(--line);
+  min-height: var(--hud-h);
+  flex-wrap: wrap;
+}
+
+.hud-group { display: flex; align-items: center; gap: 8px; }
+.hud-right { margin-left: auto; }
+
+.stat {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 5px 11px;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.stat small { font-weight: 500; color: var(--muted); font-size: 11px; }
+.stat.coins { color: var(--gold); }
+
+.bar {
+  position: relative;
+  width: 84px;
+  height: 7px;
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.bar > i { position: absolute; inset: 0 auto 0 0; width: 0%; background: var(--accent); transition: width .25s; }
+.bar.day > i { background: linear-gradient(90deg, #ffd24a, #7cc6ff); }
+
+.iconbtn {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  min-width: 48px;
+  height: 44px;
+  padding: 0 8px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--text);
+  font-size: 17px;
+  font-family: inherit;
+  cursor: pointer;
+}
+.iconbtn span { font-size: 10px; color: var(--muted); font-weight: 600; }
+.iconbtn:active { transform: scale(.95); }
+.iconbtn b {
+  position: absolute;
+  top: -6px; right: -6px;
+  min-width: 18px;
+  padding: 1px 4px;
+  border-radius: 99px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 10px;
+  line-height: 16px;
+}
+.iconbtn b:empty { display: none; }
+
+/* ---------------- 무대 ---------------- */
+#stage { position: relative; flex: 1; min-height: 0; }
+#farm { position: absolute; inset: 0; touch-action: none; display: block; }
+
+#combo {
+  position: absolute;
+  top: 10px; left: 50%;
+  transform: translateX(-50%);
+  padding: 5px 14px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, .55);
+  border: 1px solid var(--gold);
+  color: var(--gold);
+  font-weight: 800;
+  font-size: 14px;
+  opacity: 0;
+  transition: opacity .2s;
+  pointer-events: none;
+}
+#combo.on { opacity: 1; }
+
+#quick {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+#quick button {
+  width: 46px; height: 46px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: rgba(20, 32, 16, .82);
+  color: var(--text);
+  font-size: 19px;
+  cursor: pointer;
+}
+#quick button:active { transform: scale(.93); }
+
+#toasts {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+  pointer-events: none;
+  width: min(92%, 420px);
+}
+.toast {
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: rgba(10, 18, 8, .9);
+  border: 1px solid var(--line);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  animation: pop .25s ease-out;
+}
+.toast.good { border-color: var(--accent); color: #d9ffc9; }
+.toast.warn { border-color: #ffc46b; color: #ffe6bd; }
+.toast.bad { border-color: var(--danger); color: #ffd5d5; }
+@keyframes pop { from { transform: translateY(8px); opacity: 0; } }
+
+/* ---------------- 툴바 ---------------- */
+#toolbar {
+  display: flex;
+  gap: 6px;
+  padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, #16240f, #0e1a0b);
+  border-top: 1px solid var(--line);
+}
+.tool {
+  flex: 1;
+  min-width: 0;
+  height: 62px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  font-family: inherit;
+  font-size: 22px;
+  cursor: pointer;
+  position: relative;
+  transition: transform .08s, background .15s;
+}
+.tool span { font-size: 11px; font-weight: 700; color: var(--muted); }
+.tool .emoji { font-size: 23px; color: inherit; line-height: 1.1; }
+.tool.active {
+  background: linear-gradient(180deg, #3c6e2c, #2c5220);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(126, 217, 87, .28);
+}
+.tool.active span { color: #e8ffdc; }
+.tool:active { transform: scale(.95); }
+.tool .badge {
+  position: absolute;
+  top: 3px; right: 5px;
+  font-size: 13px;
+}
+.tool kbd {
+  position: absolute;
+  top: 3px; left: 5px;
+  font-size: 9px;
+  color: var(--muted);
+  opacity: .8;
+}
+
+/* ---------------- 시트/패널 ---------------- */
+#sheet {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, .55);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 40;
+}
+#sheet[hidden] { display: none; }
+.sheet-body {
+  width: 100%;
+  max-width: 560px;
+  max-height: 84vh;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 18px 18px 0 0;
+  display: flex;
+  flex-direction: column;
+  animation: slideup .22s ease-out;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+@keyframes slideup { from { transform: translateY(30px); opacity: .4; } }
+.sheet-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--line);
+}
+.sheet-head h2 { margin: 0; font-size: 17px; }
+.sheet-head .close { margin-left: auto; }
+.sheet-content { overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 12px 14px 18px; }
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 12px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  margin-bottom: 8px;
+}
+.row .ico { font-size: 26px; width: 34px; text-align: center; }
+.row .body { flex: 1; min-width: 0; }
+.row .title { font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+.row .desc { font-size: 11.5px; color: var(--muted); margin-top: 2px; line-height: 1.45; }
+.row.locked { opacity: .5; }
+.row.sel { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(126, 217, 87, .25); }
+
+.btn {
+  border: 1px solid var(--line);
+  background: #345a27;
+  color: #fff;
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 12.5px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn:disabled { opacity: .45; cursor: default; }
+.btn.ghost { background: transparent; color: var(--muted); }
+.btn.gold { background: #7a5f10; color: var(--gold); border-color: #b4891a; }
+.btn:active:not(:disabled) { transform: scale(.96); }
+.btn-col { display: flex; flex-direction: column; gap: 5px; align-items: stretch; }
+.btn-row { display: flex; gap: 5px; }
+
+.tag {
+  font-size: 10.5px;
+  padding: 2px 7px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, .1);
+  color: var(--muted);
+  font-weight: 700;
+}
+.up { color: #7ee787; }
+.down { color: #ff8b8b; }
+.sparkline { width: 74px; height: 26px; }
+
+.section-title {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 800;
+  margin: 14px 4px 8px;
+  letter-spacing: .04em;
+}
+.section-title:first-child { margin-top: 2px; }
+
+.help { font-size: 13px; line-height: 1.7; color: #dbe8d4; }
+.help b { color: var(--accent); }
+.help ul { padding-left: 18px; margin: 6px 0; }
+.stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.stats-grid div {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 9px 11px;
+  font-size: 13px;
+}
+.stats-grid span { display: block; font-size: 11px; color: var(--muted); margin-bottom: 3px; }
+
+.switch { display: flex; align-items: center; gap: 10px; }
+
+/* ---------------- 데스크톱 ---------------- */
+@media (min-width: 760px) {
+  :root { --tool-h: 86px; }
+  #hud { padding: 8px 16px; gap: 10px; }
+  .stat { font-size: 15px; padding: 6px 13px; }
+  .bar { width: 120px; }
+  #toolbar { padding: 10px 16px; gap: 10px; justify-content: center; }
+  .tool { max-width: 128px; height: 68px; }
+  #sheet { align-items: center; }
+  .sheet-body { border-radius: 18px; max-height: 80vh; }
+  #quick button { width: 52px; height: 52px; font-size: 21px; }
+}
+
+/* 모바일: 퀵버튼과 겹치지 않도록 토스트를 위로 */
+@media (max-width: 759px) {
+  #toasts { bottom: 112px; }
+  .tool kbd { display: none; }
+  #quick button { opacity: .92; }
+  #hud { gap: 6px; padding: 5px 8px; }
+  .stat { font-size: 13px; padding: 4px 10px; gap: 4px; }
+  .bar { width: 56px; }
+  .iconbtn { min-width: 46px; height: 42px; }
+}
+
+@media (max-width: 400px) {
+  .stat { font-size: 12px; padding: 4px 8px; }
+  .bar.day { display: none; }
+  .iconbtn { min-width: 42px; height: 40px; font-size: 15px; }
+  .tool { height: 56px; }
+  .tool .emoji { font-size: 20px; }
+  .tool span { font-size: 10px; }
+}
+
+/* 가로 모드 모바일 */
+@media (max-height: 480px) and (orientation: landscape) {
+  #toolbar { padding: 5px 8px; }
+  .tool { height: 46px; }
+  .tool .emoji { font-size: 20px; }
+  .tool span { display: none; }
+  .tool .emoji { display: block; }
+  #hud { min-height: 44px; padding: 4px 8px; }
+}
+
+</style>
+</head>
+<body>
+<div id="app">
+  <header id="hud">
+    <div class="hud-group">
+      <div class="stat coins">🪙 <span id="coins">0</span></div>
+      <div class="stat">Lv.<span id="level">1</span><div class="bar"><i id="expFill"></i></div></div>
+      <div class="stat" id="dayStat"><span id="day">1</span>일차<span id="weather">☀️ 맑음</span><div class="bar day"><i id="dayFill"></i></div></div>
+    </div>
+    <div class="hud-group hud-right">
+      <button class="iconbtn" data-panel="shop">🏪<span>상점</span></button>
+      <button class="iconbtn" data-panel="market">📈<span>시장</span></button>
+      <button class="iconbtn" data-panel="barn">🧺<span>창고</span><b id="barnCount"></b></button>
+      <button class="iconbtn" data-panel="menu">⚙️<span>메뉴</span></button>
+    </div>
+  </header>
+
+  <main id="stage">
+    <canvas id="farm"></canvas>
+    <div id="combo"></div>
+    <div id="quick">
+      <button id="qWater" title="모든 밭에 물 주기 (W)">💧</button>
+      <button id="qHarvest" title="다 자란 작물 모두 수확 (H)">🧺</button>
+    </div>
+    <div id="toasts"></div>
+  </main>
+
+  <footer id="toolbar"></footer>
+</div>
+
+<div id="sheet" hidden>
+  <div class="sheet-body">
+    <div class="sheet-head">
+      <h2 id="sheetTitle">제목</h2>
+      <button class="iconbtn close" id="sheetClose">✕</button>
+    </div>
+    <div class="sheet-content" id="sheetContent"></div>
+  </div>
+</div>
+
+<script>
+/* ===== js/config.js ===== */
+/* 농장 게임 - 기본 수치/데이터 정의 */
+window.FG = window.FG || {};
+(function (FG) {
+  'use strict';
+
+  FG.CONFIG = {
+    COLS: 6,
+    ROWS: 5,
+    START_TILES: 6,          // 시작 시 열려 있는 밭 칸 수
+    TILES_PER_EXPANSION: 3,  // 확장 1회당 추가되는 칸 수
+    START_COINS: 120,
+
+    DAY_LENGTH: 150,         // 하루(초). 실제 시간 기준
+    NIGHT_START: 0.78,       // 하루의 78% 지점부터 밤
+    NIGHT_END: 0.06,
+    NIGHT_GROWTH: 0.55,      // 밤에는 성장 속도 감소
+
+    DRY_RATE: 0.022,         // 초당 수분 감소량(맑음 기준). 가득 찬 수분이 약 45초 유지
+    DRY_GROWTH: 0.12,        // 수분 0일 때 성장 배율
+    WILT_RATE: 0.01,         // 수분 0일 때 초당 시듦 진행 (완전 방치 시 약 100초 뒤 고사)
+    WILT_RECOVER: 0.12,      // 물 주면 회복
+    WATER_PER_USE: 0.65,     // 물 한 번에 차오르는 수분
+    NEIGHBOR_WATER: 0.45,    // 광역 물뿌리개가 주변 칸에 주는 양
+
+    FERT_COST: 18,           // 비료 1회 비용
+    FERT_GROWTH: 1.7,        // 비료 성장 배율
+    FERT_BONUS_YIELD: 1,     // 비료 수확량 보너스
+    GOLD_CHANCE: 0.18,       // 비료 준 작물의 황금 등급 확률
+    GOLD_MULT: 2.4,          // 황금 등급 판매가 배율
+
+    MOLE_BASE_INTERVAL: 20,  // 두더지 등장 간격(초) 기준값
+    MOLE_MIN_INTERVAL: 7,
+    MOLE_BASE_LIFE: 7.0,     // 두더지가 작물을 먹기까지 걸리는 시간
+    MOLE_MIN_LIFE: 3.4,
+    MOLE_COMBO_WINDOW: 3.2,  // 콤보 유지 시간
+    MOLE_COMBO_MAX: 5,
+    MOLE_REWARD: 9,          // 기본 격퇴 보상
+
+    SPRINKLER_INTERVAL: 22,  // 스프링클러 작동 주기(초)
+    SPRINKLER_AMOUNT: 0.4,
+    CAT_INTERVAL: 9,         // 밭고양이가 두더지를 노리는 주기(초)
+
+    OFFLINE_MAX: 2 * 3600,   // 오프라인 진행 최대 인정 시간(초)
+    AUTOSAVE_INTERVAL: 6,
+    SAVE_KEY: 'fg.farm.save.v1'
+  };
+
+  /* 작물 정의
+   * grow: 총 성장 시간(초), seed: 씨앗 가격, price: 기준 판매가
+   * yield: [최소, 최대] 수확량, level: 해금 레벨 */
+  FG.CROPS = [
+    { id: 'carrot',     name: '당근',     emoji: '🥕', seed: 12,  price: 26,  grow: 42,  yield: [2, 3], level: 1, exp: 4,  color: '#f2833a', flower: '#7cc24a' },
+    { id: 'potato',     name: '감자',     emoji: '🥔', seed: 20,  price: 44,  grow: 62,  yield: [2, 4], level: 1, exp: 6,  color: '#c99a5b', flower: '#d8d2a8' },
+    { id: 'tomato',     name: '토마토',   emoji: '🍅', seed: 34,  price: 78,  grow: 88,  yield: [2, 4], level: 2, exp: 9,  color: '#e2453c', flower: '#ffe066' },
+    { id: 'corn',       name: '옥수수',   emoji: '🌽', seed: 52,  price: 118, grow: 112, yield: [2, 3], level: 3, exp: 13, color: '#f5c542', flower: '#e8e07a' },
+    { id: 'strawberry', name: '딸기',     emoji: '🍓', seed: 78,  price: 178, grow: 138, yield: [3, 5], level: 4, exp: 18, color: '#ef3b5b', flower: '#fff0f3' },
+    { id: 'pumpkin',    name: '호박',     emoji: '🎃', seed: 120, price: 276, grow: 170, yield: [2, 3], level: 5, exp: 24, color: '#ef8c25', flower: '#f5d76e' },
+    { id: 'watermelon', name: '수박',     emoji: '🍉', seed: 180, price: 420, grow: 205, yield: [2, 3], level: 6, exp: 32, color: '#2f9e58', flower: '#f7f7c8' },
+    { id: 'sunflower',  name: '해바라기', emoji: '🌻', seed: 250, price: 580, grow: 240, yield: [2, 4], level: 7, exp: 42, color: '#f6c026', flower: '#ffe873' },
+    { id: 'goldapple',  name: '황금사과', emoji: '🍎', seed: 420, price: 980, grow: 300, yield: [2, 3], level: 9, exp: 60, color: '#e8b419', flower: '#fff3b0' }
+  ];
+
+  FG.CROP_BY_ID = {};
+  FG.CROPS.forEach(function (c) { FG.CROP_BY_ID[c.id] = c; });
+
+  /* 도구 (하단 툴바) */
+  FG.TOOLS = [
+    { id: 'till',    name: '경작',   emoji: '⛏️', hint: '풀밭을 갈아 밭으로 만듭니다' },
+    { id: 'seed',    name: '씨앗',   emoji: '🌱', hint: '밭에 씨를 뿌립니다 (탭하면 작물 선택)' },
+    { id: 'water',   name: '물',     emoji: '💧', hint: '수분을 채웁니다. 드래그하면 여러 칸' },
+    { id: 'fert',    name: '비료',   emoji: '🧪', hint: '성장 속도와 수확량이 올라갑니다' },
+    { id: 'hammer',  name: '망치',   emoji: '🔨', hint: '두더지를 때려잡습니다' },
+    { id: 'harvest', name: '수확',   emoji: '🧺', hint: '다 자란 작물을 거둡니다' }
+  ];
+
+  /* 상점 업그레이드 */
+  FG.UPGRADES = [
+    { id: 'expand',    name: '밭 확장',        emoji: '🚜', repeat: true,  base: 150, growth: 1.55,
+      desc: '밭 ' + FG.CONFIG.TILES_PER_EXPANSION + '칸을 추가로 개간합니다.' },
+    { id: 'wideWater', name: '광역 물뿌리개',  emoji: '🚿', repeat: false, base: 650,
+      desc: '물을 줄 때 주변 8칸에도 수분이 일부 들어갑니다.' },
+    { id: 'scarecrow', name: '허수아비',       emoji: '🎏', repeat: false, base: 900,
+      desc: '두더지 출현 간격이 60% 길어집니다.' },
+    { id: 'sprinkler', name: '자동 스프링클러', emoji: '⛲', repeat: false, base: 1400,
+      desc: '일정 주기마다 모든 밭에 자동으로 물을 줍니다.' },
+    { id: 'goodFert',  name: '고급 비료',      emoji: '✨', repeat: false, base: 1900,
+      desc: '비료 준 작물의 황금 등급 확률이 크게 올라갑니다.' },
+    { id: 'cat',       name: '밭고양이',       emoji: '🐈', repeat: false, base: 2600,
+      desc: '두더지를 발견하면 가끔 알아서 쫓아냅니다.' },
+    { id: 'analyst',   name: '시장 분석 리포트', emoji: '📈', repeat: false, base: 3400,
+      desc: '시장에 내일 시세 전망이 표시되고, 판매가가 5% 올라갑니다.' }
+  ];
+
+  /* 날씨 */
+  FG.WEATHERS = {
+    sunny:   { id: 'sunny',   name: '맑음',   emoji: '☀️', growth: 1.0,  dry: 1.0, rain: 0,     mole: 1.0, weight: 42 },
+    cloudy:  { id: 'cloudy',  name: '흐림',   emoji: '☁️', growth: 0.9,  dry: 0.6, rain: 0,     mole: 1.0, weight: 24 },
+    rain:    { id: 'rain',    name: '비',     emoji: '🌧️', growth: 1.1,  dry: 0.0, rain: 0.075, mole: 1.25, weight: 22 },
+    drought: { id: 'drought', name: '가뭄',   emoji: '🔥', growth: 0.95, dry: 2.3, rain: 0,     mole: 1.1, weight: 12 }
+  };
+
+  FG.expToNext = function (level) {
+    return Math.floor(70 * Math.pow(level, 1.45));
+  };
+
+  FG.unlockedCrops = function (level) {
+    return FG.CROPS.filter(function (c) { return c.level <= level; });
+  };
+})(window.FG);
+
+/* ===== js/util.js ===== */
+/* 공용 유틸 */
+window.FG = window.FG || {};
+(function (FG) {
+  'use strict';
+
+  FG.clamp = function (v, a, b) { return v < a ? a : (v > b ? b : v); };
+  FG.lerp = function (a, b, t) { return a + (b - a) * t; };
+  FG.rand = function (a, b) { return a + Math.random() * (b - a); };
+  FG.randInt = function (a, b) { return Math.floor(a + Math.random() * (b - a + 1)); };
+  FG.pick = function (arr) { return arr[Math.floor(Math.random() * arr.length)]; };
+
+  FG.fmt = function (n) {
+    return Math.floor(n).toLocaleString('ko-KR');
+  };
+
+  FG.pct = function (n) {
+    var s = (n >= 0 ? '+' : '') + (n * 100).toFixed(1) + '%';
+    return s;
+  };
+
+  /* 타일마다 고정된 무늬를 그리기 위한 결정적 난수 */
+  FG.hash01 = function (n) {
+    var x = Math.sin(n * 127.1 + 311.7) * 43758.5453;
+    return x - Math.floor(x);
+  };
+
+  FG.storage = {
+    get: function (key) {
+      try { return window.localStorage.getItem(key); } catch (e) { return null; }
+    },
+    set: function (key, value) {
+      try { window.localStorage.setItem(key, value); return true; } catch (e) { return false; }
+    },
+    remove: function (key) {
+      try { window.localStorage.removeItem(key); } catch (e) { /* 무시 */ }
+    }
+  };
+})(window.FG);
+
+/* ===== js/audio.js ===== */
+/* WebAudio로 즉석 합성하는 효과음 (오디오 파일 불필요) */
+window.FG = window.FG || {};
+(function (FG) {
+  'use strict';
+
+  var ctx = null;
+  var master = null;
+  var enabled = true;
+
+  function ensure() {
+    if (ctx) {
+      if (ctx.state === 'suspended') { ctx.resume(); }
+      return ctx;
+    }
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) { return null; }
+    ctx = new AC();
+    master = ctx.createGain();
+    master.gain.value = 0.22;
+    master.connect(ctx.destination);
+    return ctx;
+  }
+
+  function tone(freq, dur, type, gain, slideTo) {
+    if (!enabled || !ensure()) { return; }
+    var t = ctx.currentTime;
+    var osc = ctx.createOscillator();
+    var g = ctx.createGain();
+    osc.type = type || 'sine';
+    osc.frequency.setValueAtTime(freq, t);
+    if (slideTo) { osc.frequency.exponentialRampToValueAtTime(Math.max(40, slideTo), t + dur); }
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(gain || 0.5, t + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    osc.connect(g); g.connect(master);
+    osc.start(t); osc.stop(t + dur + 0.02);
+  }
+
+  function noise(dur, filterFreq, gain, sweep) {
+    if (!enabled || !ensure()) { return; }
+    var t = ctx.currentTime;
+    var len = Math.max(1, Math.floor(ctx.sampleRate * dur));
+    var buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    var data = buf.getChannelData(0);
+    for (var i = 0; i < len; i++) { data[i] = (Math.random() * 2 - 1) * (1 - i / len); }
+    var src = ctx.createBufferSource();
+    src.buffer = buf;
+    var flt = ctx.createBiquadFilter();
+    flt.type = 'bandpass';
+    flt.frequency.setValueAtTime(filterFreq, t);
+    if (sweep) { flt.frequency.linearRampToValueAtTime(sweep, t + dur); }
+    flt.Q.value = 0.9;
+    var g = ctx.createGain();
+    g.gain.setValueAtTime(gain || 0.4, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.connect(flt); flt.connect(g); g.connect(master);
+    src.start(t); src.stop(t + dur + 0.02);
+  }
+
+  var SFX = {
+    till: function () { noise(0.22, 420, 0.5, 180); tone(120, 0.16, 'triangle', 0.25, 70); },
+    plant: function () { tone(520, 0.12, 'sine', 0.4, 760); },
+    water: function () { noise(0.36, 900, 0.35, 2600); },
+    fert: function () { tone(660, 0.1, 'triangle', 0.3); setTimeout(function () { tone(880, 0.12, 'triangle', 0.3); }, 70); },
+    whack: function (combo) {
+      var base = 150 + (combo || 0) * 40;
+      noise(0.14, 700, 0.6, 200);
+      tone(base, 0.18, 'square', 0.32, base * 0.4);
+    },
+    harvest: function () { tone(660, 0.1, 'sine', 0.35); setTimeout(function () { tone(990, 0.16, 'sine', 0.3); }, 80); },
+    sell: function () { tone(880, 0.08, 'triangle', 0.3); setTimeout(function () { tone(1320, 0.1, 'triangle', 0.28); }, 60); setTimeout(function () { tone(1760, 0.14, 'triangle', 0.24); }, 130); },
+    buy: function () { tone(420, 0.09, 'square', 0.25, 620); },
+    levelup: function () { [523, 659, 784, 1046].forEach(function (f, i) { setTimeout(function () { tone(f, 0.2, 'triangle', 0.3); }, i * 90); }); },
+    mole: function () { tone(330, 0.1, 'sawtooth', 0.22, 260); },
+    lose: function () { tone(240, 0.3, 'sawtooth', 0.3, 90); },
+    error: function () { tone(180, 0.12, 'square', 0.2, 140); },
+    newday: function () { [392, 523, 659].forEach(function (f, i) { setTimeout(function () { tone(f, 0.24, 'sine', 0.24); }, i * 110); }); }
+  };
+
+  FG.audio = {
+    play: function (name, arg) { if (SFX[name]) { SFX[name](arg); } },
+    unlock: function () { ensure(); },
+    setEnabled: function (v) { enabled = !!v; if (v) { ensure(); } },
+    isEnabled: function () { return enabled; }
+  };
+})(window.FG);
+
+/* ===== js/market.js ===== */
+/* 시장 시세: 평균회귀 랜덤워크로 매일 가격이 움직인다 */
+window.FG = window.FG || {};
+(function (FG) {
+  'use strict';
+
+  var HISTORY = 12;
+
+  function newEntry() {
+    return { factor: 1, prev: 1, history: [1], next: 1 };
+  }
+
+  FG.market = {
+    create: function () {
+      var m = { crops: {}, index: 1, indexHistory: [1] };
+      FG.CROPS.forEach(function (c) { m.crops[c.id] = newEntry(); });
+      m.crops[FG.CROPS[0].id].next = 1;
+      FG.market.rollForecast(m);
+      return m;
+    },
+
+    /* 다음 날 예상 시세를 미리 뽑아둔다(분석 리포트 업그레이드가 이걸 보여준다) */
+    rollForecast: function (m) {
+      FG.CROPS.forEach(function (c) {
+        var e = m.crops[c.id];
+        var drift = (1 - e.factor) * 0.28;                 // 평균 회귀
+        var shock = (Math.random() - 0.5) * 0.34;          // 일일 변동
+        if (Math.random() < 0.07) { shock += (Math.random() < 0.5 ? -1 : 1) * 0.28; } // 가끔 큰 이벤트
+        e.next = FG.clamp(e.factor + drift + shock, 0.55, 2.1);
+      });
+    },
+
+    /* 하루가 지날 때 호출 */
+    advance: function (m) {
+      var sum = 0, n = 0;
+      FG.CROPS.forEach(function (c) {
+        var e = m.crops[c.id];
+        e.prev = e.factor;
+        e.factor = e.next;
+        e.history.push(e.factor);
+        if (e.history.length > HISTORY) { e.history.shift(); }
+        sum += e.factor; n++;
+      });
+      m.index = sum / Math.max(1, n);
+      m.indexHistory.push(m.index);
+      if (m.indexHistory.length > HISTORY) { m.indexHistory.shift(); }
+      FG.market.rollForecast(m);
+    },
+
+    price: function (m, cropId, quality, analyst) {
+      var crop = FG.CROP_BY_ID[cropId];
+      if (!crop) { return 0; }
+      var f = m.crops[cropId] ? m.crops[cropId].factor : 1;
+      var p = crop.price * f;
+      if (quality === 'gold') { p *= FG.CONFIG.GOLD_MULT; }
+      if (analyst) { p *= 1.05; }
+      return Math.max(1, Math.round(p));
+    },
+
+    change: function (m, cropId) {
+      var e = m.crops[cropId];
+      if (!e || !e.prev) { return 0; }
+      return e.factor / e.prev - 1;
+    },
+
+    forecastChange: function (m, cropId) {
+      var e = m.crops[cropId];
+      if (!e || !e.factor) { return 0; }
+      return e.next / e.factor - 1;
+    }
+  };
+})(window.FG);
+
+/* ===== js/game.js ===== */
+/* 게임 상태와 규칙 */
+window.FG = window.FG || {};
+(function (FG) {
+  'use strict';
+
+  var C = FG.CONFIG;
+  var listeners = {};
+
+  function emit(name, data) {
+    (listeners[name] || []).forEach(function (fn) { fn(data); });
+  }
+
+  /* 중앙에서 바깥쪽으로 퍼지는 개간 순서 */
+  function unlockOrder() {
+    var order = [];
+    var cx = (C.COLS - 1) / 2, cy = (C.ROWS - 1) / 2;
+    for (var i = 0; i < C.COLS * C.ROWS; i++) {
+      var x = i % C.COLS, y = Math.floor(i / C.COLS);
+      order.push({ i: i, d: Math.abs(x - cx) * 1.05 + Math.abs(y - cy) });
+    }
+    order.sort(function (a, b) { return a.d - b.d || a.i - b.i; });
+    return order.map(function (o) { return o.i; });
+  }
+
+  var ORDER = unlockOrder();
+
+  function newTile(i) {
+    return {
+      i: i, unlocked: false, tilled: false, moisture: 0,
+      fert: false, crop: null, progress: 0, wilt: 0, hole: 0, ripeFlag: false
+    };
+  }
+
+  function rollWeather() {
+    var list = Object.keys(FG.WEATHERS).map(function (k) { return FG.WEATHERS[k]; });
+    var total = list.reduce(function (s, w) { return s + w.weight; }, 0);
+    var r = Math.random() * total;
+    for (var i = 0; i < list.length; i++) {
+      r -= list[i].weight;
+      if (r <= 0) { return list[i].id; }
+    }
+    return 'sunny';
+  }
+
+  var game = {
+    state: null,
+    moles: [],
+    particles: [],
+    floats: [],
+    combo: 0,
+    comboTimer: 0,
+    moleTimer: 12,
+    sprinklerTimer: C.SPRINKLER_INTERVAL,
+    catTimer: C.CAT_INTERVAL,
+    saveTimer: C.AUTOSAVE_INTERVAL,
+    lastMoleWarn: 0,
+
+    on: function (name, fn) {
+      (listeners[name] = listeners[name] || []).push(fn);
+    },
+    emit: emit,
+
+    /* ---------- 생성 / 저장 ---------- */
+    newGame: function () {
+      var s = {
+        version: 1,
+        coins: C.START_COINS,
+        level: 1,
+        exp: 0,
+        day: 1,
+        time: C.DAY_LENGTH * 0.18,
+        weather: 'sunny',
+        tool: 'till',
+        selectedCrop: 'carrot',
+        sound: true,
+        tiles: [],
+        inventory: {},
+        upgrades: { expand: 0 },
+        stats: { harvested: 0, moles: 0, earned: 0, spent: 0, died: 0, eaten: 0 },
+        market: FG.market.create(),
+        savedAt: Date.now()
+      };
+      for (var i = 0; i < C.COLS * C.ROWS; i++) { s.tiles.push(newTile(i)); }
+      for (var k = 0; k < C.START_TILES; k++) { s.tiles[ORDER[k]].unlocked = true; }
+      this.state = s;
+      this.moles = [];
+      this.particles = [];
+      this.floats = [];
+      FG.audio.setEnabled(true);
+      emit('change');
+      return s;
+    },
+
+    save: function () {
+      if (!this.state) { return; }
+      this.state.savedAt = Date.now();
+      FG.storage.set(C.SAVE_KEY, JSON.stringify(this.state));
+    },
+
+    load: function () {
+      var raw = FG.storage.get(C.SAVE_KEY);
+      if (!raw) { return false; }
+      try {
+        var s = JSON.parse(raw);
+        if (!s || !s.tiles || s.tiles.length !== C.COLS * C.ROWS) { return false; }
+        // 새 작물이 추가돼도 깨지지 않도록 시장 데이터 보정
+        if (!s.market) { s.market = FG.market.create(); }
+        FG.CROPS.forEach(function (c) {
+          if (!s.market.crops[c.id]) {
+            s.market.crops[c.id] = { factor: 1, prev: 1, history: [1], next: 1 };
+          }
+        });
+        if (!s.stats) { s.stats = { harvested: 0, moles: 0, earned: 0, spent: 0, died: 0, eaten: 0 }; }
+        if (!s.upgrades) { s.upgrades = { expand: 0 }; }
+        this.state = s;
+        this.moles = [];
+        this.particles = [];
+        this.floats = [];
+        FG.audio.setEnabled(s.sound !== false);
+        this.applyOffline(s.savedAt);
+        emit('change');
+        return true;
+      } catch (e) {
+        return false;
+      }
+    },
+
+    reset: function () {
+      FG.storage.remove(C.SAVE_KEY);
+      this.newGame();
+      this.save();
+    },
+
+    /* 게임을 꺼둔 동안의 성장(최대 2시간)을 반영 */
+    applyOffline: function (savedAt) {
+      if (!savedAt) { return; }
+      var elapsed = Math.min(C.OFFLINE_MAX, (Date.now() - savedAt) / 1000);
+      if (elapsed < 20) { return; }
+      var steps = Math.floor(elapsed);
+      for (var i = 0; i < steps; i++) { this.update(1, true); }
+      this.floats = [];
+      emit('toast', { text: '자리를 비운 사이 ' + Math.round(elapsed / 60) + '분이 흘렀습니다', kind: 'info' });
+    },
+
+    /* ---------- 조회 헬퍼 ---------- */
+    weather: function () { return FG.WEATHERS[this.state.weather] || FG.WEATHERS.sunny; },
+    isNight: function () {
+      var t = this.state.time / C.DAY_LENGTH;
+      return t >= C.NIGHT_START || t <= C.NIGHT_END;
+    },
+    has: function (id) { return !!this.state.upgrades[id]; },
+    tile: function (i) { return this.state.tiles[i]; },
+    moleAt: function (i) {
+      for (var k = 0; k < this.moles.length; k++) {
+        if (this.moles[k].tile === i && !this.moles[k].done) { return this.moles[k]; }
+      }
+      return null;
+    },
+    unlockedCount: function () {
+      return this.state.tiles.filter(function (t) { return t.unlocked; }).length;
+    },
+    inventoryCount: function () {
+      var s = this.state, n = 0;
+      Object.keys(s.inventory).forEach(function (k) {
+        n += (s.inventory[k].normal || 0) + (s.inventory[k].gold || 0);
+      });
+      return n;
+    },
+
+    /* ---------- 효과 ---------- */
+    float: function (tileIndex, text, color) {
+      this.floats.push({ tile: tileIndex, text: text, color: color || '#fff', t: 0, life: 1.15 });
+    },
+    burst: function (tileIndex, color, count, kind) {
+      for (var i = 0; i < (count || 8); i++) {
+        this.particles.push({
+          tile: tileIndex,
+          x: FG.rand(-0.3, 0.3), y: FG.rand(-0.2, 0.2),
+          vx: FG.rand(-0.7, 0.7), vy: FG.rand(-1.4, -0.3),
+          t: 0, life: FG.rand(0.4, 0.85), color: color, kind: kind || 'dot'
+        });
+      }
+    },
+    toast: function (text, kind) { emit('toast', { text: text, kind: kind || 'info' }); },
+
+    /* ---------- 행동 ---------- */
+    useTool: function (i, toolId, isDrag) {
+      var t = this.state.tiles[i];
+      if (!t) { return; }
+      var mole = this.moleAt(i);
+
+      // 두더지가 있으면 무엇을 하든 먼저 반응한다
+      if (mole) {
+        if (toolId === 'hammer') { this.whack(mole, false); return; }
+        this.scare(mole);
+        return;
+      }
+
+      switch (toolId) {
+        case 'till': this.till(t, isDrag); break;
+        case 'seed': this.plant(t); break;
+        case 'water': this.water(t, isDrag); break;
+        case 'fert': this.fertilize(t, isDrag); break;
+        case 'harvest': this.harvest(t, isDrag); break;
+        case 'hammer':
+          if (!isDrag) { this.float(i, '헛스윙!', '#cbd5e1'); FG.audio.play('error'); }
+          break;
+      }
+    },
+
+    till: function (t, isDrag) {
+      if (!t.unlocked) {
+        if (!isDrag) { this.toast('아직 개간하지 않은 땅입니다. 상점에서 밭을 확장하세요.', 'warn'); FG.audio.play('error'); }
+        return;
+      }
+      if (t.crop) {
+        if (!isDrag) { this.toast('작물이 자라는 중입니다.', 'warn'); FG.audio.play('error'); }
+        return;
+      }
+      if (t.tilled && !t.hole) { return; }
+      t.tilled = true;
+      t.hole = 0;
+      this.burst(t.i, '#8a5a33', 9, 'dot');
+      FG.audio.play('till');
+      emit('change');
+    },
+
+    plant: function (t) {
+      var s = this.state;
+      var crop = FG.CROP_BY_ID[s.selectedCrop];
+      if (!t.unlocked) { this.toast('먼저 밭을 확장해야 합니다.', 'warn'); FG.audio.play('error'); return; }
+      if (!t.tilled) { this.toast('먼저 ⛏️ 경작으로 땅을 갈아주세요.', 'warn'); FG.audio.play('error'); return; }
+      if (t.crop) { this.toast('이미 심어져 있습니다.', 'warn'); FG.audio.play('error'); return; }
+      if (!crop || crop.level > s.level) { this.toast('레벨이 부족한 작물입니다.', 'warn'); FG.audio.play('error'); return; }
+      if (s.coins < crop.seed) { this.toast('코인이 부족합니다. (씨앗 ' + FG.fmt(crop.seed) + '원)', 'warn'); FG.audio.play('error'); return; }
+
+      s.coins -= crop.seed;
+      s.stats.spent += crop.seed;
+      t.crop = crop.id;
+      t.progress = 0;
+      t.fert = false;
+      t.wilt = 0;
+      t.hole = 0;
+      t.ripeFlag = false;
+      this.float(t.i, '-' + FG.fmt(crop.seed), '#fca5a5');
+      this.burst(t.i, crop.flower, 6, 'leaf');
+      FG.audio.play('plant');
+      emit('change');
+    },
+
+    waterTile: function (t, amount) {
+      if (!t.unlocked || !t.tilled) { return false; }
+      t.moisture = FG.clamp(t.moisture + amount, 0, 1);
+      return true;
+    },
+
+    water: function (t, isDrag) {
+      if (!t.unlocked || !t.tilled) {
+        if (!isDrag) { FG.audio.play('error'); }
+        return;
+      }
+      this.waterTile(t, C.WATER_PER_USE);
+      this.burst(t.i, '#7dd3fc', 7, 'drop');
+      if (this.has('wideWater')) {
+        var x = t.i % C.COLS, y = Math.floor(t.i / C.COLS), self = this;
+        for (var dy = -1; dy <= 1; dy++) {
+          for (var dx = -1; dx <= 1; dx++) {
+            if (!dx && !dy) { continue; }
+            var nx = x + dx, ny = y + dy;
+            if (nx < 0 || ny < 0 || nx >= C.COLS || ny >= C.ROWS) { continue; }
+            var n = self.state.tiles[ny * C.COLS + nx];
+            if (self.waterTile(n, C.NEIGHBOR_WATER)) { self.burst(n.i, '#7dd3fc', 3, 'drop'); }
+          }
+        }
+      }
+      if (!isDrag) { FG.audio.play('water'); }
+      emit('change');
+    },
+
+    fertilize: function (t, isDrag) {
+      var s = this.state;
+      if (!t.crop) { if (!isDrag) { this.toast('작물이 있는 밭에만 줄 수 있습니다.', 'warn'); FG.audio.play('error'); } return; }
+      if (t.fert) { if (!isDrag) { this.toast('이미 비료를 준 작물입니다.', 'warn'); FG.audio.play('error'); } return; }
+      if (s.coins < C.FERT_COST) { if (!isDrag) { this.toast('코인이 부족합니다. (비료 ' + C.FERT_COST + '원)', 'warn'); FG.audio.play('error'); } return; }
+      s.coins -= C.FERT_COST;
+      s.stats.spent += C.FERT_COST;
+      t.fert = true;
+      this.float(t.i, '비료!', '#a3e635');
+      this.burst(t.i, '#a3e635', 10, 'sparkle');
+      FG.audio.play('fert');
+      emit('change');
+    },
+
+    harvest: function (t, isDrag) {
+      var s = this.state;
+      if (!t.crop || t.progress < 1) {
+        if (!isDrag) { FG.audio.play('error'); }
+        return;
+      }
+      var crop = FG.CROP_BY_ID[t.crop];
+      var qty = FG.randInt(crop.yield[0], crop.yield[1]) + (t.fert ? C.FERT_BONUS_YIELD : 0);
+      var goldChance = t.fert ? (C.GOLD_CHANCE + (this.has('goodFert') ? 0.22 : 0)) : 0.02;
+      var gold = 0;
+      for (var i = 0; i < qty; i++) { if (Math.random() < goldChance) { gold++; } }
+      var normal = qty - gold;
+
+      this.addItem(crop.id, 'normal', normal);
+      this.addItem(crop.id, 'gold', gold);
+      s.stats.harvested += qty;
+
+      t.crop = null;
+      t.progress = 0;
+      t.fert = false;
+      t.wilt = 0;
+      t.ripeFlag = false;
+      t.moisture = Math.max(0, t.moisture - 0.25);
+
+      this.float(t.i, crop.emoji + ' x' + qty + (gold ? ' ✨' + gold : ''), '#fde68a');
+      this.burst(t.i, crop.color, 12, 'sparkle');
+      this.addExp(crop.exp + gold * 3);
+      FG.audio.play('harvest');
+      emit('change');
+    },
+
+    harvestAll: function () {
+      var self = this, n = 0;
+      this.state.tiles.forEach(function (t) {
+        if (t.crop && t.progress >= 1 && !self.moleAt(t.i)) { self.harvest(t, true); n++; }
+      });
+      if (n) { FG.audio.play('harvest'); this.toast(n + '칸을 한 번에 수확했습니다.', 'good'); }
+      else { this.toast('수확할 작물이 없습니다.', 'warn'); FG.audio.play('error'); }
+    },
+
+    waterAll: function () {
+      var self = this, n = 0;
+      this.state.tiles.forEach(function (t) {
+        if (t.unlocked && t.tilled && t.moisture < 0.95) {
+          self.waterTile(t, C.WATER_PER_USE);
+          self.burst(t.i, '#7dd3fc', 4, 'drop');
+          n++;
+        }
+      });
+      if (n) { FG.audio.play('water'); } else { FG.audio.play('error'); }
+      emit('change');
+    },
+
+    /* ---------- 두더지 ---------- */
+    moleInterval: function () {
+      var s = this.state;
+      var base = Math.max(C.MOLE_MIN_INTERVAL, C.MOLE_BASE_INTERVAL - s.level * 0.7);
+      if (this.has('scarecrow')) { base *= 1.6; }
+      base /= this.weather().mole;
+      return base * FG.rand(0.75, 1.3);
+    },
+
+    spawnMole: function () {
+      var candidates = this.state.tiles.filter(function (t) {
+        return t.crop && t.progress > 0.05;
+      });
+      if (!candidates.length) { return; }
+      var self = this;
+      candidates = candidates.filter(function (t) { return !self.moleAt(t.i); });
+      if (!candidates.length) { return; }
+      var t = FG.pick(candidates);
+      var life = Math.max(C.MOLE_MIN_LIFE, C.MOLE_BASE_LIFE - this.state.level * 0.25);
+      this.moles.push({ tile: t.i, t: 0, life: life, done: false, hit: 0, pop: 0 });
+      FG.audio.play('mole');
+      emit('mole', t.i);
+    },
+
+    whack: function (mole, auto) {
+      var s = this.state;
+      mole.done = true;
+      mole.hit = 1;
+      this.combo = Math.min(C.MOLE_COMBO_MAX, this.combo + 1);
+      this.comboTimer = C.MOLE_COMBO_WINDOW;
+      var mult = auto ? 1 : this.combo;
+      var reward = Math.round((C.MOLE_REWARD + s.level * 2) * mult);
+      s.coins += reward;
+      s.stats.earned += reward;
+      s.stats.moles += 1;
+      this.addExp(3 + s.level);
+      this.float(mole.tile, '+' + FG.fmt(reward) + (mult > 1 ? ' x' + mult : ''), '#fcd34d');
+      this.burst(mole.tile, '#8b5e3c', 14, 'dot');
+      FG.audio.play('whack', this.combo);
+      emit('change');
+    },
+
+    scare: function (mole) {
+      mole.done = true;
+      mole.hit = 0.5;
+      this.float(mole.tile, '쫓아냄', '#cbd5e1');
+      this.burst(mole.tile, '#8b5e3c', 6, 'dot');
+      FG.audio.play('whack', 0);
+    },
+
+    moleEats: function (mole) {
+      var t = this.state.tiles[mole.tile];
+      mole.done = true;
+      if (!t || !t.crop) { return; }
+      var crop = FG.CROP_BY_ID[t.crop];
+      var wasRipe = t.progress >= 1;
+      t.crop = null;
+      t.progress = 0;
+      t.fert = false;
+      t.wilt = 0;
+      t.hole = 1;
+      this.state.stats.eaten += 1;
+      this.float(mole.tile, '먹혔다!', '#fca5a5');
+      this.burst(mole.tile, '#7c4a2d', 12, 'dot');
+      this.toast('두더지가 ' + crop.name + (wasRipe ? '를 통째로 먹어치웠습니다!' : ' 싹을 파먹었습니다!'), 'bad');
+      FG.audio.play('lose');
+      emit('change');
+    },
+
+    /* ---------- 창고 / 시장 ---------- */
+    addItem: function (cropId, quality, qty) {
+      if (qty <= 0) { return; }
+      var inv = this.state.inventory;
+      if (!inv[cropId]) { inv[cropId] = { normal: 0, gold: 0 }; }
+      inv[cropId][quality] = (inv[cropId][quality] || 0) + qty;
+    },
+
+    priceOf: function (cropId, quality) {
+      return FG.market.price(this.state.market, cropId, quality, this.has('analyst'));
+    },
+
+    sell: function (cropId, quality, qty) {
+      var inv = this.state.inventory[cropId];
+      if (!inv) { return 0; }
+      var have = inv[quality] || 0;
+      var n = Math.min(have, qty);
+      if (n <= 0) { return 0; }
+      var unit = this.priceOf(cropId, quality);
+      var total = unit * n;
+      inv[quality] -= n;
+      this.state.coins += total;
+      this.state.stats.earned += total;
+      this.addExp(Math.max(1, Math.round(total / 40)));
+      FG.audio.play('sell');
+      emit('change');
+      return total;
+    },
+
+    sellAll: function () {
+      var self = this, total = 0;
+      Object.keys(this.state.inventory).forEach(function (id) {
+        total += self.sell(id, 'gold', self.state.inventory[id].gold || 0);
+        total += self.sell(id, 'normal', self.state.inventory[id].normal || 0);
+      });
+      if (total > 0) { this.toast('전량 판매: +' + FG.fmt(total) + '원', 'good'); }
+      else { this.toast('팔 작물이 없습니다.', 'warn'); FG.audio.play('error'); }
+      return total;
+    },
+
+    /* ---------- 상점 ---------- */
+    upgradeCost: function (id) {
+      var up = FG.UPGRADES.filter(function (u) { return u.id === id; })[0];
+      if (!up) { return Infinity; }
+      if (!up.repeat) { return up.base; }
+      var owned = this.state.upgrades[id] || 0;
+      return Math.round(up.base * Math.pow(up.growth, owned));
+    },
+
+    canBuy: function (id) {
+      var up = FG.UPGRADES.filter(function (u) { return u.id === id; })[0];
+      if (!up) { return false; }
+      if (!up.repeat && this.state.upgrades[id]) { return false; }
+      if (id === 'expand' && this.unlockedCount() >= C.COLS * C.ROWS) { return false; }
+      return this.state.coins >= this.upgradeCost(id);
+    },
+
+    buyUpgrade: function (id) {
+      if (!this.canBuy(id)) { FG.audio.play('error'); return false; }
+      var cost = this.upgradeCost(id);
+      var s = this.state;
+      s.coins -= cost;
+      s.stats.spent += cost;
+      if (id === 'expand') {
+        s.upgrades.expand = (s.upgrades.expand || 0) + 1;
+        var opened = 0;
+        for (var k = 0; k < ORDER.length && opened < C.TILES_PER_EXPANSION; k++) {
+          var t = s.tiles[ORDER[k]];
+          if (!t.unlocked) { t.unlocked = true; this.burst(t.i, '#86efac', 10, 'sparkle'); opened++; }
+        }
+        this.toast('밭 ' + opened + '칸을 개간했습니다!', 'good');
+      } else {
+        s.upgrades[id] = 1;
+        var up = FG.UPGRADES.filter(function (u) { return u.id === id; })[0];
+        this.toast(up.emoji + ' ' + up.name + ' 구매 완료!', 'good');
+      }
+      FG.audio.play('buy');
+      emit('change');
+      return true;
+    },
+
+    /* ---------- 레벨 ---------- */
+    addExp: function (n) {
+      var s = this.state;
+      s.exp += n;
+      var guard = 0;
+      while (s.exp >= FG.expToNext(s.level) && guard++ < 50) {
+        s.exp -= FG.expToNext(s.level);
+        s.level += 1;
+        var unlocked = FG.CROPS.filter(function (c) { return c.level === s.level; });
+        var msg = '레벨 ' + s.level + ' 달성!';
+        if (unlocked.length) {
+          msg += ' ' + unlocked.map(function (c) { return c.emoji + ' ' + c.name; }).join(', ') + ' 해금';
+        }
+        this.toast(msg, 'good');
+        FG.audio.play('levelup');
+        emit('levelup', s.level);
+      }
+    },
+
+    /* ---------- 메인 업데이트 ---------- */
+    update: function (dt, simulated) {
+      var s = this.state;
+      if (!s) { return; }
+      var w = this.weather();
+      var night = this.isNight();
+      var self = this;
+
+      // 시간 / 하루 경과
+      s.time += dt;
+      while (s.time >= C.DAY_LENGTH) {
+        s.time -= C.DAY_LENGTH;
+        s.day += 1;
+        FG.market.advance(s.market);
+        s.weather = rollWeather();
+        if (!simulated) {
+          var wv = this.weather();
+          this.toast(s.day + '일차 — ' + wv.emoji + ' ' + wv.name, 'info');
+          FG.audio.play('newday');
+          emit('newday', s.day);
+        }
+      }
+
+      // 밭 상태
+      for (var i = 0; i < s.tiles.length; i++) {
+        var t = s.tiles[i];
+        if (!t.unlocked || !t.tilled) { continue; }
+        if (w.rain) { t.moisture = Math.min(1, t.moisture + w.rain * dt); }
+        t.moisture = Math.max(0, t.moisture - C.DRY_RATE * w.dry * dt);
+        if (t.hole > 0) { t.hole = Math.max(0, t.hole - dt * 0.05); }
+        if (!t.crop) { continue; }
+
+        var crop = FG.CROP_BY_ID[t.crop];
+        if (!crop) { t.crop = null; continue; }
+
+        var rate = w.growth
+          * (night ? C.NIGHT_GROWTH : 1)
+          * (t.moisture > 0.02 ? 1 : C.DRY_GROWTH)
+          * (t.fert ? C.FERT_GROWTH : 1);
+
+        if (t.progress < 1) {
+          t.progress = Math.min(1, t.progress + (rate / crop.grow) * dt);
+          if (t.progress >= 1 && !t.ripeFlag) {
+            t.ripeFlag = true;
+            if (!simulated) {
+              this.float(t.i, '수확 가능!', '#bbf7d0');
+              this.burst(t.i, crop.color, 6, 'sparkle');
+            }
+          }
+        }
+
+        if (t.moisture <= 0.001) {
+          // 게임을 꺼둔 동안(오프라인 보정)에는 성장만 멈출 뿐 죽지는 않는다
+          if (!simulated) { t.wilt = Math.min(1, t.wilt + C.WILT_RATE * dt); }
+          if (t.wilt >= 1) {
+            t.crop = null; t.progress = 0; t.fert = false; t.wilt = 0; t.ripeFlag = false;
+            s.stats.died += 1;
+            if (!simulated) {
+              this.toast(crop.name + '이(가) 말라 죽었습니다. 물을 잊지 마세요!', 'bad');
+              FG.audio.play('lose');
+            }
+          }
+        } else {
+          t.wilt = Math.max(0, t.wilt - C.WILT_RECOVER * dt);
+        }
+      }
+
+      // 스프링클러
+      if (this.has('sprinkler')) {
+        this.sprinklerTimer -= dt;
+        if (this.sprinklerTimer <= 0) {
+          this.sprinklerTimer = C.SPRINKLER_INTERVAL;
+          s.tiles.forEach(function (t) {
+            if (t.unlocked && t.tilled) {
+              self.waterTile(t, C.SPRINKLER_AMOUNT);
+              if (!simulated) { self.burst(t.i, '#7dd3fc', 3, 'drop'); }
+            }
+          });
+        }
+      }
+
+      if (simulated) { return; }  // 오프라인 보정에서는 두더지/이펙트 생략
+
+      // 두더지
+      this.moleTimer -= dt;
+      if (this.moleTimer <= 0) {
+        this.moleTimer = this.moleInterval();
+        this.spawnMole();
+      }
+      for (var m = this.moles.length - 1; m >= 0; m--) {
+        var mole = this.moles[m];
+        mole.pop = Math.min(1, mole.pop + dt * 5);
+        if (mole.done) {
+          mole.hit -= dt * 2.5;
+          if (mole.hit <= 0) { this.moles.splice(m, 1); }
+          continue;
+        }
+        var tile = s.tiles[mole.tile];
+        if (!tile || !tile.crop) { mole.done = true; mole.hit = 0.3; continue; }
+        mole.t += dt;
+        if (mole.t >= mole.life) { this.moleEats(mole); mole.hit = 0.4; }
+      }
+
+      // 밭고양이
+      if (this.has('cat')) {
+        this.catTimer -= dt;
+        if (this.catTimer <= 0) {
+          this.catTimer = C.CAT_INTERVAL;
+          var target = this.moles.filter(function (x) { return !x.done && x.t > 1.5; })[0];
+          if (target && Math.random() < 0.6) {
+            this.whack(target, true);
+            this.float(target.tile, '🐈 냥!', '#fde68a');
+          }
+        }
+      }
+
+      // 콤보
+      if (this.comboTimer > 0) {
+        this.comboTimer -= dt;
+        if (this.comboTimer <= 0) { this.combo = 0; }
+      }
+
+      // 이펙트
+      for (var p = this.particles.length - 1; p >= 0; p--) {
+        var pt = this.particles[p];
+        pt.t += dt;
+        pt.x += pt.vx * dt;
+        pt.y += pt.vy * dt;
+        pt.vy += 2.6 * dt;
+        if (pt.t >= pt.life) { this.particles.splice(p, 1); }
+      }
+      for (var f = this.floats.length - 1; f >= 0; f--) {
+        this.floats[f].t += dt;
+        if (this.floats[f].t >= this.floats[f].life) { this.floats.splice(f, 1); }
+      }
+
+      // 자동 저장
+      this.saveTimer -= dt;
+      if (this.saveTimer <= 0) { this.saveTimer = C.AUTOSAVE_INTERVAL; this.save(); }
+    }
+  };
+
+  FG.game = game;
+})(window.FG);
+
+/* ===== js/render.js ===== */
+/* 캔버스 렌더링 (이미지 파일 없이 전부 코드로 그린다) */
+window.FG = window.FG || {};
+(function (FG) {
+  'use strict';
+
+  var C = FG.CONFIG;
+
+  var view = {
+    canvas: null, ctx: null,
+    w: 0, h: 0, dpr: 1,
+    tile: 60, ox: 0, oy: 0, gap: 6,
+    cols: C.COLS, rows: C.ROWS, transposed: false,
+    hover: -1, time: 0
+  };
+
+  function resize() {
+    var cv = view.canvas;
+    var rect = cv.parentNode.getBoundingClientRect();
+    var dpr = Math.min(2.5, window.devicePixelRatio || 1);
+    view.w = Math.max(200, rect.width);
+    view.h = Math.max(200, rect.height);
+    view.dpr = dpr;
+    cv.width = Math.round(view.w * dpr);
+    cv.height = Math.round(view.h * dpr);
+    cv.style.width = view.w + 'px';
+    cv.style.height = view.h + 'px';
+    view.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    // 세로로 긴 화면(모바일 세로)에서는 밭을 90도 돌려 배치해 칸을 더 크게 쓴다
+    view.transposed = view.h > view.w * 1.12;
+    view.cols = view.transposed ? C.ROWS : C.COLS;
+    view.rows = view.transposed ? C.COLS : C.ROWS;
+
+    var pad = Math.max(8, Math.min(view.w, view.h) * 0.03);
+    var gap = Math.max(4, Math.min(view.w, view.h) * 0.012);
+    var tw = (view.w - pad * 2 - gap * (view.cols - 1)) / view.cols;
+    var th = (view.h - pad * 2 - gap * (view.rows - 1)) / view.rows;
+    var size = Math.max(28, Math.min(tw, th));
+    view.gap = gap;
+    view.tile = size;
+    view.ox = (view.w - (size * view.cols + gap * (view.cols - 1))) / 2;
+    view.oy = (view.h - (size * view.rows + gap * (view.rows - 1))) / 2;
+  }
+
+  function tileRect(i) {
+    var x = i % C.COLS, y = Math.floor(i / C.COLS);
+    var cx = view.transposed ? y : x;
+    var cy = view.transposed ? x : y;
+    return {
+      x: view.ox + cx * (view.tile + view.gap),
+      y: view.oy + cy * (view.tile + view.gap),
+      s: view.tile
+    };
+  }
+
+  function tileAt(clientX, clientY) {
+    var rect = view.canvas.getBoundingClientRect();
+    var px = clientX - rect.left, py = clientY - rect.top;
+    var step = view.tile + view.gap;
+    var gx = Math.floor((px - view.ox + view.gap / 2) / step);
+    var gy = Math.floor((py - view.oy + view.gap / 2) / step);
+    if (gx < 0 || gy < 0 || gx >= view.cols || gy >= view.rows) { return -1; }
+    return view.transposed ? (gx * C.COLS + gy) : (gy * C.COLS + gx);
+  }
+
+  function roundRect(ctx, x, y, w, h, r) {
+    var rr = Math.min(r, w / 2, h / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + rr, y);
+    ctx.arcTo(x + w, y, x + w, y + h, rr);
+    ctx.arcTo(x + w, y + h, x, y + h, rr);
+    ctx.arcTo(x, y + h, x, y, rr);
+    ctx.arcTo(x, y, x + w, y, rr);
+    ctx.closePath();
+  }
+
+  function drawBackground(ctx) {
+    var g = ctx.createLinearGradient(0, 0, 0, view.h);
+    g.addColorStop(0, '#6fbf5f');
+    g.addColorStop(1, '#4c9c47');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, view.w, view.h);
+
+    // 잔디 무늬
+    ctx.save();
+    ctx.globalAlpha = 0.16;
+    ctx.strokeStyle = '#2f7a33';
+    ctx.lineWidth = 1.5;
+    var n = Math.floor((view.w * view.h) / 5200);
+    for (var i = 0; i < n; i++) {
+      var x = FG.hash01(i * 3.1) * view.w;
+      var y = FG.hash01(i * 7.7 + 1) * view.h;
+      var len = 4 + FG.hash01(i * 2.3) * 6;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + 2, y - len);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawSoil(ctx, t, r) {
+    var s = r.s;
+    var wet = t.moisture;
+    var base = wet > 0.05 ? '#6b4326' : '#9a6b42';
+    var top = wet > 0.05 ? '#7a4d2c' : '#a9784b';
+
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.18)';
+    roundRect(ctx, r.x + 2, r.y + 4, s, s, s * 0.16);
+    ctx.fill();
+
+    var g = ctx.createLinearGradient(r.x, r.y, r.x, r.y + s);
+    g.addColorStop(0, top);
+    g.addColorStop(1, base);
+    ctx.fillStyle = g;
+    roundRect(ctx, r.x, r.y, s, s, s * 0.16);
+    ctx.fill();
+
+    // 고랑
+    ctx.globalAlpha = 0.22;
+    ctx.strokeStyle = '#4f2f1a';
+    ctx.lineWidth = Math.max(1, s * 0.035);
+    for (var k = 1; k <= 3; k++) {
+      var yy = r.y + (s * k) / 4;
+      ctx.beginPath();
+      ctx.moveTo(r.x + s * 0.12, yy);
+      ctx.lineTo(r.x + s * 0.88, yy);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+
+    // 두더지가 파먹은 구멍
+    if (t.hole > 0) {
+      ctx.globalAlpha = Math.min(1, t.hole);
+      ctx.fillStyle = '#3a2214';
+      ctx.beginPath();
+      ctx.ellipse(r.x + s * 0.5, r.y + s * 0.62, s * 0.2, s * 0.13, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+    ctx.restore();
+  }
+
+  function drawGrassTile(ctx, t, r) {
+    var s = r.s;
+    ctx.save();
+    if (!t.unlocked) {
+      ctx.fillStyle = 'rgba(20,40,20,0.35)';
+      roundRect(ctx, r.x, r.y, s, s, s * 0.16);
+      ctx.fill();
+      ctx.setLineDash([s * 0.08, s * 0.06]);
+      ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+      ctx.lineWidth = 1.5;
+      roundRect(ctx, r.x + 2, r.y + 2, s - 4, s - 4, s * 0.14);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 0.45;
+      ctx.font = (s * 0.24) + 'px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#e8f5e9';
+      ctx.fillText('🔒', r.x + s / 2, r.y + s / 2);
+    } else {
+      ctx.fillStyle = 'rgba(255,255,255,0.10)';
+      roundRect(ctx, r.x, r.y, s, s, s * 0.16);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+      ctx.lineWidth = 1.5;
+      roundRect(ctx, r.x + 1, r.y + 1, s - 2, s - 2, s * 0.15);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawPlant(ctx, t, r) {
+    var crop = FG.CROP_BY_ID[t.crop];
+    if (!crop) { return; }
+    var s = r.s;
+    var cx = r.x + s / 2;
+    var cy = r.y + s * 0.72;
+    var p = t.progress;
+    var wilt = t.wilt;
+    var sway = Math.sin(view.time * 1.6 + r.x * 0.05) * s * 0.02 * (1 - wilt);
+
+    ctx.save();
+    ctx.translate(cx, cy);
+
+    var green = wilt > 0.02
+      ? 'rgb(' + Math.round(120 + wilt * 90) + ',' + Math.round(160 - wilt * 80) + ',' + Math.round(70 - wilt * 30) + ')'
+      : '#3f9c45';
+
+    // 줄기
+    var h = s * (0.09 + p * 0.28);
+    ctx.strokeStyle = green;
+    ctx.lineWidth = Math.max(2, s * 0.05);
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.quadraticCurveTo(sway, -h * 0.6, sway * 2, -h);
+    ctx.stroke();
+
+    // 잎
+    var leaves = p < 0.25 ? 1 : (p < 0.6 ? 2 : 3);
+    for (var i = 0; i < leaves; i++) {
+      var ly = -h * (0.35 + i * 0.24);
+      var dir = i % 2 === 0 ? 1 : -1;
+      var lw = s * (0.11 + p * 0.1);
+      ctx.fillStyle = green;
+      ctx.beginPath();
+      ctx.ellipse(dir * lw * 0.8 + sway, ly, lw, lw * 0.42, dir * (-0.5 + wilt * 1.1), 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 열매 / 꽃
+    if (p >= 0.62) {
+      var bob = p >= 1 ? Math.sin(view.time * 3.2 + r.y) * s * 0.035 : 0;
+      var scale = p >= 1 ? 1 : 0.45 + (p - 0.62) * 1.2;
+      ctx.globalAlpha = p >= 1 ? 1 : 0.85;
+      ctx.font = (s * 0.42 * scale) + 'px system-ui, "Apple Color Emoji", "Segoe UI Emoji", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(crop.emoji, sway * 2, -h - s * 0.04 + bob);
+      ctx.globalAlpha = 1;
+    }
+    ctx.restore();
+
+    // 비료 반짝임
+    if (t.fert) {
+      ctx.save();
+      ctx.globalAlpha = 0.55 + Math.sin(view.time * 4 + r.x) * 0.25;
+      ctx.fillStyle = '#d9f99d';
+      for (var k = 0; k < 3; k++) {
+        var a = view.time * 1.2 + k * 2.1;
+        ctx.beginPath();
+        ctx.arc(cx + Math.cos(a) * s * 0.3, cy - s * 0.25 + Math.sin(a) * s * 0.18, s * 0.025, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    // 시듦 경고
+    if (t.wilt > 0.25) {
+      ctx.save();
+      ctx.globalAlpha = 0.5 + Math.sin(view.time * 6) * 0.4;
+      ctx.font = (s * 0.26) + 'px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('⚠️', r.x + s * 0.82, r.y + s * 0.28);
+      ctx.restore();
+    }
+  }
+
+  function drawMeters(ctx, t, r) {
+    var s = r.s;
+    // 수분
+    if (t.tilled) {
+      var bw = s * 0.7, bh = Math.max(3, s * 0.055);
+      var bx = r.x + (s - bw) / 2, by = r.y + s - bh - s * 0.07;
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      roundRect(ctx, bx, by, bw, bh, bh / 2); ctx.fill();
+      ctx.fillStyle = t.moisture > 0.25 ? '#38bdf8' : '#f87171';
+      roundRect(ctx, bx, by, Math.max(2, bw * t.moisture), bh, bh / 2); ctx.fill();
+    }
+    // 성장
+    if (t.crop) {
+      var gw = s * 0.7, gh = Math.max(3, s * 0.055);
+      var gx = r.x + (s - gw) / 2, gy = r.y + s * 0.06;
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      roundRect(ctx, gx, gy, gw, gh, gh / 2); ctx.fill();
+      ctx.fillStyle = t.progress >= 1 ? '#facc15' : '#86efac';
+      roundRect(ctx, gx, gy, Math.max(2, gw * t.progress), gh, gh / 2); ctx.fill();
+    }
+  }
+
+  function drawMole(ctx, mole, r) {
+    var s = r.s;
+    var cx = r.x + s * 0.5, cy = r.y + s * 0.58;
+    var pop = mole.done ? Math.max(0, mole.hit) : mole.pop;
+    var scale = mole.done ? 0.6 + pop * 0.6 : 0.6 + pop * 0.4;
+    var shake = mole.done ? 0 : Math.sin(view.time * 22) * s * 0.012;
+
+    ctx.save();
+    ctx.translate(cx + shake, cy);
+    ctx.scale(scale, scale);
+
+    // 흙더미
+    ctx.fillStyle = '#5a3720';
+    ctx.beginPath();
+    ctx.ellipse(0, s * 0.16, s * 0.3, s * 0.11, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 몸통
+    ctx.fillStyle = '#6b4a33';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, s * 0.21, s * 0.2, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 코
+    ctx.fillStyle = '#f2a2a2';
+    ctx.beginPath();
+    ctx.ellipse(0, s * 0.05, s * 0.07, s * 0.05, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 눈
+    ctx.fillStyle = '#20140c';
+    ctx.beginPath(); ctx.arc(-s * 0.08, -s * 0.05, s * 0.026, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(s * 0.08, -s * 0.05, s * 0.026, 0, Math.PI * 2); ctx.fill();
+
+    // 발
+    ctx.fillStyle = '#8a6448';
+    ctx.beginPath(); ctx.ellipse(-s * 0.19, s * 0.1, s * 0.06, s * 0.04, -0.4, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(s * 0.19, s * 0.1, s * 0.06, s * 0.04, 0.4, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+
+    if (mole.done) {
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, mole.hit);
+      ctx.font = (s * 0.34) + 'px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('💥', cx, cy - s * 0.25);
+      ctx.restore();
+      return;
+    }
+
+    // 남은 시간 링
+    var ratio = 1 - mole.t / mole.life;
+    ctx.save();
+    ctx.lineWidth = Math.max(2.5, s * 0.06);
+    ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+    ctx.beginPath();
+    ctx.arc(cx, cy, s * 0.36, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = ratio > 0.4 ? '#fbbf24' : '#ef4444';
+    ctx.beginPath();
+    ctx.arc(cx, cy, s * 0.36, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * ratio);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawParticles(ctx) {
+    var list = FG.game.particles;
+    for (var i = 0; i < list.length; i++) {
+      var p = list[i];
+      var r = tileRect(p.tile);
+      var s = r.s;
+      var a = 1 - p.t / p.life;
+      var x = r.x + s * (0.5 + p.x) + p.vx * s * 0.3;
+      var y = r.y + s * (0.5 + p.y) + p.t * p.vy * s * 0.3;
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, a);
+      ctx.fillStyle = p.color;
+      if (p.kind === 'drop') {
+        ctx.beginPath();
+        ctx.ellipse(x, y, s * 0.03, s * 0.05, 0, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (p.kind === 'sparkle') {
+        ctx.translate(x, y);
+        ctx.rotate(p.t * 6);
+        ctx.fillRect(-s * 0.03, -s * 0.008, s * 0.06, s * 0.016);
+        ctx.fillRect(-s * 0.008, -s * 0.03, s * 0.016, s * 0.06);
+      } else if (p.kind === 'leaf') {
+        ctx.beginPath();
+        ctx.ellipse(x, y, s * 0.045, s * 0.02, p.t * 4, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        ctx.beginPath();
+        ctx.arc(x, y, s * 0.032, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+  }
+
+  function drawFloats(ctx) {
+    var list = FG.game.floats;
+    for (var i = 0; i < list.length; i++) {
+      var f = list[i];
+      var r = tileRect(f.tile);
+      var a = 1 - f.t / f.life;
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, a);
+      ctx.font = '600 ' + Math.max(12, r.s * 0.24) + 'px system-ui, -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+      ctx.fillStyle = f.color;
+      var y = r.y + r.s * 0.35 - f.t * r.s * 0.5;
+      ctx.strokeText(f.text, r.x + r.s / 2, y);
+      ctx.fillText(f.text, r.x + r.s / 2, y);
+      ctx.restore();
+    }
+  }
+
+  function drawWeather(ctx) {
+    var w = FG.game.weather();
+    if (w.id === 'rain') {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(180,220,255,0.45)';
+      ctx.lineWidth = 1.4;
+      var n = Math.floor(view.w / 12);
+      for (var i = 0; i < n; i++) {
+        var seed = FG.hash01(i * 1.7);
+        var x = (seed * view.w + view.time * 70) % view.w;
+        var y = ((FG.hash01(i * 5.3) * view.h) + view.time * 620) % view.h;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x - 6, y + 16);
+        ctx.stroke();
+      }
+      ctx.fillStyle = 'rgba(30,50,80,0.18)';
+      ctx.fillRect(0, 0, view.w, view.h);
+      ctx.restore();
+    } else if (w.id === 'drought') {
+      ctx.save();
+      ctx.fillStyle = 'rgba(255,170,60,0.13)';
+      ctx.fillRect(0, 0, view.w, view.h);
+      ctx.restore();
+    } else if (w.id === 'cloudy') {
+      ctx.save();
+      ctx.fillStyle = 'rgba(120,130,150,0.13)';
+      ctx.fillRect(0, 0, view.w, view.h);
+      ctx.restore();
+    }
+  }
+
+  function drawNight(ctx) {
+    var t = FG.game.state.time / C.DAY_LENGTH;
+    var a = 0;
+    if (t >= C.NIGHT_START) { a = FG.clamp((t - C.NIGHT_START) / (1 - C.NIGHT_START) * 1.6, 0, 0.55); }
+    else if (t <= C.NIGHT_END) { a = FG.clamp((C.NIGHT_END - t) / C.NIGHT_END * 0.55, 0, 0.55); }
+    else if (t > C.NIGHT_START - 0.12) { a = (t - (C.NIGHT_START - 0.12)) / 0.12 * 0.12; }
+    if (a <= 0.001) { return; }
+    ctx.save();
+    ctx.fillStyle = 'rgba(18,26,64,' + a.toFixed(3) + ')';
+    ctx.fillRect(0, 0, view.w, view.h);
+    ctx.restore();
+  }
+
+  function drawHover(ctx) {
+    if (view.hover < 0) { return; }
+    var r = tileRect(view.hover);
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+    ctx.lineWidth = Math.max(2, r.s * 0.035);
+    roundRect(ctx, r.x - 2, r.y - 2, r.s + 4, r.s + 4, r.s * 0.18);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  FG.render = {
+    view: view,
+    init: function (canvas) {
+      view.canvas = canvas;
+      view.ctx = canvas.getContext('2d');
+      resize();
+      window.addEventListener('resize', resize);
+      if (window.visualViewport) { window.visualViewport.addEventListener('resize', resize); }
+    },
+    resize: resize,
+    tileAt: tileAt,
+    tileRect: tileRect,
+    setHover: function (i) { view.hover = i; },
+
+    draw: function (dt) {
+      var ctx = view.ctx;
+      var g = FG.game;
+      if (!ctx || !g.state) { return; }
+      view.time += dt;
+
+      drawBackground(ctx);
+
+      for (var i = 0; i < g.state.tiles.length; i++) {
+        var t = g.state.tiles[i];
+        var r = tileRect(i);
+        if (t.unlocked && t.tilled) { drawSoil(ctx, t, r); }
+        else { drawGrassTile(ctx, t, r); }
+        if (t.crop) { drawPlant(ctx, t, r); }
+        drawMeters(ctx, t, r);
+      }
+
+      for (var m = 0; m < g.moles.length; m++) {
+        drawMole(ctx, g.moles[m], tileRect(g.moles[m].tile));
+      }
+
+      drawParticles(ctx);
+      drawNight(ctx);
+      drawWeather(ctx);
+      drawHover(ctx);
+      drawFloats(ctx);
+    }
+  };
+})(window.FG);
+
+/* ===== js/ui.js ===== */
+/* DOM UI: HUD, 툴바, 상점/시장/창고/메뉴 패널 */
+window.FG = window.FG || {};
+(function (FG) {
+  'use strict';
+
+  var C = FG.CONFIG;
+  var el = {};
+  var current = null;   // 열려 있는 패널 id
+
+  function $(id) { return document.getElementById(id); }
+
+  function cacheDom() {
+    ['coins', 'level', 'expFill', 'day', 'dayFill', 'weather', 'barnCount', 'toolbar',
+     'sheet', 'sheetTitle', 'sheetContent', 'sheetClose', 'toasts', 'combo',
+     'qWater', 'qHarvest'].forEach(function (id) { el[id] = $(id); });
+  }
+
+  /* ---------------- 툴바 ---------------- */
+  function buildToolbar() {
+    el.toolbar.innerHTML = FG.TOOLS.map(function (t, i) {
+      return '<button class="tool" data-tool="' + t.id + '" title="' + t.hint + '">' +
+        '<kbd>' + (i + 1) + '</kbd>' +
+        (t.id === 'seed' ? '<em class="badge" id="seedBadge"></em>' : '') +
+        '<span class="emoji">' + t.emoji + '</span>' +
+        '<span>' + t.name + '</span></button>';
+    }).join('');
+    el.toolbar.addEventListener('click', function (e) {
+      var btn = e.target.closest('[data-tool]');
+      if (!btn) { return; }
+      var id = btn.getAttribute('data-tool');
+      FG.audio.unlock();
+      if (id === 'seed' && FG.game.state.tool === 'seed') { UI.openPanel('seeds'); return; }
+      UI.selectTool(id);
+    });
+  }
+
+  function refreshToolbar() {
+    var tool = FG.game.state.tool;
+    Array.prototype.forEach.call(el.toolbar.querySelectorAll('[data-tool]'), function (b) {
+      b.classList.toggle('active', b.getAttribute('data-tool') === tool);
+    });
+    var badge = $('seedBadge');
+    var crop = FG.CROP_BY_ID[FG.game.state.selectedCrop];
+    if (badge && crop) { badge.textContent = crop.emoji; }
+  }
+
+  /* ---------------- HUD ---------------- */
+  function clock(t) {
+    var total = (t / C.DAY_LENGTH) * 24;
+    var h = Math.floor(total);
+    var m = Math.floor((total - h) * 60);
+    return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m;
+  }
+
+  function updateHud() {
+    var s = FG.game.state;
+    if (!s) { return; }
+    el.coins.textContent = FG.fmt(s.coins);
+    el.level.textContent = s.level;
+    el.expFill.style.width = FG.clamp(s.exp / FG.expToNext(s.level), 0, 1) * 100 + '%';
+    el.day.textContent = s.day;
+    el.dayFill.style.width = (s.time / C.DAY_LENGTH) * 100 + '%';
+    var w = FG.game.weather();
+    el.weather.textContent = w.emoji + ' ' + w.name + ' ' + clock(s.time) + (FG.game.isNight() ? ' 🌙' : '');
+    var n = FG.game.inventoryCount();
+    el.barnCount.textContent = n > 0 ? (n > 99 ? '99+' : n) : '';
+
+    var combo = FG.game.combo;
+    el.combo.classList.toggle('on', combo >= 2);
+    if (combo >= 2) { el.combo.textContent = '🔨 ' + combo + ' 콤보!'; }
+  }
+
+  /* ---------------- 토스트 ---------------- */
+  function toast(text, kind) {
+    var div = document.createElement('div');
+    div.className = 'toast ' + (kind || 'info');
+    div.textContent = text;
+    el.toasts.appendChild(div);
+    while (el.toasts.children.length > 3) { el.toasts.removeChild(el.toasts.firstChild); }
+    setTimeout(function () {
+      div.style.transition = 'opacity .4s';
+      div.style.opacity = '0';
+      setTimeout(function () { if (div.parentNode) { div.parentNode.removeChild(div); } }, 420);
+    }, 2600);
+  }
+
+  /* ---------------- 공용 조각 ---------------- */
+  function sparkline(history, color) {
+    if (!history || history.length < 2) { return '<svg class="sparkline"></svg>'; }
+    var w = 74, h = 26, pad = 3;
+    var min = Math.min.apply(null, history), max = Math.max.apply(null, history);
+    var span = Math.max(0.0001, max - min);
+    var pts = history.map(function (v, i) {
+      var x = pad + (i / (history.length - 1)) * (w - pad * 2);
+      var y = h - pad - ((v - min) / span) * (h - pad * 2);
+      return x.toFixed(1) + ',' + y.toFixed(1);
+    }).join(' ');
+    return '<svg class="sparkline" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none">' +
+      '<polyline points="' + pts + '" fill="none" stroke="' + color + '" stroke-width="1.8" ' +
+      'stroke-linejoin="round" stroke-linecap="round"/></svg>';
+  }
+
+  function changeTag(v) {
+    var cls = v >= 0 ? 'up' : 'down';
+    return '<span class="tag ' + cls + '">' + FG.pct(v) + '</span>';
+  }
+
+  /* ---------------- 패널: 씨앗 / 상점 ---------------- */
+  function seedRows() {
+    var g = FG.game, s = g.state;
+    return FG.CROPS.map(function (c) {
+      var locked = c.level > s.level;
+      var sel = s.selectedCrop === c.id;
+      var price = g.priceOf(c.id, 'normal');
+      return '<div class="row' + (locked ? ' locked' : '') + (sel && !locked ? ' sel' : '') + '">' +
+        '<div class="ico">' + c.emoji + '</div>' +
+        '<div class="body">' +
+          '<div class="title">' + c.name +
+            (locked ? '<span class="tag">Lv.' + c.level + ' 필요</span>' : '') +
+            (sel && !locked ? '<span class="tag up">선택됨</span>' : '') + '</div>' +
+          '<div class="desc">씨앗 ' + FG.fmt(c.seed) + '원 · 성장 ' + c.grow + '초 · 수확 ' +
+            c.yield[0] + '~' + c.yield[1] + '개 · 현재 시세 ' + FG.fmt(price) + '원</div>' +
+        '</div>' +
+        (locked ? '' : '<button class="btn" data-act="selectCrop" data-id="' + c.id + '">선택</button>') +
+      '</div>';
+    }).join('');
+  }
+
+  function renderSeeds() {
+    return '<div class="section-title">심을 작물 고르기</div>' + seedRows();
+  }
+
+  function renderShop() {
+    var g = FG.game;
+    var ups = FG.UPGRADES.map(function (u) {
+      var owned = g.state.upgrades[u.id];
+      var maxed = (!u.repeat && owned) ||
+        (u.id === 'expand' && g.unlockedCount() >= C.COLS * C.ROWS);
+      var cost = g.upgradeCost(u.id);
+      var can = g.canBuy(u.id);
+      return '<div class="row' + (maxed ? ' locked' : '') + '">' +
+        '<div class="ico">' + u.emoji + '</div>' +
+        '<div class="body">' +
+          '<div class="title">' + u.name +
+            (u.repeat && owned ? '<span class="tag">' + owned + '회 구매</span>' : '') +
+            (maxed ? '<span class="tag up">보유중</span>' : '') + '</div>' +
+          '<div class="desc">' + u.desc + '</div>' +
+        '</div>' +
+        (maxed ? '' : '<button class="btn' + (can ? '' : ' ghost') + '" data-act="buyUp" data-id="' + u.id + '"' +
+          (can ? '' : ' disabled') + '>🪙 ' + FG.fmt(cost) + '</button>') +
+      '</div>';
+    }).join('');
+
+    return '<div class="section-title">농장 업그레이드</div>' + ups +
+      '<div class="section-title">씨앗 (탭해서 선택 → 밭에 심기)</div>' + seedRows();
+  }
+
+  /* ---------------- 패널: 시장 ---------------- */
+  function renderMarket() {
+    var g = FG.game, m = g.state.market;
+    var analyst = g.has('analyst');
+    var idxChange = m.indexHistory.length > 1
+      ? m.index / m.indexHistory[m.indexHistory.length - 2] - 1 : 0;
+
+    var head = '<div class="row">' +
+      '<div class="ico">📊</div>' +
+      '<div class="body"><div class="title">농산물 종합지수 ' + (m.index * 100).toFixed(1) + changeTag(idxChange) + '</div>' +
+      '<div class="desc">' + g.state.day + '일차 시세 · 매일 아침 가격이 새로 형성됩니다' +
+      (analyst ? ' · 📈 분석 리포트 적용중 (판매가 +5%)' : '') + '</div></div>' +
+      sparkline(m.indexHistory, '#7ed957') + '</div>';
+
+    var rows = FG.CROPS.map(function (c) {
+      var e = m.crops[c.id];
+      var price = g.priceOf(c.id, 'normal');
+      var chg = FG.market.change(m, c.id);
+      var fc = FG.market.forecastChange(m, c.id);
+      var locked = c.level > g.state.level;
+      return '<div class="row' + (locked ? ' locked' : '') + '">' +
+        '<div class="ico">' + c.emoji + '</div>' +
+        '<div class="body">' +
+          '<div class="title">' + c.name + ' ' + FG.fmt(price) + '원 ' + changeTag(chg) + '</div>' +
+          '<div class="desc">기준가 ' + FG.fmt(c.price) + '원 · 배수 ' + e.factor.toFixed(2) + 'x' +
+            (analyst ? ' · 내일 전망 ' + FG.pct(fc) : '') + '</div>' +
+        '</div>' +
+        sparkline(e.history, chg >= 0 ? '#7ee787' : '#ff8b8b') +
+      '</div>';
+    }).join('');
+
+    return head + '<div class="section-title">작물별 시세</div>' + rows;
+  }
+
+  /* ---------------- 패널: 창고 ---------------- */
+  function renderBarn() {
+    var g = FG.game, inv = g.state.inventory;
+    var rows = '';
+    var total = 0;
+
+    FG.CROPS.forEach(function (c) {
+      var it = inv[c.id];
+      if (!it) { return; }
+      ['gold', 'normal'].forEach(function (q) {
+        var n = it[q] || 0;
+        if (n <= 0) { return; }
+        var unit = g.priceOf(c.id, q);
+        total += unit * n;
+        rows += '<div class="row">' +
+          '<div class="ico">' + c.emoji + (q === 'gold' ? '<div style="font-size:11px">✨</div>' : '') + '</div>' +
+          '<div class="body">' +
+            '<div class="title">' + c.name + (q === 'gold' ? ' <span class="tag gold" style="color:#ffd24a">황금</span>' : '') +
+              ' <span class="tag">x' + n + '</span></div>' +
+            '<div class="desc">개당 ' + FG.fmt(unit) + '원 · 합계 ' + FG.fmt(unit * n) + '원</div>' +
+          '</div>' +
+          '<div class="btn-col">' +
+            '<div class="btn-row">' +
+              '<button class="btn ghost" data-act="sell" data-id="' + c.id + '" data-q="' + q + '" data-n="1">1개</button>' +
+              '<button class="btn ghost" data-act="sell" data-id="' + c.id + '" data-q="' + q + '" data-n="10">10개</button>' +
+            '</div>' +
+            '<button class="btn" data-act="sell" data-id="' + c.id + '" data-q="' + q + '" data-n="9999">전부 팔기</button>' +
+          '</div>' +
+        '</div>';
+      });
+    });
+
+    if (!rows) {
+      return '<div class="help" style="text-align:center;padding:28px 10px">창고가 비어 있습니다.<br>밭에서 다 자란 작물을 🧺 수확해 오세요.</div>';
+    }
+
+    return '<div class="row"><div class="ico">💰</div>' +
+      '<div class="body"><div class="title">창고 평가액 ' + FG.fmt(total) + '원</div>' +
+      '<div class="desc">시세가 좋을 때 파는 게 이득입니다. 📈 시장에서 흐름을 확인하세요.</div></div>' +
+      '<button class="btn gold" data-act="sellAll">전량 판매</button></div>' +
+      '<div class="section-title">보유 작물</div>' + rows;
+  }
+
+  /* ---------------- 패널: 메뉴 ---------------- */
+  function renderMenu() {
+    var g = FG.game, s = g.state;
+    var st = s.stats;
+    return '<div class="section-title">설정</div>' +
+      '<div class="row"><div class="ico">' + (FG.audio.isEnabled() ? '🔊' : '🔇') + '</div>' +
+        '<div class="body"><div class="title">효과음</div><div class="desc">터치·수확·망치 소리</div></div>' +
+        '<button class="btn" data-act="toggleSound">' + (FG.audio.isEnabled() ? '켜짐' : '꺼짐') + '</button></div>' +
+      '<div class="row"><div class="ico">⛶</div>' +
+        '<div class="body"><div class="title">전체 화면</div><div class="desc">모바일에서 주소창을 숨깁니다</div></div>' +
+        '<button class="btn" data-act="fullscreen">전환</button></div>' +
+      '<div class="row"><div class="ico">💾</div>' +
+        '<div class="body"><div class="title">저장</div><div class="desc">진행 상황은 이 기기에 자동 저장됩니다</div></div>' +
+        '<button class="btn" data-act="save">지금 저장</button></div>' +
+
+      '<div class="section-title">농장 기록</div>' +
+      '<div class="stats-grid">' +
+        '<div><span>총 수확</span>' + FG.fmt(st.harvested) + '개</div>' +
+        '<div><span>두더지 격퇴</span>' + FG.fmt(st.moles) + '마리</div>' +
+        '<div><span>누적 수입</span>' + FG.fmt(st.earned) + '원</div>' +
+        '<div><span>누적 지출</span>' + FG.fmt(st.spent) + '원</div>' +
+        '<div><span>말라 죽은 작물</span>' + FG.fmt(st.died) + '개</div>' +
+        '<div><span>두더지에게 뺏김</span>' + FG.fmt(st.eaten) + '개</div>' +
+      '</div>' +
+
+      '<div class="section-title">조작법</div>' +
+      '<div class="help">' +
+        '<ul>' +
+        '<li>아래 툴바에서 도구를 고른 뒤 밭을 <b>탭(클릭)</b>하면 적용됩니다.</li>' +
+        '<li>물·경작·수확은 <b>드래그</b>하면 여러 칸에 연속 적용됩니다.</li>' +
+        '<li>두더지가 나오면 <b>🔨 망치</b>로 두드려 잡으세요. 연속으로 잡으면 콤보 보상이 커집니다. 다른 도구로 치면 쫓아내기만 하고 보상은 없습니다.</li>' +
+        '<li>제한 시간 안에 못 잡으면 작물을 통째로 먹어치웁니다.</li>' +
+        '<li>물이 마르면 성장이 거의 멈추고, 오래 두면 작물이 죽습니다.</li>' +
+        '<li>비료는 성장 속도 ' + C.FERT_GROWTH + '배 + 수확량 증가 + ✨황금 등급 확률을 줍니다.</li>' +
+        '<li>키보드: <b>1~6</b> 도구 전환, <b>W</b> 전체 물주기, <b>H</b> 전체 수확, <b>Esc</b> 닫기.</li>' +
+        '</ul>' +
+      '</div>' +
+
+      '<div class="section-title">위험 구역</div>' +
+      '<div class="row"><div class="ico">🗑️</div>' +
+        '<div class="body"><div class="title">새로 시작</div><div class="desc">모든 진행이 삭제됩니다</div></div>' +
+        '<button class="btn" style="background:#7a2525;border-color:#b33" data-act="reset">초기화</button></div>';
+  }
+
+  /* ---------------- 패널 제어 ---------------- */
+  var PANELS = {
+    shop:   { title: '🏪 상점', render: renderShop },
+    market: { title: '📈 시장', render: renderMarket },
+    barn:   { title: '🧺 창고', render: renderBarn },
+    menu:   { title: '⚙️ 메뉴', render: renderMenu },
+    seeds:  { title: '🌱 씨앗 선택', render: renderSeeds }
+  };
+
+  var UI = {
+    init: function () {
+      cacheDom();
+      buildToolbar();
+      refreshToolbar();
+
+      document.querySelectorAll('[data-panel]').forEach(function (b) {
+        b.addEventListener('click', function () { FG.audio.unlock(); UI.openPanel(b.getAttribute('data-panel')); });
+      });
+      el.sheetClose.addEventListener('click', function () { UI.closePanel(); });
+      el.sheet.addEventListener('click', function (e) { if (e.target === el.sheet) { UI.closePanel(); } });
+      el.sheetContent.addEventListener('click', onAction);
+
+      el.qWater.addEventListener('click', function () { FG.audio.unlock(); FG.game.waterAll(); });
+      el.qHarvest.addEventListener('click', function () { FG.audio.unlock(); FG.game.harvestAll(); });
+
+      FG.game.on('toast', function (d) { toast(d.text, d.kind); });
+      FG.game.on('change', function () { if (current) { UI.refreshPanel(); } refreshToolbar(); });
+    },
+
+    selectTool: function (id) {
+      FG.game.state.tool = id;
+      refreshToolbar();
+    },
+
+    openPanel: function (name) {
+      if (!PANELS[name]) { return; }
+      current = name;
+      el.sheetTitle.textContent = PANELS[name].title;
+      el.sheetContent.innerHTML = PANELS[name].render();
+      el.sheetContent.scrollTop = 0;
+      el.sheet.hidden = false;
+    },
+
+    refreshPanel: function () {
+      if (!current) { return; }
+      var top = el.sheetContent.scrollTop;
+      el.sheetContent.innerHTML = PANELS[current].render();
+      el.sheetContent.scrollTop = top;
+    },
+
+    closePanel: function () {
+      current = null;
+      el.sheet.hidden = true;
+    },
+
+    isPanelOpen: function () { return !!current; },
+    updateHud: updateHud,
+    toast: toast
+  };
+
+  function onAction(e) {
+    var btn = e.target.closest('[data-act]');
+    if (!btn) { return; }
+    var act = btn.getAttribute('data-act');
+    var id = btn.getAttribute('data-id');
+    var g = FG.game;
+    FG.audio.unlock();
+
+    if (act === 'selectCrop') {
+      g.state.selectedCrop = id;
+      g.state.tool = 'seed';
+      refreshToolbar();
+      FG.audio.play('plant');
+      var crop = FG.CROP_BY_ID[id];
+      toast(crop.emoji + ' ' + crop.name + ' 선택 — 밭을 탭해서 심으세요', 'good');
+      if (current === 'seeds') { UI.closePanel(); } else { UI.refreshPanel(); }
+      return;
+    }
+    if (act === 'buyUp') { g.buyUpgrade(id); UI.refreshPanel(); return; }
+    if (act === 'sell') {
+      var n = parseInt(btn.getAttribute('data-n'), 10);
+      var q = btn.getAttribute('data-q');
+      var got = g.sell(id, q, n);
+      if (got > 0) { toast('+' + FG.fmt(got) + '원', 'good'); }
+      UI.refreshPanel();
+      return;
+    }
+    if (act === 'sellAll') { g.sellAll(); UI.refreshPanel(); return; }
+    if (act === 'toggleSound') {
+      var on = !FG.audio.isEnabled();
+      FG.audio.setEnabled(on);
+      g.state.sound = on;
+      UI.refreshPanel();
+      return;
+    }
+    if (act === 'fullscreen') {
+      var d = document.documentElement;
+      if (document.fullscreenElement) { document.exitFullscreen(); }
+      else if (d.requestFullscreen) { d.requestFullscreen().catch(function () {}); }
+      else if (d.webkitRequestFullscreen) { d.webkitRequestFullscreen(); }
+      else { toast('이 브라우저에서는 전체화면을 지원하지 않습니다.', 'warn'); }
+      return;
+    }
+    if (act === 'save') { g.save(); toast('저장했습니다.', 'good'); return; }
+    if (act === 'reset') {
+      if (window.confirm('정말 처음부터 다시 시작할까요? 모든 진행이 사라집니다.')) {
+        g.reset();
+        UI.closePanel();
+        toast('새 농장을 시작합니다!', 'good');
+      }
+      return;
+    }
+  }
+
+  FG.ui = UI;
+})(window.FG);
+
+/* ===== js/input.js ===== */
+/* 입력: 마우스 + 터치 + 키보드 */
+window.FG = window.FG || {};
+(function (FG) {
+  'use strict';
+
+  var DRAGGABLE = { water: 1, till: 1, harvest: 1, hammer: 1, fert: 1 };
+  var dragging = false;
+  var lastTile = -1;
+  var isTouch = false;
+
+  function apply(i, isDrag) {
+    if (i < 0) { return; }
+    FG.game.useTool(i, FG.game.state.tool, isDrag);
+  }
+
+  function onDown(e) {
+    if (FG.ui.isPanelOpen()) { return; }
+    FG.audio.unlock();
+    isTouch = e.pointerType === 'touch';
+    var i = FG.render.tileAt(e.clientX, e.clientY);
+    if (i < 0) { return; }
+    dragging = true;
+    lastTile = i;
+    try { e.target.setPointerCapture(e.pointerId); } catch (err) { /* 무시 */ }
+    FG.render.setHover(isTouch ? -1 : i);
+    apply(i, false);
+    e.preventDefault();
+  }
+
+  function onMove(e) {
+    var i = FG.render.tileAt(e.clientX, e.clientY);
+    if (!dragging) {
+      if (e.pointerType !== 'touch') { FG.render.setHover(i); }
+      return;
+    }
+    if (i >= 0 && i !== lastTile) {
+      lastTile = i;
+      if (!isTouch) { FG.render.setHover(i); }
+      if (DRAGGABLE[FG.game.state.tool]) { apply(i, true); }
+    }
+    e.preventDefault();
+  }
+
+  function onUp(e) {
+    dragging = false;
+    lastTile = -1;
+    if (e && e.pointerType === 'touch') { FG.render.setHover(-1); }
+  }
+
+  function onKey(e) {
+    if (e.metaKey || e.ctrlKey || e.altKey) { return; }
+    var key = e.key;
+    if (key === 'Escape') { FG.ui.closePanel(); return; }
+    if (FG.ui.isPanelOpen()) { return; }
+
+    var n = parseInt(key, 10);
+    if (n >= 1 && n <= FG.TOOLS.length) {
+      FG.ui.selectTool(FG.TOOLS[n - 1].id);
+      FG.audio.unlock();
+      return;
+    }
+    var k = key.toLowerCase();
+    if (k === 'w') { FG.audio.unlock(); FG.game.waterAll(); }
+    else if (k === 'h') { FG.audio.unlock(); FG.game.harvestAll(); }
+    else if (k === 'b') { FG.ui.openPanel('barn'); }
+    else if (k === 'm') { FG.ui.openPanel('market'); }
+    else if (k === 's') { FG.ui.openPanel('shop'); }
+  }
+
+  FG.input = {
+    init: function (canvas) {
+      canvas.addEventListener('pointerdown', onDown);
+      canvas.addEventListener('pointermove', onMove);
+      canvas.addEventListener('pointerup', onUp);
+      canvas.addEventListener('pointercancel', onUp);
+      canvas.addEventListener('pointerleave', function (e) {
+        if (e.pointerType !== 'touch') { FG.render.setHover(-1); }
+      });
+      canvas.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+      window.addEventListener('keydown', onKey);
+      // iOS 사파리에서 더블탭 확대/당겨서 새로고침 방지
+      document.addEventListener('gesturestart', function (e) { e.preventDefault(); });
+      document.addEventListener('touchmove', function (e) {
+        if (e.target && e.target.closest && e.target.closest('.sheet-content')) { return; }
+        if (e.cancelable) { e.preventDefault(); }
+      }, { passive: false });
+    }
+  };
+})(window.FG);
+
+/* ===== js/main.js ===== */
+/* 부팅 & 게임 루프 */
+(function (FG) {
+  'use strict';
+
+  var last = 0;
+  var running = true;
+
+  function frame(now) {
+    var dt = (now - last) / 1000;
+    last = now;
+    if (dt > 0.1) { dt = 0.1; }          // 탭 전환 등으로 인한 큰 점프 방지
+    if (running && dt > 0) {
+      FG.game.update(dt);
+      FG.render.draw(dt);
+      FG.ui.updateHud();
+    }
+    requestAnimationFrame(frame);
+  }
+
+  function boot() {
+    var canvas = document.getElementById('farm');
+
+    var loaded = FG.game.load();
+    if (!loaded) { FG.game.newGame(); }
+
+    FG.render.init(canvas);
+    FG.ui.init();
+    FG.input.init(canvas);
+
+    if (!loaded) {
+      setTimeout(function () { FG.ui.toast('⛏️ 경작 → 🌱 씨앗 → 💧 물 순서로 시작해 보세요!', 'good'); }, 600);
+      setTimeout(function () { FG.ui.toast('🔨 두더지가 나타나면 망치로 두드려 잡으세요!', 'warn'); }, 3600);
+    } else {
+      FG.ui.toast('농장에 돌아오신 걸 환영합니다 — ' + FG.game.state.day + '일차', 'good');
+    }
+
+    // 탭을 벗어나면 저장하고, 돌아오면 그동안의 성장을 반영한다
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden) {
+        running = false;
+        FG.game.save();
+      } else {
+        var savedAt = FG.game.state.savedAt;
+        FG.game.applyOffline(savedAt);
+        last = performance.now();
+        running = true;
+      }
+    });
+    window.addEventListener('pagehide', function () { FG.game.save(); });
+    window.addEventListener('beforeunload', function () { FG.game.save(); });
+
+    last = performance.now();
+    requestAnimationFrame(frame);
+
+    if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
+      navigator.serviceWorker.register('sw.js').catch(function () { /* 오프라인 캐시는 선택 사항 */ });
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+})(window.FG);
+
+</script>
+</body>
+</html>

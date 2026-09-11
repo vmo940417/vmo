@@ -8,11 +8,22 @@
 
 ## 바로 실행하기
 
-### 1) 가장 간단한 방법 — 파일 열기
-`game/index.html`을 브라우저로 그냥 열면 바로 플레이됩니다.
-(오프라인 캐시만 동작하지 않고, 게임과 저장은 정상 동작합니다.)
+### 1) 파일 하나로 실행 (가장 쉬움) ⭐
+**`game/mole-farm.html` 한 파일만** 내려받아 더블클릭하면 끝입니다.
+CSS·JS·아이콘이 전부 안에 들어 있어 다른 파일이 필요 없고, 인터넷도 필요 없습니다.
+메신저로 보내거나 USB에 담아 옮겨도 그대로 실행됩니다.
 
-### 2) 로컬 서버로 실행 (권장, 같은 와이파이의 휴대폰에서도 접속 가능)
+> ⚠️ ZIP을 받았다면 **반드시 압축을 먼저 풀고** 여세요.
+> 압축 파일 안에서 `index.html`을 바로 더블클릭하면 윈도우가 그 파일 하나만
+> 임시폴더(`AppData\Local\Temp\...`)에 꺼내 열기 때문에, 옆에 있어야 할
+> `css/`·`js/` 폴더를 못 찾아 **글자만 나오고 게임이 안 뜹니다.**
+> (이 문제가 아예 없는 게 위의 `mole-farm.html` 단일 파일입니다.)
+
+### 2) 원본 폴더로 실행
+압축을 푼 뒤 `game/index.html`을 열면 됩니다. (`index.html`, `css/`, `js/`가
+같은 폴더에 함께 있어야 합니다.)
+
+### 3) 로컬 서버로 실행 (같은 와이파이의 휴대폰에서도 접속 가능)
 ```bash
 cd game
 python3 -m http.server 8000
@@ -20,7 +31,7 @@ python3 -m http.server 8000
 # 휴대폰:    http://<PC의 내부 IP>:8000   (예: http://192.168.0.12:8000)
 ```
 
-### 3) 휴대폰 홈 화면에 앱처럼 설치 (PWA)
+### 4) 휴대폰 홈 화면에 앱처럼 설치 (PWA)
 HTTPS로 서비스되는 주소에서 열면(예: GitHub Pages) `manifest.webmanifest` + `sw.js` 덕분에
 **홈 화면에 추가**로 설치되고, 이후에는 오프라인에서도 실행됩니다.
 GitHub Pages로 올리려면 저장소 **Settings → Pages → Source: main 브랜치 / 루트**로 지정한 뒤
@@ -58,6 +69,8 @@ GitHub Pages로 올리려면 저장소 **Settings → Pages → Source: main 브
 ```
 game/
 ├── index.html              화면 뼈대
+├── mole-farm.html          ⭐ 전부 합친 단일 실행 파일 (build_standalone.py로 생성)
+├── build_standalone.py     단일 파일 생성 스크립트
 ├── css/style.css           반응형 UI (모바일 세로/가로, 데스크톱)
 ├── manifest.webmanifest    PWA 설치 정보
 ├── sw.js                   오프라인 캐시
@@ -73,6 +86,9 @@ game/
     ├── input.js    포인터(마우스+터치) & 키보드 입력
     └── main.js     부팅 & 게임 루프
 ```
+
+`js/`나 `css/`를 고친 뒤에는 `python3 build_standalone.py`를 다시 실행해
+`mole-farm.html`을 갱신하세요.
 
 밸런스를 바꾸고 싶으면 `js/config.js`의 숫자만 고치면 됩니다.
 새 작물은 `FG.CROPS` 배열에 한 줄 추가하면 시장·상점·창고에 자동으로 반영됩니다.
