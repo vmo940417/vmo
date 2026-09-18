@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>화가 갤러리</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="header">
+    <h1>화가 갤러리</h1>
+    <p class="subtitle">화가를 선택하면 대표 작품을 보여줍니다 · The Metropolitan Museum of Art 소장품 API 연동</p>
+  </header>
+
+  <main>
+    <section class="artist-picker" id="artistPicker" aria-label="화가 선택">
+      <!-- 화가 버튼은 app.js에서 렌더링 -->
+    </section>
+
+    <section class="gallery-status" id="galleryStatus" aria-live="polite"></section>
+
+    <section class="gallery" id="gallery"></section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
