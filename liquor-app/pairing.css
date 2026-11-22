@@ -66,3 +66,13 @@ a.item { text-decoration: none; }
 .p-cats .chip small { font-size: 11px; opacity: .65; margin-left: 2px; }
 .p-foodgrid { display: flex; flex-wrap: wrap; gap: 7px; margin: 2px 0 8px; }
 .p-foodgrid .chip { flex: none; }
+
+/* 술 상세: 살 수 있는 곳 */
+.buy-main { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 16px; text-decoration: none; color: var(--ink);
+  background: color-mix(in srgb, var(--accent) 9%, var(--paper)); border: 1.5px solid color-mix(in srgb, var(--accent) 35%, var(--line)); }
+.buy-main span { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.buy-main b { font-size: 15px; overflow-wrap: anywhere; }
+.buy-main small { color: var(--muted); font-size: 12.5px; }
+.buy-main i { font-style: normal; color: var(--muted); }
+.buy .linkbtns a { word-break: keep-all; display: flex; flex-direction: column; gap: 2px; }
+.buy .linkbtns small { font-weight: 500; color: var(--muted); font-size: 12px; }

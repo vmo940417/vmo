@@ -9,6 +9,10 @@
 - 점수 엔진(`pairing-engine.js`)과 데이터(`pairing-data.js`)는 [wine-sake-pairing](https://github.com/vmo940417/wine-sake-pairing) 저장소에서 Python 엔진과 결과를 대조한 뒤 복사한 생성 파일. 규칙·데이터는 그쪽에서 고친다
 - 제품 → 스타일 연결 규칙은 `pairing.js` 의 `styleOf()` (품종·등급·향형·키워드 기준)
 
+## 살 수 있는 곳 (술 상세 → 개요)
+- 데일리샷 검색: `https://dailyshot.co/m/search/result?q=<술 이름>` (데일리샷 사이트 코드의 검색 경로·`q` 파라미터 기준). 온라인 주문 후 매장 픽업은 데일리샷 안에서 위치·매장을 고름
+- 내 주변 매장: 네이버 지도·카카오맵 검색(와인 → 와인샵, 소주·막걸리·맥주 → 주류 판매점, 그 외 → 바틀샵). 위치는 지도 앱이 직접 쓰고, 오늘술상은 위치를 받거나 저장하지 않음
+
 ## 친구에게 공유 (설치 페이지)
 - 설치 페이지: https://vmo940417.github.io/vmo/liquor-app/install.html — 카톡으로 이 링크나 `invite-card.png`(QR)를 보내면 됨
 - 카톡 안에서 열면 안드로이드는 크롬, 아이폰은 사파리로 자동으로 넘김 (카톡 내장 브라우저는 설치를 못 함)

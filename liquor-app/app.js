@@ -586,7 +586,26 @@ function paneOverview(it) {
       <a class="gsearch" style="margin-top:14px" href="${safeUrl(googleUrl(it.en || it.ko))}" target="_blank" rel="noopener">${ICO.g}<span>구글에서 ‘<b>${esc(it.ko || it.en)}</b>’ 더 보기</span><i>↗</i></a>
       <button class="btn ghost block" id="editBtn" style="margin-top:10px">${ICO.edit} 정보 수정</button>
     </div>
+    ${buyPanel(it)}
     ${it.web && it.desc && sim ? `<div class="section-title">수록된 비슷한 술</div>${sim}` : ""}`;
+}
+/* 살 수 있는 곳: 데일리샷 검색(온라인 주문·매장 픽업) + 지도 앱의 내 주변 매장.
+ * 위치는 지도 앱이 직접 쓰므로 오늘술상은 위치 정보를 받지 않는다. */
+const DAILYSHOT = (q) => `https://dailyshot.co/m/search/result?q=${enc(q)}`;
+const SHOP_WORD = { wine: "와인샵", soju: "주류 판매점", makgeolli: "주류 판매점", beer: "주류 판매점" };
+function buyPanel(it) {
+  const name = cleanName(it.ko || it.en);
+  const shop = SHOP_WORD[it.cat] || "바틀샵";
+  return `<div class="panel buy">
+      <h3>살 수 있는 곳</h3>
+      <a class="buy-main" href="${safeUrl(DAILYSHOT(name))}" target="_blank" rel="noopener">
+        <span><b>데일리샷에서 ‘${esc(name)}’ 찾기</b><small>온라인으로 주문하고 가까운 매장에서 픽업</small></span><i>↗</i></a>
+      <div class="linkbtns">
+        <a href="${safeUrl(`https://map.naver.com/p/search/${enc(shop)}`)}" target="_blank" rel="noopener">네이버 지도 ↗<small>내 주변 ${esc(shop)}</small></a>
+        <a href="${safeUrl(`https://map.kakao.com/link/search/${enc(shop)}`)}" target="_blank" rel="noopener">카카오맵 ↗<small>내 주변 ${esc(shop)}</small></a>
+      </div>
+      <p class="hint" style="margin:10px 2px 0">지도는 휴대폰 위치로 가까운 매장을 보여줘요. 오늘술상은 위치를 받거나 저장하지 않아요.</p>
+    </div>`;
 }
 function panePrice(it) {
   const p = it.price || {}, usd = usdOf(it);
@@ -1053,7 +1072,7 @@ function renderSettings() {
 // 페어링 모듈(pairing.js)이 쓰는 공통 함수
 window.SulApp = { $, view, esc, enc, go, store, setChrome, pagedList, itemRow, bindItems };
 $("#setBtn").onclick = () => go("#/settings");
-const APP_VERSION = "2026.11-v24";
+const APP_VERSION = "2026.11-v25";
 loadFX().then(() => { if (/#\/(item|browse|ranking)/.test(location.hash)) render(); });
 // 이전 버전에서 저장된 AI 설정·캐시 정리
 try { Object.keys(localStorage).filter((k) => /^sulsajeon\.(settings|aiItems|live\.|rank\.)/.test(k)).forEach((k) => localStorage.removeItem(k)); } catch {}
