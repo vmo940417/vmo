@@ -336,7 +336,7 @@ function showLensSheet(shot) {
         <button class="btn ghost" data-a="retake">다시 찍기</button>
       </div>
       <p class="hint" style="text-align:center;margin-bottom:0">${share
-        ? "공유 화면에서 <b>Google 렌즈</b>(또는 <b>Google로 검색</b>)를 고르세요"
+        ? "공유 화면 아래 앱 줄을 옆으로 넘겨 <b>Google 렌즈</b>(G 아이콘)를 고르세요.<br>길게 눌러 <b>고정</b>하면 다음부터 맨 앞에 나와요"
         : "렌즈 화면이 열리면 방금 찍은 사진을 선택하세요"}</p>
     </div>`;
   document.body.appendChild(el);
@@ -1120,7 +1120,7 @@ function renderSettings() {
 // 페어링 모듈(pairing.js)이 쓰는 공통 함수
 window.SulApp = { $, view, esc, enc, go, store, setChrome, pagedList, itemRow, bindItems };
 $("#setBtn").onclick = () => go("#/settings");
-const APP_VERSION = "2026.11-v17";
+const APP_VERSION = "2026.11-v18";
 loadFX().then(() => { if (/#\/(item|browse|ranking)/.test(location.hash)) render(); });
 // 이전 버전에서 저장된 AI 설정·캐시 정리
 try { Object.keys(localStorage).filter((k) => /^sulsajeon\.(settings|aiItems|live\.|rank\.)/.test(k)).forEach((k) => localStorage.removeItem(k)); } catch {}
