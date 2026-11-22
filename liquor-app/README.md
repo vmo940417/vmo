@@ -11,7 +11,7 @@
 | 분류 | 기관 |
 |---|---|
 | 와인 | Vivino, Robert Parker(Wine Advocate), Wine Spectator, James Suckling |
-| 사케 | SAKE COMPETITION, 全国新酒鑑評会, IWC SAKE, Kura Master, さけのわ 랭킹 |
+| 사케 | さけのわ(Sakenowa) 평점·랭킹 |
 | 위스키 | World Whiskies Awards, ISC, IWSC, San Francisco WSC |
 | 꼬냑 | IWSC, ISC, San Francisco WSC, BNIC 숙성 등급 |
 | 중국술 | 中国名酒(전국평주회), San Francisco WSC, Concours Mondial de Bruxelles, IWSC |

@@ -1,6 +1,8 @@
 /* 술사전 — 검색 중심 앱 (외부 AI 연동 없음) */
 const CATS = window.CATEGORIES;
 const DB = window.LIQUORS;
+// 사케 평가는 さけのわ(일본 최대 사케 유저 평점·랭킹)만 사용
+for (const it of DB) if (it.cat === "sake") it.ratings = (it.ratings || []).filter((r) => r.src.startsWith("さけのわ"));
 const $ = (s, r = document) => r.querySelector(s);
 const view = $("#view");
 
@@ -379,10 +381,6 @@ const SOURCE_INFO = {
   "Robert Parker (Wine Advocate)": { site: "robertparker.com", score: "100", d: "로버트 파커 와인 애드버킷(100점 만점)" },
   "Wine Spectator": { site: "winespectator.com", score: "100", d: "미국 와인 전문지(100점 만점)" },
   "James Suckling": { site: "jamessuckling.com", score: "100", d: "제임스 서클링(100점 만점)" },
-  "SAKE COMPETITION": { site: "sakecompetition.com", lang: "ja", score: "medal", d: "일본 최대 규모 시판주 블라인드 품평회" },
-  "全国新酒鑑評会": { site: "nrib.go.jp", lang: "ja", score: "medal", d: "일본 주류총합연구소 주최 신주 품평회(금상)" },
-  "IWC SAKE": { site: "internationalwinechallenge.com", score: "medal", d: "영국 IWC 사케 부문" },
-  "Kura Master": { site: "kuramaster.com", score: "medal", d: "프랑스 소믈리에 심사 사케 품평회" },
   "さけのわ (Sakenowa)": { site: "sakenowa.com", lang: "ja", score: "5", d: "일본 최대 사케 체크인 앱 인기 랭킹" },
   "World Whiskies Awards": { site: "worldwhiskiesawards.com", score: "medal", d: "Whisky Magazine 주관 세계 위스키 어워드" },
   "ISC": { site: "isc.co.uk", score: "medal", d: "International Spirits Challenge (영국)" },
@@ -1063,7 +1061,7 @@ function openEditor(it) {
 
 /* ───────── 랭킹 (공식 출처 바로가기) ───────── */
 const RANK_INFO = {
-  sake: { t: "사케 랭킹", d: "일본 SAKE COMPETITION 최신 회차 + さけのわ 인기 랭킹", links: [["SAKE COMPETITION", "https://sakecompetition.com/"], ["さけのわ ランキング", "https://sakenowa.com/ranking"], ["全国新酒鑑評会", "https://www.nrib.go.jp/kan/"], ["Kura Master", "https://kuramaster.com/"]] },
+  sake: { t: "사케 랭킹", d: "さけのわ 인기 랭킹 (일본 최대 사케 유저 평점)", links: [["さけのわ ランキング", "https://sakenowa.com/ranking"]] },
   wine: { t: "와인 랭킹", d: "Wine Spectator Top 100 · Vivino · James Suckling", links: [["WS Top 100", "https://top100.winespectator.com/"], ["Vivino", "https://www.vivino.com/"], ["James Suckling", "https://www.jamessuckling.com/"], ["Robert Parker", "https://www.robertparker.com/"]] },
   whisky: { t: "위스키 랭킹", d: "World Whiskies Awards · ISC · IWSC · SFWSC", links: [["WWA", "https://www.worldwhiskiesawards.com/"], ["ISC", "https://www.isc.co.uk/"], ["IWSC", "https://www.iwsc.net/"], ["SFWSC", "https://sfspiritscomp.com/"]] },
   cognac: { t: "꼬냑 랭킹", d: "IWSC · San Francisco WSC · ISC 꼬냑 부문", links: [["IWSC", "https://www.iwsc.net/"], ["SFWSC", "https://sfspiritscomp.com/"], ["ISC", "https://www.isc.co.uk/"], ["BNIC", "https://www.cognac.fr/"]] },
@@ -1138,7 +1136,7 @@ function renderSettings() {
 }
 
 /* ───────── 시작 ───────── */
-const APP_VERSION = "2026.11-v14";
+const APP_VERSION = "2026.11-v15";
 loadFX().then(() => { if (/#\/(item|browse|ranking)/.test(location.hash)) render(); });
 // 이전 버전에서 저장된 AI 설정·캐시 정리
 try { Object.keys(localStorage).filter((k) => /^sulsajeon\.(settings|aiItems|live\.|rank\.)/.test(k)).forEach((k) => localStorage.removeItem(k)); } catch {}

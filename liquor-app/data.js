@@ -6,7 +6,7 @@ window.LIQUOR_ASOF = "2025 하반기";
 
 window.CATEGORIES = {
   wine:   { ko: "와인",   en: "Wine",    glyph: "葡", emoji: "🍷", sources: ["Vivino", "Robert Parker (Wine Advocate)", "Wine Spectator", "James Suckling"] },
-  sake:   { ko: "사케",   en: "Sake",    glyph: "酒", emoji: "🍶", sources: ["SAKE COMPETITION", "全国新酒鑑評会", "IWC SAKE", "Kura Master", "さけのわ"] },
+  sake:   { ko: "사케",   en: "Sake",    glyph: "酒", emoji: "🍶", sources: ["さけのわ (Sakenowa)"] },
   whisky: { ko: "위스키", en: "Whisky",  glyph: "麦", emoji: "🥃", sources: ["World Whiskies Awards", "ISC", "IWSC", "San Francisco WSC"] },
   cognac: { ko: "꼬냑",   en: "Cognac",  glyph: "樽", emoji: "🥂", sources: ["IWSC", "ISC", "San Francisco WSC", "BNIC 등급"] },
   baijiu: { ko: "중국술", en: "Baijiu",  glyph: "白", emoji: "🏮", sources: ["中国名酒(全国评酒会)", "San Francisco WSC", "Concours Mondial de Bruxelles", "IWSC"] },
