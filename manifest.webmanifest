@@ -1,0 +1,17 @@
+{
+  "name": "술사전",
+  "short_name": "술사전",
+  "description": "와인·사케·위스키·꼬냑·중국술 — 설명, 최신 해외 시세, 품종, 공신력 있는 평가, 페어링",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f7f2ea",
+  "theme_color": "#6e1630",
+  "lang": "ko",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
