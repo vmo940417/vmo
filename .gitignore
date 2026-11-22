@@ -19,3 +19,4 @@ output_nuri/
 .env
 client_secret*.json
 token.json
+!liquor-app/*.png
