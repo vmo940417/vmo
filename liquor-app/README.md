@@ -33,5 +33,5 @@ cd liquor-app && python3 -m http.server 8000
 휴대폰에서 열고 "홈 화면에 추가"하면 앱처럼 설치됩니다. (카메라·서비스워커는 HTTPS 또는 localhost 필요 → GitHub Pages/Netlify/Vercel 등에 올려 사용)
 
 ## 데이터
-- `data.js` — 기본 수록 45종. 가격은 수집 시점 참고 범위, 평가는 최근 빈티지/출품 기준 통상 범위 또는 확인된 수상 이력.
+- `data.js` — 기본 수록 145종 (data.js 45 + data-extra.js 100). 가격은 수집 시점 참고 범위, 평가는 최근 빈티지/출품 기준 통상 범위 또는 확인된 수상 이력.
 - `vendor/anthropic-sdk.mjs` — `@anthropic-ai/sdk@1.5.0` esbuild 번들.

@@ -35,7 +35,7 @@ function toast(msg) {
 function norm(s) {
   return String(s || "")
     .normalize("NFKC").toLowerCase()
-    .normalize("NFD").replace(/[̀-ͯ]/g, "")       // 악센트 제거 (é → e)
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "").normalize("NFC") // 악센트 제거(é→e) 후 한글 재조합
     .replace(/[ァ-ヶ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60)) // 가타카나 → 히라가나
     .replace(/[\s·・.,'’"\-–_()（）\/&]/g, "");
 }
@@ -49,7 +49,8 @@ function keysOf(it) {
   return [it.ko, it.en, it.ja, it.zh, it.producer, ...(it.aliases || [])].filter(Boolean).map(norm);
 }
 function allItems() { return [...DB, ...Object.values(store.get("aiItems", {}))]; }
-function search(q) {
+function search(q, min = 0.42) { return searchScored(q, min).map((r) => r[1]); }
+function searchScored(q, min = 0.42) {
   const nq = norm(q); if (!nq) return [];
   const res = [];
   for (const it of allItems()) {
@@ -61,9 +62,9 @@ function search(q) {
     }
     const extra = norm([it.style, it.region, it.country, CATS[it.cat]?.ko, ...(it.ingredients || []).map((g) => g.name)].join(" "));
     if (nq.length >= 2 && extra.includes(nq)) best = Math.max(best, 0.6);
-    if (best >= 0.42) res.push([best, it]);
+    if (best >= min) res.push([best, it]);
   }
-  return res.sort((a, b) => b[0] - a[0]).map((r) => r[1]);
+  return res.sort((a, b) => b[0] - a[0]);
 }
 const findById = (id) => allItems().find((x) => x.id === id);
 
@@ -105,6 +106,7 @@ function priceLinks(it) {
 /* ───────── 라우팅 ───────── */
 const go = (h) => { if (location.hash !== h) location.hash = h; else render(); };
 window.addEventListener("hashchange", render);
+$("#aiBadge").onclick = () => go("#/settings");
 $("#backBtn").onclick = () => history.length > 1 ? history.back() : go("#/search");
 $("#tabbar").addEventListener("click", (e) => {
   const b = e.target.closest("button[data-tab]"); if (!b) return;
@@ -121,6 +123,7 @@ function setChrome(tab, title, back = false) {
 function render() {
   const [, route = "search", a, b] = location.hash.split(/[\/?]/).map(decodeURIComponent);
   applyTheme();
+  if (route !== "camera") stopCamera();
   if (route === "item") return renderDetail(a, b || "overview");
   if (route === "browse") return renderBrowse(a);
   if (route === "camera") return renderCamera();
@@ -169,16 +172,21 @@ function renderSearch(q) {
     const out = $("#results");
     if (!v) {
       out.innerHTML = `
-        <div class="section-title">주종 둘러보기</div>${catGrid()}
+        ${AI.aiEnabled() ? "" : `<button class="ai-cta" id="aiCta"><b>✦ AI 연결하기</b><span>라벨 사진 판독 · 조회 시점 최신 시세 · 미수록 술 검색</span></button>`}
+        <div class="section-title">주종 둘러보기 <small>${allItems().length}종 수록</small></div>${catGrid()}
         ${recent.length ? `<div class="section-title">최근 본 술</div><div class="list">${recent.map(itemRow).join("")}</div>` : ""}`;
       out.querySelectorAll(".cat-tile").forEach((t) => t.onclick = () => go("#/browse/" + t.dataset.cat));
+      const cta = out.querySelector("#aiCta"); if (cta) cta.onclick = () => go("#/settings");
       bindItems(out); return;
     }
     const r = search(v);
     out.innerHTML = `
       <div class="section-title">검색 결과 <small>${r.length}건</small></div>
       ${r.length ? `<div class="list">${r.map(itemRow).join("")}</div>` : `<div class="empty"><span class="glyph">酒</span>수록된 술 중에 없어요.</div>`}
-      <button class="btn gold block" id="aiFind" style="margin-top:14px">✦ AI로 “${esc(v)}” 웹에서 찾기</button>
+      ${r.length < 3 ? `<div class="section-title">웹에서 바로 찾기</div>
+      <div class="linkbtns">${webLinks(v).map(([n, u]) => `<a href="${safeUrl(u)}" target="_blank" rel="noopener">${esc(n)} ↗</a>`).join("")}</div>` : ""}
+      <button class="btn gold block" id="aiFind" style="margin-top:14px">✦ AI로 “${esc(v)}” 정리해서 보기</button>
+      ${AI.aiEnabled() ? "" : `<p class="hint" style="text-align:center">AI 정리는 설정에서 Claude API 키를 넣으면 사용할 수 있어요</p>`}
       <div id="aiOut"></div>`;
     bindItems(out);
     $("#aiFind").onclick = () => aiFullLookup(v);
@@ -186,6 +194,14 @@ function renderSearch(q) {
   input.addEventListener("input", () => { history.replaceState(null, "", "#/search?q=" + enc(input.value)); draw(); });
   $("#sform").onsubmit = (e) => { e.preventDefault(); input.blur(); };
   draw();
+}
+function webLinks(q) {
+  return [
+    ["Google 검색", `https://www.google.com/search?q=${enc(q + " 술")}`],
+    ["Vivino (와인)", `https://www.vivino.com/search/wines?q=${enc(q)}`],
+    ["Wine-Searcher", `https://www.wine-searcher.com/find/${enc(q.trim().replace(/\s+/g, "+"))}`],
+    ["さけのわ (사케)", `https://www.google.com/search?q=${enc("site:sakenowa.com " + q)}`],
+  ];
 }
 function catGrid() {
   const keys = Object.keys(CATS);
@@ -406,33 +422,99 @@ function panePairing(it) {
     <div class="notice">공통 유의: 고도주(40%↑)는 물과 함께 천천히, 공복 음용과 탄산음료·에너지음료 혼합은 피하세요. 복용 중인 약이 있다면 음주 전 확인이 필요합니다.</div>`;
 }
 
-/* ───────── 촬영 ───────── */
+/* ───────── 촬영 (렌즈 스타일) ───────── */
+let camStream = null;
+function stopCamera() { if (camStream) { camStream.getTracks().forEach((t) => t.stop()); camStream = null; } }
+const ICON = {
+  gallery: `<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></svg>`,
+  lens: `<svg viewBox="0 0 24 24"><path d="M4 9V6a2 2 0 0 1 2-2h3M15 4h3a2 2 0 0 1 2 2v3M20 15v3a2 2 0 0 1-2 2h-3M9 20H6a2 2 0 0 1-2-2v-3"/><circle cx="12" cy="12" r="3.2"/></svg>`,
+  retake: `<svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>`,
+};
 function renderCamera() {
   setChrome("camera", "라벨 촬영");
   view.innerHTML = `
-    <label class="camera-drop" for="cam">
-      <span class="big"><svg viewBox="0 0 24 24"><path d="M4 8h3l1.6-2.2h6.8L17 8h3v11H4z"/><circle cx="12" cy="13.3" r="3.4"/></svg></span>
-      <h3>라벨을 찍어 주세요</h3>
-      <span class="hint" style="margin:0">병 정면 라벨이 잘 보이게 · 사케 한자 라벨, 중국어 라벨도 OK</span>
-      <img id="preview" class="hidden" alt="" />
-    </label>
-    <input id="cam" type="file" accept="image/*" capture="environment" class="hidden" />
-    <button class="btn ghost block" id="pick" style="margin-top:10px">앨범에서 선택</button>
-    <div id="camOut"></div>
-    <div class="notice">${AI.aiEnabled() ? "✦ Claude 비전으로 라벨을 판독합니다." : "API 키가 없으면 기기 내 OCR(문자 인식)로 라벨 글자를 읽어 검색합니다. 정확도는 AI 모드가 훨씬 높습니다."}</div>`;
-  const input = $("#cam");
-  $("#pick").onclick = () => { input.removeAttribute("capture"); input.click(); input.setAttribute("capture", "environment"); };
-  input.onchange = async () => {
-    const f = input.files?.[0]; if (!f) return;
-    const { dataUrl, base64 } = await shrink(f);
-    const img = $("#preview"); img.src = dataUrl; img.classList.remove("hidden");
+    <section class="lens" id="lens">
+      <video id="vid" playsinline muted autoplay></video>
+      <img id="shot" class="hidden" alt="" />
+      <div class="lens-frame"><i></i><i></i><i></i><i></i><div class="scanline hidden" id="scan"></div></div>
+      <div class="lens-hint" id="hint">라벨을 프레임 안에 맞춰 주세요</div>
+      <div class="lens-ctrl">
+        <button class="lens-side" id="gal" aria-label="앨범">${ICON.gallery}<span>앨범</span></button>
+        <button class="shutter" id="snap" aria-label="촬영"><span></span></button>
+        <button class="lens-side" id="glens" aria-label="Google 렌즈">${ICON.lens}<span>구글 렌즈</span></button>
+      </div>
+    </section>
+    <input id="file" type="file" accept="image/*" class="hidden" />
+    <div class="sheet hidden" id="sheet"><div class="grab"></div><div id="camOut"></div></div>`;
+  const vid = $("#vid"), file = $("#file");
+  let lastBlob = null;
+
+  const startCam = async () => {
+    stopCamera();
+    try {
+      camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false });
+      vid.srcObject = camStream; await vid.play().catch(() => {});
+    } catch {
+      $("#hint").textContent = "카메라를 열 수 없어요 — 셔터를 누르면 기본 카메라가 열립니다";
+      vid.classList.add("hidden");
+    }
+  };
+  const reset = () => {
+    $("#shot").classList.add("hidden"); vid.classList.remove("hidden");
+    $("#sheet").classList.add("hidden"); $("#scan").classList.add("hidden");
+    $("#hint").textContent = "라벨을 프레임 안에 맞춰 주세요"; $("#hint").classList.remove("hidden");
+    $("#snap").innerHTML = "<span></span>"; $("#snap").classList.remove("retake");
+    if (!camStream) startCam();
+  };
+  const process = async (dataUrl, base64) => {
+    stopCamera();
+    lastBlob = await (await fetch(dataUrl)).blob();
+    const shot = $("#shot"); shot.src = dataUrl; shot.classList.remove("hidden"); vid.classList.add("hidden");
+    $("#scan").classList.remove("hidden"); $("#hint").textContent = AI.aiEnabled() ? "AI가 라벨을 읽는 중…" : "글자를 읽는 중…";
+    $("#snap").innerHTML = ICON.retake; $("#snap").classList.add("retake");
     const out = $("#camOut");
-    out.innerHTML = loadingHTML(AI.aiEnabled() ? "라벨 분석 중…" : "글자 인식 중… (첫 실행 시 언어 데이터 다운로드)");
     try {
       if (AI.aiEnabled()) await identifyWithAI(base64, out);
       else await identifyWithOCR(dataUrl, out);
-    } catch (e) { out.innerHTML = `<div class="notice">⚠️ ${esc(e.message)}</div>`; }
+    } catch (e) { out.innerHTML = `<div class="notice">⚠️ ${esc(e.message)}</div>${lensActions()}`; wireLensActions(out); }
+    $("#scan").classList.add("hidden"); $("#hint").classList.add("hidden");
+    $("#sheet").classList.remove("hidden");
   };
+  const lensActions = () => `<div class="linkbtns" style="margin-top:12px">
+      <button class="btn ghost" data-act="glens">${ICON.lens} 구글 렌즈로 보기</button>
+      <button class="btn ghost" data-act="retake">${ICON.retake} 다시 찍기</button></div>`;
+  const wireLensActions = (root) => {
+    root.querySelectorAll("[data-act=glens]").forEach((b) => b.onclick = () => openGoogleLens(lastBlob));
+    root.querySelectorAll("[data-act=retake]").forEach((b) => b.onclick = reset);
+  };
+  window.__lensActions = { html: lensActions, wire: wireLensActions };
+
+  $("#snap").onclick = async () => {
+    if ($("#snap").classList.contains("retake")) return reset();
+    if (!camStream || !vid.videoWidth) return file.click();
+    const k = Math.min(1, 1568 / Math.max(vid.videoWidth, vid.videoHeight));
+    const cv = document.createElement("canvas"); cv.width = Math.round(vid.videoWidth * k); cv.height = Math.round(vid.videoHeight * k);
+    cv.getContext("2d").drawImage(vid, 0, 0, cv.width, cv.height);
+    const dataUrl = cv.toDataURL("image/jpeg", 0.85);
+    $("#lens").classList.add("flash"); setTimeout(() => $("#lens")?.classList.remove("flash"), 250);
+    process(dataUrl, dataUrl.split(",")[1]);
+  };
+  $("#gal").onclick = () => file.click();
+  $("#glens").onclick = () => lastBlob ? openGoogleLens(lastBlob) : openGoogleLens(null);
+  file.onchange = async () => { const f = file.files?.[0]; if (!f) return; const { dataUrl, base64 } = await shrink(f); process(dataUrl, base64); file.value = ""; };
+  startCam();
+}
+async function openGoogleLens(blob) {
+  // 안드로이드: 공유 시트 → "Google 렌즈" 또는 "Google" 앱 선택
+  if (blob) {
+    const f = new File([blob], "label.jpg", { type: "image/jpeg" });
+    if (navigator.canShare?.({ files: [f] })) {
+      try { await navigator.share({ files: [f], title: "술사전 라벨" }); return; } catch (e) { if (e.name === "AbortError") return; }
+    }
+  }
+  toast(blob ? "공유가 지원되지 않아 구글 렌즈 웹을 엽니다" : "먼저 사진을 찍으면 그 사진을 구글 렌즈로 보낼 수 있어요");
+  if (!blob) return;
+  window.open("https://lens.google.com/", "_blank", "noopener");
 }
 function shrink(file, max = 1568) {
   return new Promise((res, rej) => {
@@ -451,33 +533,42 @@ function shrink(file, max = 1568) {
 }
 async function identifyWithAI(base64, out) {
   const r = await AI.identifyImage(base64, "image/jpeg");
-  if (!r.found) { out.innerHTML = `<div class="notice">라벨을 식별하지 못했어요. 라벨이 정면으로 크게 보이게 다시 찍어 주세요.${r.labelText ? `<br>읽은 글자: ${esc(r.labelText)}` : ""}</div>`; return; }
-  const hits = [r.en, r.ko, r.ja, r.zh, ...(r.candidates || [])].filter(Boolean).flatMap((q) => search(q));
+  const A = window.__lensActions;
+  if (!r.found) {
+    out.innerHTML = `<h3 class="sheet-h">라벨을 식별하지 못했어요</h3><p class="hint">라벨이 정면으로 크게 보이게 다시 찍어 주세요.${r.labelText ? `<br>읽은 글자: ${esc(r.labelText)}` : ""}</p>${A.html()}`;
+    A.wire(out); return;
+  }
+  const hits = [r.en, r.ko, r.ja, r.zh, ...(r.candidates || [])].filter(Boolean).flatMap((q) => search(q, 0.75));
   const uniq = [...new Map(hits.map((x) => [x.id, x])).values()].slice(0, 5);
   const label = r.ko || r.en;
-  out.innerHTML = `<div class="ai-box"><div class="ai-h">✦ 인식 결과 · 신뢰도 ${Math.round((r.confidence || 0) * 100)}%</div>
-      <b>${esc(label)}</b>${r.vintage ? ` · ${esc(r.vintage)}` : ""}<br><small>${esc([r.en, r.ja, r.zh, r.producer].filter(Boolean).join(" · "))}</small></div>
-    ${uniq.length ? `<div class="section-title">술사전 수록 항목</div><div class="list">${uniq.map(itemRow).join("")}</div>` : ""}
-    <button class="btn gold block" id="aiFind" style="margin-top:12px">✦ “${esc(label)}” 전체 정보 웹에서 조회</button><div id="aiOut"></div>`;
-  bindItems(out);
+  out.innerHTML = `<div class="sheet-top"><span class="pill">✦ 신뢰도 ${Math.round((r.confidence || 0) * 100)}%</span></div>
+    <h3 class="sheet-h">${esc(label)}${r.vintage ? ` <small>${esc(r.vintage)}</small>` : ""}</h3>
+    <p class="hint" style="margin:0 0 10px">${esc([r.en !== label ? r.en : "", r.ja, r.zh, r.producer].filter(Boolean).join(" · "))}</p>
+    ${uniq.length ? `<div class="list">${uniq.map(itemRow).join("")}</div>` : ""}
+    <button class="btn gold block" id="aiFind" style="margin-top:12px">✦ ${uniq.length ? "웹에서 최신 정보 조회" : `“${esc(label)}” 전체 정보 조회`}</button><div id="aiOut"></div>
+    ${A.html()}`;
+  bindItems(out); A.wire(out);
   $("#aiFind").onclick = () => aiFullLookup([r.en, r.vintage].filter(Boolean).join(" ") || label);
 }
 async function identifyWithOCR(dataUrl, out) {
+  const A = window.__lensActions;
   if (!window.Tesseract) await new Promise((res, rej) => {
     const s = document.createElement("script");
     s.src = "https://cdn.jsdelivr.net/npm/tesseract.js@6.0.1/dist/tesseract.min.js";
-    s.onload = res; s.onerror = () => rej(new Error("OCR 엔진을 불러오지 못했습니다(네트워크 확인)."));
+    s.onload = res; s.onerror = () => rej(new Error("글자 인식 엔진을 불러오지 못했습니다(네트워크 확인)."));
     document.head.appendChild(s);
   });
-  const { data } = await window.Tesseract.recognize(dataUrl, "eng+jpn+kor+chi_sim");
+  const { data } = await window.Tesseract.recognize(dataUrl, "eng+jpn+chi_sim");
   const text = (data.text || "").replace(/\s+/g, " ").trim();
   const tokens = [text, ...text.split(/[\s|]+/).filter((t) => t.length >= 2)];
   const scored = new Map();
   tokens.forEach((t) => search(t).forEach((it, i) => scored.set(it.id, (scored.get(it.id) || 0) + 1 / (i + 1))));
   const list = [...scored].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([id]) => findById(id));
-  out.innerHTML = `<div class="notice">읽은 글자: ${esc(text.slice(0, 160) || "(없음)")}</div>
-    ${list.length ? `<div class="section-title">후보</div><div class="list">${list.map(itemRow).join("")}</div>` : `<div class="empty">일치하는 술을 찾지 못했어요. 검색 탭에서 직접 입력해 보세요.</div>`}`;
-  bindItems(out);
+  out.innerHTML = `<h3 class="sheet-h">${list.length ? "이 술인가요?" : "일치하는 술을 찾지 못했어요"}</h3>
+    ${list.length ? `<div class="list">${list.map(itemRow).join("")}</div>` : `<p class="hint">구글 렌즈로 보거나, 설정에서 AI를 켜면 라벨을 훨씬 정확하게 읽어요.</p>`}
+    ${A.html()}
+    <div class="notice">기기 내 글자 인식 결과: ${esc(text.slice(0, 120) || "(없음)")}<br>✦ 설정에서 Claude API 키를 넣으면 AI가 라벨을 직접 판독합니다.</div>`;
+  bindItems(out); A.wire(out);
 }
 
 /* ───────── 랭킹 ───────── */

@@ -1,6 +1,6 @@
 // 술사전 서비스워커 — 앱 셸 오프라인 캐시 (API 호출은 캐시하지 않음)
-const CACHE = "sulsajeon-v1";
-const SHELL = ["./", "index.html", "styles.css", "app.js", "ai.js", "data.js", "vendor/anthropic-sdk.mjs", "manifest.webmanifest", "icon.svg"];
+const CACHE = "sulsajeon-v2";
+const SHELL = ["./", "index.html", "styles.css", "app.js", "ai.js", "data.js", "data-extra.js", "vendor/anthropic-sdk.mjs", "manifest.webmanifest", "icon.svg"];
 self.addEventListener("install", (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL))); self.skipWaiting(); });
 self.addEventListener("activate", (e) => {
   e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE).map((k) => caches.delete(k)))));
