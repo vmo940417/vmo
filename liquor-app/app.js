@@ -450,12 +450,12 @@ $("#tabbar").addEventListener("click", (e) => {
 });
 function setChrome(tab, title, back = false) {
   document.querySelectorAll("#tabbar button").forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
-  $("#title").innerHTML = title ?? `<span class="seal">${bottle("wine")}</span>술이 먼저야`;
+  $("#title").innerHTML = title ?? `<span class="seal">${bottle("wine")}</span>오늘술상`;
   $("#backBtn").classList.toggle("hidden", !back);
   window.scrollTo(0, 0);
 }
 function render() {
-  const [, route = "search", a, b] = location.hash.split(/[\/?]/).map(decodeURIComponent);
+  const [, route = "pair", a, b] = location.hash.split(/[\/?]/).map(decodeURIComponent);
   applyTheme();
   $("#editSheet")?.remove();
   if (route === "item") return renderDetail(a, b || "overview");
@@ -463,6 +463,8 @@ function render() {
   if (route === "browse") return renderBrowse(a);
   if (route === "ranking") return renderRanking(a || "sake");
   if (route === "settings") return renderSettings();
+  if (route === "pair") return window.Pairing.renderPair();
+  if (route === "style") return window.Pairing.renderStyle(a);
   return renderSearch(new URLSearchParams(location.hash.split("?")[1] || "").get("q") || "");
 }
 
@@ -606,7 +608,7 @@ function renderBrowse(cat) {
 const ING_LABEL = { wine: "품종", sake: "쌀·정미", whisky: "원료·캐스크", cognac: "포도·크뤼", baijiu: "원료·향형", soju: "원료", makgeolli: "원료", beer: "원료·스타일", other: "원료" };
 function renderDetail(id, tab) {
   const it = findById(id);
-  if (!it) { setChrome("search", "술이 먼저야", true); view.innerHTML = `<div class="empty">항목을 찾을 수 없습니다.</div>`; return; }
+  if (!it) { setChrome("search", "오늘술상", true); view.innerHTML = `<div class="empty">항목을 찾을 수 없습니다.</div>`; return; }
   const recent = store.get("recent", []).filter((x) => x !== id); recent.unshift(id); store.set("recent", recent.slice(0, 20));
   renderItem(it, tab, `#/item/${enc(id)}/`);
 }
@@ -738,7 +740,7 @@ function panePairing(it) {
   const serve = [["서빙 온도", p.temp], ["잔", p.glass], ["디캔팅/브리딩", p.decant]].filter(([, v]) => !EMPTY(v));
   const cards = [p.good?.length && `<div class="pair-card ok"><h4>잘 어울려요</h4><ul>${p.good.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`,
     p.avoid?.length && `<div class="pair-card no"><h4>피하세요</h4><ul>${p.avoid.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`].filter(Boolean);
-  return `<div class="panel">
+  return `${window.Pairing?.foodsPanel(it) || ""}<div class="panel">
       ${cards.length ? `<div class="pair-grid" style="grid-template-columns:repeat(${cards.length},1fr)">${cards.join("")}</div>` : ""}
       ${serve.length ? `<div class="serve" style="grid-template-columns:repeat(${serve.length},1fr)">${serve.map(([k, v]) => `<div><small>${k}</small>${esc(v)}</div>`).join("")}</div>` : ""}
       ${p.caution ? `<div class="caution"><b>유의사항</b><br>${esc(p.caution)}</div>` : ""}
@@ -1136,7 +1138,10 @@ function renderSettings() {
 }
 
 /* ───────── 시작 ───────── */
-const APP_VERSION = "2026.11-v15";
+// 페어링 모듈(pairing.js)이 쓰는 공통 함수
+window.SulApp = { $, view, esc, enc, go, store, setChrome, pagedList, itemRow, bindItems };
+$("#setBtn").onclick = () => go("#/settings");
+const APP_VERSION = "2026.11-v16";
 loadFX().then(() => { if (/#\/(item|browse|ranking)/.test(location.hash)) render(); });
 // 이전 버전에서 저장된 AI 설정·캐시 정리
 try { Object.keys(localStorage).filter((k) => /^sulsajeon\.(settings|aiItems|live\.|rank\.)/.test(k)).forEach((k) => localStorage.removeItem(k)); } catch {}
