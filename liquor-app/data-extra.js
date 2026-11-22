@@ -1,5 +1,5 @@
 /* 술사전 추가 데이터 — 한국에서 많이 마시는 술 100종
- * 가격: 해외 소매 참고 범위(USD) · 평가: 근사치/통상 범위 또는 '확인'(최신 점수는 앱의 AI 조회·출처 링크)
+ * 가격: 해외 소매 참고 범위(USD) · 평가: 근사치/통상 범위 또는 '확인'(최신 점수는 출처 링크)
  */
 (() => {
   /* ── 페어링 프리셋 ── */
@@ -34,7 +34,7 @@
   });
   window.PAIRING_PRESETS = P;
   const V = (x) => ({ src: "Vivino", score: String(x), note: "사용자 평균 근사치" });
-  const C = (src, note = "최신 점수·수상은 AI 조회/출처 링크로 확인") => ({ src, score: "확인", note });
+  const C = (src, note = "최신 점수·수상은 출처 링크로 확인") => ({ src, score: "확인", note });
   const RR = (score, note = "최근 빈티지 통상 범위") => ({ src: "Robert Parker (Wine Advocate)", score, note });
   const WS = (score, note = "최근 빈티지 통상 범위") => ({ src: "Wine Spectator", score, note });
   const SF = (note = "수상 이력 — 연도별 확인") => ({ src: "San Francisco WSC", score: "수상", note });

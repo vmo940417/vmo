@@ -1,6 +1,6 @@
 /* 술사전 기본 데이터베이스
  * - price.usd: 해외 소매 '참고 범위'(USD, 750ml/720ml 기준, 수집 시점 표기). 최신가는 앱의 "최신 시세" 조회(AI 웹검색)로 확인.
- * - ratings: 평가기관의 '최근 빈티지/출품 기준 통상 범위' 또는 확인된 수상 이력. 정확한 최신 점수는 각 출처 링크/AI 조회로 확인.
+ * - ratings: 평가기관의 '최근 빈티지/출품 기준 통상 범위' 또는 확인된 수상 이력. 정확한 최신 점수는 각 출처 링크로 확인.
  */
 window.LIQUOR_ASOF = "2025 하반기";
 
@@ -10,8 +10,9 @@ window.CATEGORIES = {
   whisky: { ko: "위스키", en: "Whisky",  glyph: "麦", emoji: "🥃", sources: ["World Whiskies Awards", "ISC", "IWSC", "San Francisco WSC"] },
   cognac: { ko: "꼬냑",   en: "Cognac",  glyph: "樽", emoji: "🥂", sources: ["IWSC", "ISC", "San Francisco WSC", "BNIC 등급"] },
   baijiu: { ko: "중국술", en: "Baijiu",  glyph: "白", emoji: "🏮", sources: ["中国名酒(全国评酒会)", "San Francisco WSC", "Concours Mondial de Bruxelles", "IWSC"] },
-  // 아래는 웹 검색 결과 전용 분류(내장 데이터 없음)
-  soju:   { ko: "소주·전통주", en: "Soju & Korean", glyph: "燒", emoji: "🥢", sources: ["대한민국 우리술 품평회", "대한민국주류대상", "San Francisco WSC"] },
+  // 아래는 한국 시판·기타 분류
+  soju:   { ko: "소주",   en: "Soju",    glyph: "燒", emoji: "🥢", sources: ["대한민국주류대상", "대한민국 우리술 품평회", "San Francisco WSC"] },
+  makgeolli: { ko: "막걸리·전통주", en: "Makgeolli & Korean", glyph: "濁", emoji: "🍚", sources: ["대한민국 우리술 품평회", "대한민국주류대상", "우리술 대축제"] },
   beer:   { ko: "맥주",   en: "Beer",    glyph: "泡", emoji: "🍺", sources: ["Untappd", "RateBeer", "World Beer Cup"] },
   other:  { ko: "기타 주류", en: "Spirits", glyph: "酒", emoji: "🍸", sources: ["San Francisco WSC", "IWSC", "ISC"] },
 };
@@ -336,7 +337,7 @@ window.LIQUORS = [
     price: { usd: [75, 110], note: "720ml 기준" },
     ratings: [
       { src: "さけのわ (Sakenowa)", score: "인기 상위", note: "일본 최대 사케 유저 랭킹의 상위권 단골 브랜드 — 실시간 순위는 랭킹 탭" },
-      { src: "SAKE COMPETITION", score: "확인", note: "최신 부문별 순위는 AI 조회·공식 결과 링크로 확인" },
+      { src: "SAKE COMPETITION", score: "확인", note: "최신 부문별 순위는 공식 결과 링크로 확인" },
     ],
     pairing: {
       good: ["흰살생선 사시미·카르파초", "가리비·관자", "카프레제", "과일 디저트"],
@@ -455,7 +456,7 @@ window.LIQUORS = [
     ingredients: [{ name: "야마다니시키 山田錦 (효고산)", pct: 100, note: "정미보합 35%" }],
     price: { usd: [90, 160], note: "720ml" },
     ratings: [
-      { src: "SAKE COMPETITION", score: "확인", note: "부문별 최신 결과는 AI 조회로 확인" },
+      { src: "SAKE COMPETITION", score: "확인", note: "부문별 최신 결과는 출처 링크로 확인" },
     ],
     pairing: {
       good: ["복어 사시미", "성게", "캐비어", "게살"],
@@ -535,7 +536,7 @@ window.LIQUORS = [
     ingredientNote: "캐스크: 아메리칸 오크, 셰리, 미즈나라.",
     price: { usd: [150, 220] },
     ratings: [
-      { src: "ISC", score: "Gold+", note: "ISC 등 주요 대회 다수 수상 이력 — 연도별 결과는 AI 조회" },
+      { src: "ISC", score: "Gold+", note: "ISC 등 주요 대회 다수 수상 이력 — 연도별 결과는 출처 링크로 확인" },
       { src: "IWSC", score: "수상", note: "연도별 결과 확인" },
       { src: "Whisky Bible", score: "참고", note: "야마자키 셰리 캐스크 2013 — Whisky Bible 2015 '올해의 위스키' (증류소 이력)" },
     ],
