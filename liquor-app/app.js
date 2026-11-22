@@ -105,7 +105,8 @@ const USER = store.get("useritems", {});     // { [id]: item } — 웹 결과를
 const EMPTY = (v) => v == null || v === "" || v === "—" || (Array.isArray(v) && !v.length);
 function applyFields(it, f) {
   for (const [k, v] of Object.entries(f)) {
-    if (k === "krw") it.price = { ...(it.price || {}), krw: v ? Number(v) : undefined };
+    if (k === "krw") it.price = v ? { local: Number(v), cur: "KRW", basis: "직접 입력" } : null;        // 예전 버전 수정분
+    else if (k === "usd") it.price = v ? { local: Number(v), cur: "USD", basis: "직접 입력" } : null;
     else if (k === "ingredients") it.ingredients = String(v || "").split(/[,/·]/).map((s) => s.trim()).filter(Boolean).map((name) => ({ name }));
     else it[k] = v;
   }
@@ -409,13 +410,22 @@ function priceLinks(it) {
   L.push(["네이버 쇼핑", `https://search.shopping.naver.com/search/all?query=${enc(it.ko || n)}`]);
   return L;
 }
-const fmtKRW = (n) => "₩" + Number(n).toLocaleString("ko-KR");
-function priceShort(it) {
-  const p = it.price || {};
-  if (p.krw) return fmtKRW(p.krw);
-  if (p.usd?.length) return `${fmtUSD(p.usd[0])}~`;
-  return "";
+/* ───────── 현지가 → USD (실시간 환율) ───────── */
+const SYM = { USD: "$", EUR: "€", GBP: "£", JPY: "¥", CNY: "¥", KRW: "₩", AUD: "A$", NZD: "NZ$", CAD: "C$", TWD: "NT$", CLP: "CLP ", ZAR: "R", MXN: "MX$", HUF: "Ft ", INR: "₹" };
+let FX = store.get("fx", null);                       // { rates, date, at }
+const fxRate = (cur) => (FX?.rates?.[cur]) || window.FX_REF?.[cur] || null;
+const fxLabel = () => FX?.rates ? `실시간 환율 (${FX.date || "오늘"}, open.er-api.com)` : "내장 기준 환율(근사)";
+async function loadFX() {
+  if (FX && Date.now() - FX.at < 6 * 3600e3) return;
+  try {
+    const d = await (await fetch("https://open.er-api.com/v6/latest/USD")).json();
+    if (d?.result === "success" && d.rates) { FX = { rates: d.rates, date: (d.time_last_update_utc || "").slice(5, 16), at: Date.now() }; store.set("fx", FX); }
+  } catch {}
 }
+const usdOf = (it) => { const p = it.price; if (!p?.local) return null; const r = fxRate(p.cur); return r ? p.local / r : null; };
+const fmtUSDv = (v) => v == null ? "" : "$" + (v >= 100 ? Math.round(v).toLocaleString("en-US") : v >= 10 ? v.toFixed(1).replace(/\.0$/, "") : v.toFixed(2));
+const fmtLocal = (p) => p?.local ? `${SYM[p.cur] || p.cur + " "}${Number(p.local).toLocaleString("en-US")}` : "";
+function priceShort(it) { return fmtUSDv(usdOf(it)); }
 
 /* ───────── 라우팅 ───────── */
 const go = (h) => { if (location.hash !== h) location.hash = h; else render(); };
@@ -449,7 +459,7 @@ function topScore(it) {
   const r = (it.ratings || []).find((x) => /\d/.test(x.score));
   if (r) return `<div class="score"><b>${esc(r.score)}</b>${esc(r.src.split(" (")[0])}</div>`;
   const p = priceShort(it);
-  return p ? `<div class="score"><b>${esc(p)}</b>참고가</div>` : "";
+  return p ? `<div class="score"><b>${esc(p)}</b>현지가</div>` : "";
 }
 function itemRow(it) {
   const c = CATS[it.cat] || CATS.other;
@@ -559,7 +569,7 @@ function catGrid() {
 }
 
 /* ───────── 분류 ───────── */
-const priceVal = (x) => x.price?.krw || (x.price?.usd?.[0] ? x.price.usd[0] * 1400 : 0);
+const priceVal = (x) => usdOf(x) || 0;
 function renderBrowse(cat) {
   setChrome("browse", cat && CATS[cat] ? `${CATS[cat].ko} <small style="font-family:var(--sans);font-size:12px;color:var(--muted)">${CATS[cat].en}</small>` : "분류");
   const sel = CATS[cat] ? cat : "all";
@@ -592,7 +602,7 @@ function renderItem(it, tab, base) {
   const c = CATS[it.cat] || CATS.other;
   setChrome("search", esc(it.ko || it.en), true);
   const tabs = [["overview", "개요"], ["price", "가격"], ["ingredients", ING_LABEL[it.cat] || "원료"], ["ratings", "평가"], ["pairing", "페어링"]];
-  const stats = [["도수", it.abv], ["산지", it.country], ["참고가", priceShort(it)]].filter(([, v]) => !EMPTY(v));
+  const stats = [["도수", it.abv], ["산지", it.country], ["현지가", priceShort(it)]].filter(([, v]) => !EMPTY(v));
   view.innerHTML = `
     <section class="hero cat-${esc(it.cat)}">
       <span class="glyph">${bottle(it.cat)}</span>
@@ -626,7 +636,7 @@ const prov = (it, k) => it.prov?.[k] ? ` <small class="prov">${esc(it.prov[k])}<
 function kvRows(it) {
   const rows = [
     ["생산자", it.producer, "producer"], ["국가 · 산지", [it.country, it.region].filter((x) => !EMPTY(x)).join(" · "), "country"],
-    ["스타일", it.style, "style"], ["도수", it.abv, "abv"], ["참고가", it.price?.krw ? `${fmtKRW(it.price.krw)} (국내 근사치)` : "", "krw"],
+    ["스타일", it.style, "style"], ["도수", it.abv, "abv"], ["현지 참고가", usdOf(it) ? `${priceShort(it)}${it.price.cur !== "USD" ? ` (${fmtLocal(it.price)})` : ""}` : "", "price"],
     ["출시", it.inception ? `${it.inception}년` : "", "inception"],
   ].filter(([, v]) => !EMPTY(v));
   const site = it.website ? `<dt>공식 사이트</dt><dd><a href="${safeUrl(it.website)}" target="_blank" rel="noopener">${esc(it.website.replace(/^https?:\/\//, ""))}</a></dd>` : "";
@@ -653,14 +663,15 @@ function paneOverview(it) {
     ${it.web && it.desc && sim ? `<div class="section-title">술사전에 수록된 비슷한 술</div>${sim}` : ""}`;
 }
 function panePrice(it) {
-  const p = it.price || {}; const u = p.usd || [];
+  const p = it.price || {}, usd = usdOf(it);
   return `<div class="panel">
-      ${u.length ? `<h3>참고 가격대 <small style="font-family:var(--sans);font-weight:400;color:var(--muted);font-size:12px">(${esc(p.asOf || window.LIQUOR_ASOF)} 수집)</small></h3>
-      <div class="price-card"><div class="price-big">${fmtUSD(u[0])} – ${fmtUSD(u[1])}</div><div class="price-sub">해외 소매 · USD · ${esc(p.note || "750ml 기준")}</div></div>` : ""}
-      ${p.krw ? `<h3>국내 참고가</h3><div class="price-card"><div class="price-big">${fmtKRW(p.krw)}</div><div class="price-sub">마트·전문점 기준 근사치${it.prov?.krw ? " · " + esc(it.prov.krw) : ""}</div></div>` : ""}
+      ${usd ? `<h3>현지 참고가 <small style="font-family:var(--sans);font-weight:400;color:var(--muted);font-size:12px">생산국 소매가 → 달러</small></h3>
+      <div class="price-card"><div class="price-big">${fmtUSDv(usd)}</div>
+        <div class="price-sub">${p.cur !== "USD" ? `${esc(fmtLocal(p))} · ` : ""}${esc(it.country || "")} 현지 ${it.cat === "sake" ? "720ml" : it.cat === "beer" || it.cat === "soju" || it.cat === "makgeolli" ? "1병" : "750ml"} 기준</div>
+        <div class="price-sub">${esc(p.basis || "추정")} · ${esc(fxLabel())}</div></div>` : ""}
       <h3>최신 시세 확인</h3>
       <div class="linkbtns">${priceLinks(it).map(([n, url]) => `<a href="${safeUrl(url)}" target="_blank" rel="noopener">${esc(n)} ↗</a>`).join("")}</div>
-      <div class="notice">${u.length || p.krw ? "참고가는 수집 시점의 근사치입니다. " : ""}조회 시점 최신 가격은 위 사이트에서 확인하세요.</div>
+      <div class="notice">${usd ? "현지 참고가는 추정치이며 환율은 열 때마다 최신으로 갱신됩니다. " : ""}조회 시점 실제 판매가는 위 사이트에서 확인하세요.</div>
     </div>`;
 }
 function paneIngredients(it) {
@@ -692,7 +703,8 @@ function ratingCard(r, name) {
 }
 function paneRatings(it) {
   const c = CATS[it.cat] || CATS.other, name = it.en || it.ko;
-  const list = it.ratings?.length ? it.ratings : c.sources.map((src) => ({ src, score: "확인", note: "이 술의 최신 점수·수상 이력은 출처에서 확인" }));
+  const have = new Set((it.ratings || []).map((r) => r.src.split(" (")[0]));
+  const list = [...(it.ratings || []), ...c.sources.filter((src) => !have.has(src.split(" (")[0])).map((src) => ({ src, score: "확인", note: "이 술의 최신 점수·수상 이력은 출처에서 확인" }))];
   return `<div class="panel">
       <h3>공신력 있는 평가</h3>
       ${list.map((r) => ratingCard(r, name)).join("")}
@@ -948,10 +960,10 @@ async function loadPhoto(it) {
 
 /* ───────── 정보 수정 · 저장 ───────── */
 const EDIT_FIELDS = [["ko", "한글명"], ["en", "영문명"], ["cat", "종류"], ["style", "스타일"], ["abv", "도수 (예: 40%)"], ["country", "국가"], ["region", "산지"],
-  ["producer", "생산자"], ["krw", "참고가 (원)"], ["ingredients", "품종·원료 (쉼표로 구분)"], ["photo", "사진 주소 (https://…)"], ["desc", "설명"]];
+  ["producer", "생산자"], ["usd", "현지 참고가 (USD)"], ["ingredients", "품종·원료 (쉼표로 구분)"], ["photo", "사진 주소 (https://…)"], ["desc", "설명"]];
 function openEditor(it) {
   $("#editSheet")?.remove();
-  const val = (k) => k === "krw" ? (it.price?.krw || "") : k === "ingredients" ? (it.ingredients || []).map((g) => g.name).join(", ") : (it[k] || "");
+  const val = (k) => k === "usd" ? (usdOf(it) ? Math.round(usdOf(it) * 100) / 100 : "") : k === "ingredients" ? (it.ingredients || []).map((g) => g.name).join(", ") : (it[k] || "");
   const el = document.createElement("div");
   el.id = "editSheet"; el.className = "sheet-wrap";
   el.innerHTML = `<div class="sheet-bg"></div><form class="sheet edit-form">
@@ -960,7 +972,7 @@ function openEditor(it) {
       ${EDIT_FIELDS.map(([k, label]) => `<div class="field"><label>${label}</label>${
         k === "cat" ? `<select name="cat">${Object.entries(CATS).map(([c, v]) => `<option value="${c}" ${c === it.cat ? "selected" : ""}>${v.ko}</option>`).join("")}</select>`
         : k === "desc" ? `<textarea name="desc" rows="4">${esc(val(k))}</textarea>`
-        : `<input name="${k}" value="${esc(val(k))}" ${k === "krw" ? 'inputmode="numeric"' : ""} />`}</div>`).join("")}
+        : `<input name="${k}" value="${esc(val(k))}" ${k === "usd" ? 'inputmode="decimal"' : ""} />`}</div>`).join("")}
       <button class="btn block" type="submit">저장</button>
       ${it.edited || it.user ? `<button class="btn ghost block" type="button" id="resetEdit" style="margin-top:8px">수정 내용 삭제</button>` : ""}
       <button class="btn ghost block" type="button" id="cancelEdit" style="margin-top:8px">취소</button>
@@ -977,7 +989,7 @@ function openEditor(it) {
   el.querySelector("form").onsubmit = (e) => {
     e.preventDefault();
     const fd = new FormData(e.target), f = {};
-    for (const [k] of EDIT_FIELDS) { const v = String(fd.get(k) ?? "").trim(); if (v !== String(val(k))) f[k] = k === "krw" ? v.replace(/[^\d]/g, "") : k === "abv" && /^\d+(\.\d+)?$/.test(v) ? v + "%" : v; }
+    for (const [k] of EDIT_FIELDS) { const v = String(fd.get(k) ?? "").trim(); if (v !== String(val(k))) f[k] = k === "usd" ? v.replace(/[^\d.]/g, "") : k === "abv" && /^\d+(\.\d+)?$/.test(v) ? v + "%" : v; }
     if (!Object.keys(f).length) { close(); return; }
     let target = it;
     if (it.web) {
@@ -1075,7 +1087,8 @@ function renderSettings() {
 }
 
 /* ───────── 시작 ───────── */
-const APP_VERSION = "2026.11-v8";
+const APP_VERSION = "2026.11-v11";
+loadFX().then(() => { if (/#\/(item|browse|ranking)/.test(location.hash)) render(); });
 // 이전 버전에서 저장된 AI 설정·캐시 정리
 try { Object.keys(localStorage).filter((k) => /^sulsajeon\.(settings|aiItems|live\.|rank\.)/.test(k)).forEach((k) => localStorage.removeItem(k)); } catch {}
 if ("serviceWorker" in navigator && location.protocol !== "file:") navigator.serviceWorker.register("sw.js").catch(() => {});
