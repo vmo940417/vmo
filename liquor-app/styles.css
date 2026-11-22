@@ -366,3 +366,15 @@ main { padding: 14px 16px 28px; max-width: 720px; margin: 0 auto; animation: fad
 #editBtn svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .edit-form { overflow-y: auto; }
 .edit-form textarea { width: 100%; font: inherit; font-size: 15px; padding: 11px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); resize: vertical; }
+
+/* ── 병 일러스트 ─────────────────────────── */
+.btl { display: block; }
+.cat-tile .glyph { opacity: .45; top: 8px; right: 10px; color: #fff; }
+.cat-tile .glyph .btl { width: 52px; height: 66px; filter: drop-shadow(0 4px 6px rgba(0,0,0,.18)); }
+.cat-tile.wide .glyph .btl { width: 44px; height: 56px; }
+.cat-tile:active .glyph { transform: rotate(-6deg); }
+.cat-tile .glyph { transition: transform .2s; }
+.item .dot .btl { width: 24px; height: 30px; color: #fff; filter: drop-shadow(0 1px 1px rgba(0,0,0,.25)); }
+.hero .glyph { right: 4px; bottom: -14px; opacity: .16; color: #fff; }
+.hero .glyph .btl { width: 112px; height: 140px; }
+.topbar h1 .seal .btl { width: 15px; height: 19px; color: #f6e7c8; }

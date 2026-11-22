@@ -428,7 +428,7 @@ $("#tabbar").addEventListener("click", (e) => {
 });
 function setChrome(tab, title, back = false) {
   document.querySelectorAll("#tabbar button").forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
-  $("#title").innerHTML = title ?? '<span class="seal">酒</span>술사전';
+  $("#title").innerHTML = title ?? `<span class="seal">${bottle("wine")}</span>술사전`;
   $("#backBtn").classList.toggle("hidden", !back);
   window.scrollTo(0, 0);
 }
@@ -455,7 +455,7 @@ function itemRow(it) {
   const c = CATS[it.cat] || CATS.other;
   const sub2 = [c.ko, it.country, it.style, it.abv].filter((x) => !EMPTY(x)).join(" · ");
   return `<button class="item" data-id="${esc(it.id)}">
-    <span class="dot cat-${esc(it.cat)}">${esc(c.glyph)}</span>
+    <span class="dot cat-${esc(it.cat)}">${bottle(it.cat)}</span>
     <span class="meta"><div class="name">${esc(it.ko || it.en)}${it.user || it.edited ? ' <small class="mine">내 정보</small>' : ""}</div>
       ${[it.en !== it.ko ? it.en : "", it.ja || it.zh].filter(Boolean).length ? `<div class="sub">${esc([it.en !== it.ko ? it.en : "", it.ja || it.zh].filter(Boolean).join(" · "))}</div>` : ""}
       <div class="sub">${esc(sub2)}</div></span>
@@ -554,7 +554,7 @@ function catGrid() {
   return `<div class="cat-grid">${keys.map((k, i) => {
     const c = CATS[k]; const n = DB.filter((x) => x.cat === k).length;
     return `<button class="cat-tile cat-${k} ${i === keys.length - 1 && keys.length % 2 ? "wide" : ""}" data-cat="${k}">
-      <span class="glyph">${c.glyph}</span><b>${c.ko}</b><small>${c.en} · ${n}종</small></button>`;
+      <span class="glyph">${bottle(k)}</span><b>${c.ko}</b><small>${c.en} · ${n}종</small></button>`;
   }).join("")}</div>`;
 }
 
@@ -595,7 +595,7 @@ function renderItem(it, tab, base) {
   const stats = [["도수", it.abv], ["산지", it.country], ["참고가", priceShort(it)]].filter(([, v]) => !EMPTY(v));
   view.innerHTML = `
     <section class="hero cat-${esc(it.cat)}">
-      <span class="glyph">${esc(c.glyph)}</span>
+      <span class="glyph">${bottle(it.cat)}</span>
       <span class="kind">${esc(c.en)} · ${esc(c.ko)}${it.web ? " · WEB" : ""}${it.user || it.edited ? " · 내 정보" : ""}</span>
       <h2>${esc(it.ko || it.en)}</h2>
       ${[it.en, it.ja, it.zh].filter((x) => x && x !== it.ko).length ? `<div class="names">${esc([it.en, it.ja, it.zh].filter((x) => x && x !== it.ko).join("  ·  "))}</div>` : ""}
@@ -1015,7 +1015,7 @@ function renderRanking(cat) {
   const info = RANK_INFO[cat];
   view.innerHTML = `
     <div class="chips" id="rChips">${Object.keys(RANK_INFO).map((k) => `<button class="chip ${k === cat ? "active" : ""}" data-c="${k}">${CATS[k].emoji} ${CATS[k].ko}</button>`).join("")}</div>
-    <section class="hero cat-${cat}" style="margin-bottom:12px"><span class="glyph">${CATS[cat].glyph}</span>
+    <section class="hero cat-${cat}" style="margin-bottom:12px"><span class="glyph">${bottle(cat)}</span>
       <span class="kind">Official Ranking</span><h2>${esc(info.t)}</h2><div class="names">${esc(info.d)}</div></section>
     <div class="panel"><h3>최신 순위 공식 사이트</h3><div class="linkbtns">${info.links.map(([n, u]) => `<a href="${safeUrl(u)}" target="_blank" rel="noopener">${esc(n)} ↗</a>`).join("")}</div></div>
     <div class="section-title">술사전 수록 ${esc(CATS[cat].ko)} <small>${DB.filter((x) => x.cat === cat).length}종</small></div>
