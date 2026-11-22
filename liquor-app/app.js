@@ -367,10 +367,11 @@ function showLensSheet(shot) {
 
 /* ───────── 외부 링크 ─────────
  * 특정 술 한 건으로 바로 가도록: 구글 '첫 결과로 바로 이동'(btnI) + 사이트·정확한 이름 제한 */
-const lucky = (q) => `https://www.google.com/search?btnI=1&q=${enc(q)}`;
+// DuckDuckGo의 "\" 검색은 서버에서 첫 번째 결과 페이지로 바로 이동시킨다 (구글 btnI는 모바일에서 무시되는 경우가 많음)
+const lucky = (q) => `https://duckduckgo.com/?q=${enc("\\" + q)}`;
 const quoted = (n) => `"${String(n).replace(/"/g, "")}"`;
 const SOURCE_INFO = {
-  "Vivino": { url: (n) => lucky(`site:vivino.com inurl:/w/ ${quoted(n)}`), d: "전 세계 사용자 평점 평균(5점 만점)" },
+  "Vivino": { url: (n) => lucky(`site:vivino.com ${quoted(n)}`), d: "전 세계 사용자 평점 평균(5점 만점)" },
   "Robert Parker (Wine Advocate)": { url: (n) => lucky(`site:robertparker.com ${quoted(n)}`), d: "로버트 파커 와인 애드버킷(100점 만점)" },
   "Wine Spectator": { url: (n) => lucky(`site:winespectator.com ${quoted(n)}`), d: "미국 와인 전문지(100점 만점)" },
   "James Suckling": { url: (n) => lucky(`site:jamessuckling.com ${quoted(n)}`), d: "제임스 서클링(100점 만점)" },
@@ -378,7 +379,7 @@ const SOURCE_INFO = {
   "全国新酒鑑評会": { url: () => "https://www.nrib.go.jp/kan/", d: "일본 주류총합연구소 주최 신주 품평회(금상)" },
   "IWC SAKE": { url: (n) => googleUrl(`site:internationalwinechallenge.com ${quoted(n)}`), d: "영국 IWC 사케 부문" },
   "Kura Master": { url: () => "https://kuramaster.com/", d: "프랑스 소믈리에 심사 사케 품평회" },
-  "さけのわ (Sakenowa)": { url: (n) => lucky(`site:sakenowa.com/brand ${n}`), d: "일본 최대 사케 체크인 앱 인기 랭킹" },
+  "さけのわ (Sakenowa)": { url: (n) => lucky(`site:sakenowa.com ${n}`), d: "일본 최대 사케 체크인 앱 인기 랭킹" },
   "World Whiskies Awards": { url: (n) => googleUrl(`site:worldwhiskiesawards.com ${quoted(n)}`), d: "Whisky Magazine 주관 세계 위스키 어워드" },
   "ISC": { url: (n) => googleUrl(`site:isc.co.uk ${quoted(n)}`), d: "International Spirits Challenge (영국)" },
   "IWSC": { url: (n) => googleUrl(`site:iwsc.net ${quoted(n)}`), d: "International Wine & Spirit Competition (영국)" },
@@ -386,8 +387,8 @@ const SOURCE_INFO = {
   "Whisky Bible": { url: () => "https://whiskybible.com/", d: "Jim Murray's Whisky Bible" },
   "BNIC 등급": { url: () => "https://www.cognac.fr/", d: "꼬냑 사무국(BNIC) 숙성 등급 규정" },
   "中国名酒(全国评酒会)": { url: (n) => googleUrl(n + " 中国名酒 全国评酒会"), d: "중국 전국평주회(1952~1989) 선정 '명주'" },
-  "Untappd": { url: (n) => lucky(`site:untappd.com/b/ ${quoted(n)}`), d: "세계 최대 맥주 체크인 앱 평점(5점 만점)" },
-  "RateBeer": { url: (n) => lucky(`site:ratebeer.com/beer ${quoted(n)}`), d: "맥주 평점 커뮤니티(100점 환산)" },
+  "Untappd": { url: (n) => lucky(`site:untappd.com ${quoted(n)}`), d: "세계 최대 맥주 체크인 앱 평점(5점 만점)" },
+  "RateBeer": { url: (n) => lucky(`site:ratebeer.com ${quoted(n)}`), d: "맥주 평점 커뮤니티(100점 환산)" },
   "World Beer Cup": { url: () => "https://www.worldbeercup.org/", d: "미국 양조협회 주최 세계 맥주 대회" },
   "대한민국 우리술 품평회": { url: (n) => googleUrl(`${quoted(n)} 대한민국 우리술 품평회`), d: "농림축산식품부 주최 전통주 품평회" },
   "대한민국주류대상": { url: (n) => googleUrl(`${quoted(n)} 대한민국주류대상`), d: "국내 주류 시장 소비자·전문가 평가 시상" },
@@ -694,7 +695,7 @@ function paneRatings(it) {
   return `<div class="panel">
       <h3>공신력 있는 평가</h3>
       ${list.map((r) => ratingCard(r, name)).join("")}
-      <div class="notice">점수는 최근 빈티지/출품 기준 통상 범위이며 '확인'은 출처에서 최신 점수를 보세요. 출처 링크는 이 술 이름과 정확히 일치하는 페이지로 바로 이동합니다(구글 안내 화면이 한 번 나올 수 있음).</div>
+      <div class="notice">점수는 최근 빈티지/출품 기준 통상 범위이며 '확인'은 출처에서 최신 점수를 보세요. 출처 링크는 이 술 이름과 정확히 일치하는 첫 번째 페이지로 바로 이동합니다(DuckDuckGo를 거쳐 잠깐 이동 화면이 보일 수 있음).</div>
     </div>
     <div class="panel"><h3>${esc(c.ko)} 평가 기관</h3>${c.sources.map((s) => {
       const k = Object.keys(SOURCE_INFO).find((x) => x.startsWith(s) || s.startsWith(x));
