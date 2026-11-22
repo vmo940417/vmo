@@ -60,17 +60,3 @@ a.item { text-decoration: none; }
 .p-food .p-score b { font-size: 15px; }
 .panel h3 .p-muted { margin-left: 6px; }
 
-/* 카메라 시트: 앱에서 라벨 읽기 (label-ocr.js) */
-.ocr-box { margin: 4px 0 14px; display: flex; flex-direction: column; gap: 8px; }
-.ocr-note { text-align: center; margin: 0; }
-.ocr-status { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 14px; border-radius: 14px; background: var(--chip); color: var(--ink-2); font-size: 14px; }
-.ocr-spin { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--accent); animation: ocrspin .8s linear infinite; }
-@keyframes ocrspin { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { .ocr-spin { animation: none; } }
-.ocr-h { font-family: var(--serif); font-weight: 700; font-size: 15px; }
-.ocr-h small { font-family: var(--sans); font-weight: 500; color: var(--muted); font-size: 12px; margin-left: 4px; }
-.ocr-label { font-size: 13px; color: var(--muted); margin-top: 4px; }
-.ocr-label small { margin-left: 4px; }
-.ocr-q { font-size: 16px; padding: 11px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); width: 100%; }
-.ocr-q:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 22%, transparent); }
-.ocr-actions { margin-top: 2px; }

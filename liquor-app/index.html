@@ -34,9 +34,6 @@
     <button data-tab="search">
       <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span>검색</span>
     </button>
-    <button data-tab="camera" class="cam">
-      <span class="bubble" aria-label="카메라로 검색"><svg viewBox="0 0 24 24"><path d="M4 8h3l1.6-2.2h6.8L17 8h3v11H4z"/><circle cx="12" cy="13.3" r="3.4"/></svg></span><span>촬영</span>
-    </button>
     <button data-tab="browse">
       <svg viewBox="0 0 24 24"><path d="M8 3h8l-.6 6.2a3.4 3.4 0 0 1-6.8 0z"/><path d="M12 13v7M8.5 21h7"/></svg><span>분류</span>
     </button>
@@ -46,7 +43,6 @@
   </nav>
 
   <div class="toast hidden" id="toast"></div>
-  <input id="camInput" type="file" accept="image/*" capture="environment" class="hidden" />
 
   <script src="icons.js"></script>
   <script src="data.js"></script>
@@ -63,7 +59,6 @@
   <script src="pairing-engine.js"></script>
   <script src="pairing-data.js"></script>
   <script src="pairing.js"></script>
-  <script src="label-ocr.js"></script>
   <script type="module" src="app.js"></script>
 </body>
 </html>

@@ -284,71 +284,6 @@ async function googleSuggest(q) {
   return list.map((x) => (Array.isArray(x) ? x[0] : x)).filter((x) => typeof x === "string" && x.trim()).slice(0, 8);
 }
 
-/* ───────── 카메라 → 구글 렌즈 ─────────
- * 구글이 외부 사이트에서 lens.google.com 으로 사진을 직접 올리는 요청(POST)을 403으로 막기 때문에,
- * 휴대폰 공유 기능으로 사진을 넘기고 공유 화면에서 'Google 렌즈'(또는 'Google로 검색')를 고르게 한다.
- * 공유가 안 되는 기기에서는 렌즈 페이지를 열어 방금 찍은 사진을 직접 고르게 한다. */
-const camInput = $("#camInput");
-function openCamera() { camInput.value = ""; camInput.click(); }
-camInput.addEventListener("change", async () => {
-  const f = camInput.files?.[0]; if (!f) return;
-  let shot;
-  try { shot = await shrink(f); } catch { toast("사진을 열 수 없어요"); return; }
-  shot.file = f;   // 라벨 글자 읽기는 더 큰 원본에서 (label-ocr.js)
-  showLensSheet(shot);
-});
-function shrink(file, max = 1600) {
-  return new Promise((res, rej) => {
-    const img = new Image();
-    img.onload = () => {
-      const k = Math.min(1, max / Math.max(img.width, img.height));
-      const cv = document.createElement("canvas"); cv.width = Math.round(img.width * k); cv.height = Math.round(img.height * k);
-      cv.getContext("2d").drawImage(img, 0, 0, cv.width, cv.height);
-      URL.revokeObjectURL(img.src);
-      cv.toBlob((blob) => blob ? res({ blob, w: cv.width, h: cv.height, url: URL.createObjectURL(blob) }) : rej(new Error("encode")), "image/jpeg", 0.88);
-    };
-    img.onerror = () => rej(new Error("image"));
-    img.src = URL.createObjectURL(file);
-  });
-}
-const lensFile = (shot) => new File([shot.blob], "label.jpg", { type: "image/jpeg" });
-const canShareShot = (shot) => !!navigator.canShare?.({ files: [lensFile(shot)] });
-function openLensPage() {
-  window.open("https://lens.google.com/", "_blank", "noopener");
-  toast("렌즈 화면에서 방금 찍은 사진을 선택해 주세요");
-}
-async function shareToLens(shot) {
-  if (!canShareShot(shot)) return openLensPage();
-  try { await navigator.share({ files: [lensFile(shot)] }); }
-  catch (e) { if (e?.name !== "AbortError") openLensPage(); }   // 사용자가 공유 창을 닫은 경우는 그대로 둔다
-}
-function showLensSheet(shot) {
-  $("#lensSheet")?.remove();
-  const share = canShareShot(shot);
-  const el = document.createElement("div");
-  el.id = "lensSheet"; el.className = "sheet-wrap";
-  el.innerHTML = `<div class="sheet-bg"></div><div class="sheet">
-      <div class="grab"></div>
-      <img class="shot" src="${shot.url}" alt="찍은 사진" />
-      <h3 class="sheet-h">구글 렌즈로 이 술 찾기</h3>
-      <button class="btn block" data-a="lens"><svg viewBox="0 0 24 24"><path d="M4 9V6a2 2 0 0 1 2-2h3M15 4h3a2 2 0 0 1 2 2v3M20 15v3a2 2 0 0 1-2 2h-3M9 20H6a2 2 0 0 1-2-2v-3"/><circle cx="12" cy="12" r="3.2"/></svg> 구글 렌즈로 검색</button>
-      <div class="linkbtns">
-        <button class="btn ghost" data-a="page">렌즈 페이지 열기</button>
-        <button class="btn ghost" data-a="retake">다시 찍기</button>
-      </div>
-      <p class="hint" style="text-align:center;margin-bottom:0">${share
-        ? "공유 화면 아래 앱 줄을 옆으로 넘겨 <b>Google 렌즈</b>(G 아이콘)를 고르세요.<br>길게 눌러 <b>고정</b>하면 다음부터 맨 앞에 나와요"
-        : "렌즈 화면이 열리면 방금 찍은 사진을 선택하세요"}</p>
-    </div>`;
-  document.body.appendChild(el);
-  window.LabelOCR?.attach(el.querySelector(".sheet"), shot);   // 앱 안에서 라벨 글자 읽기 (label-ocr.js)
-  const close = () => el.remove();
-  el.querySelector(".sheet-bg").onclick = close;
-  el.querySelector("[data-a=lens]").onclick = () => shareToLens(shot);
-  el.querySelector("[data-a=page]").onclick = openLensPage;
-  el.querySelector("[data-a=retake]").onclick = () => { close(); openCamera(); };
-}
-
 /* ───────── 외부 링크 ─────────
  * 특정 술 한 건으로 바로 가도록: 구글 '첫 결과로 바로 이동'(btnI) + 사이트·정확한 이름 제한 */
 // 구글 검색(사이트 한정). 모바일 구글은 '첫 결과 바로 이동(btnI)'을 무시하므로 결과 맨 위 항목을 한 번 누르는 방식.
@@ -426,7 +361,6 @@ window.addEventListener("hashchange", render);
 $("#backBtn").onclick = () => (history.length > 1 ? history.back() : go("#/search"));
 $("#tabbar").addEventListener("click", (e) => {
   const b = e.target.closest("button[data-tab]"); if (!b) return;
-  if (b.dataset.tab === "camera") return openCamera();
   go("#/" + b.dataset.tab);
 });
 function setChrome(tab, title, back = false) {
@@ -483,7 +417,6 @@ function pagedList(root, items, step = 60) {
 }
 const ICO = {
   search: `<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>`,
-  cam: `<svg viewBox="0 0 24 24"><path d="M4 8h3l1.6-2.2h6.8L17 8h3v11H4z"/><circle cx="12" cy="13.3" r="3.4"/></svg>`,
   fill: `<svg viewBox="0 0 24 24"><path d="M7 17 17 7M8 7h9v9"/></svg>`,
   edit: `<svg viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13 7 4 4"/></svg>`,
   g: `<svg viewBox="0 0 24 24"><path d="M21 12.2c0-.7-.1-1.3-.2-1.9H12v3.6h5.1a4.4 4.4 0 0 1-1.9 2.9v2.4h3.1c1.8-1.7 2.7-4.1 2.7-7z" fill="#4285F4" stroke="none"/><path d="M12 21.5c2.6 0 4.7-.9 6.3-2.3l-3.1-2.4c-.9.6-2 .9-3.2.9-2.5 0-4.6-1.7-5.3-3.9H3.5v2.5A9.5 9.5 0 0 0 12 21.5z" fill="#34A853" stroke="none"/><path d="M6.7 13.8a5.7 5.7 0 0 1 0-3.6V7.7H3.5a9.5 9.5 0 0 0 0 8.6z" fill="#FBBC05" stroke="none"/><path d="M12 6.3c1.4 0 2.6.5 3.6 1.4l2.7-2.7A9.5 9.5 0 0 0 3.5 7.7l3.2 2.5C7.4 8 9.5 6.3 12 6.3z" fill="#EA4335" stroke="none"/></svg>`,
@@ -501,12 +434,10 @@ function renderSearch(q) {
         <span class="s-ico">${ICO.search}</span>
         <input id="q" type="search" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false"
           placeholder="예) ㅊㅇㅅ, 발베, 獺祭" value="${esc(q)}" />
-        <button type="button" class="cam-btn" id="camBtn" aria-label="카메라로 검색">${ICO.cam}</button>
       </form>
     </section>
     <div id="results"></div>`;
   const input = $("#q");
-  $("#camBtn").onclick = openCamera;
   let sugTimer = 0, lastQ = null;
   const draw = () => {
     const v = input.value.trim();
@@ -1101,7 +1032,7 @@ function renderSettings() {
     </div>
     <div class="panel">
       <h3>검색 팁</h3>
-      <p>· 초성만: <b>ㅊㅇㅅ</b> → 참이슬, <b>ㅂㅂㄴ</b> → 발베니<br>· 일부 글자: <b>발베</b>, <b>맥캘</b><br>· 섞어서: <b>발ㅂ</b>, <b>참ㅇ</b><br>· 영어·일본어·중국어: <b>macallan</b>, <b>獺祭</b>, <b>茅台</b><br>· 없는 술은 Enter 또는 구글 추천어를 누르면 웹에서 정보를 모아 같은 형식으로 보여줍니다<br>· 카메라 버튼: 라벨을 찍어 구글 렌즈로 검색</p>
+      <p>· 초성만: <b>ㅊㅇㅅ</b> → 참이슬, <b>ㅂㅂㄴ</b> → 발베니<br>· 일부 글자: <b>발베</b>, <b>맥캘</b><br>· 섞어서: <b>발ㅂ</b>, <b>참ㅇ</b><br>· 영어·일본어·중국어: <b>macallan</b>, <b>獺祭</b>, <b>茅台</b><br>· 없는 술은 Enter 또는 구글 추천어를 누르면 웹에서 정보를 모아 같은 형식으로 보여줍니다</p>
     </div>`;
   $("#gsave").onclick = () => { store.set("gcse", { key: $("#gkey").value.trim(), cx: $("#gcx").value.trim() }); toast("저장했어요"); };
   $("#gtest").onclick = async (e) => {
@@ -1122,7 +1053,7 @@ function renderSettings() {
 // 페어링 모듈(pairing.js)이 쓰는 공통 함수
 window.SulApp = { $, view, esc, enc, go, store, setChrome, pagedList, itemRow, bindItems };
 $("#setBtn").onclick = () => go("#/settings");
-const APP_VERSION = "2026.11-v19";
+const APP_VERSION = "2026.11-v20";
 loadFX().then(() => { if (/#\/(item|browse|ranking)/.test(location.hash)) render(); });
 // 이전 버전에서 저장된 AI 설정·캐시 정리
 try { Object.keys(localStorage).filter((k) => /^sulsajeon\.(settings|aiItems|live\.|rank\.)/.test(k)).forEach((k) => localStorage.removeItem(k)); } catch {}
