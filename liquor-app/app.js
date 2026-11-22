@@ -438,7 +438,7 @@ $("#tabbar").addEventListener("click", (e) => {
 });
 function setChrome(tab, title, back = false) {
   document.querySelectorAll("#tabbar button").forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
-  $("#title").innerHTML = title ?? `<span class="seal">${bottle("wine")}</span>술사전`;
+  $("#title").innerHTML = title ?? `<span class="seal">${bottle("wine")}</span>술이 먼저야`;
   $("#backBtn").classList.toggle("hidden", !back);
   window.scrollTo(0, 0);
 }
@@ -521,7 +521,7 @@ function renderSearch(q) {
     if (!v) { drawHome(out); return; }
     const r = search(v, 30);
     out.innerHTML = `
-      <div class="section-title">술사전 <small>${r.length ? `${r.length}건${r.length === 30 ? "+" : ""}` : "일치 없음"}</small></div>
+      <div class="section-title">수록된 술 <small>${r.length ? `${r.length}건${r.length === 30 ? "+" : ""}` : "일치 없음"}</small></div>
       ${r.length ? `<div class="list">${r.map(itemRow).join("")}</div>` : `<p class="hint">수록된 ${DB.length.toLocaleString()}종 중에는 없어요. 아래 추천어나 Enter로 웹 정보를 찾아보세요.</p>`}
       <div id="sugBox" class="hidden"><div class="section-title">구글 추천 검색어</div><div class="sug" id="sugList"></div></div>
       <a class="gsearch" href="${safeUrl(googleUrl(v))}" target="_blank" rel="noopener">${ICO.g}<span>구글에서 ‘<b>${esc(v)}</b>’ 검색</span><i>↗</i></a>`;
@@ -594,7 +594,7 @@ function renderBrowse(cat) {
 const ING_LABEL = { wine: "품종", sake: "쌀·정미", whisky: "원료·캐스크", cognac: "포도·크뤼", baijiu: "원료·향형", soju: "원료", makgeolli: "원료", beer: "원료·스타일", other: "원료" };
 function renderDetail(id, tab) {
   const it = findById(id);
-  if (!it) { setChrome("search", "술사전", true); view.innerHTML = `<div class="empty">항목을 찾을 수 없습니다.</div>`; return; }
+  if (!it) { setChrome("search", "술이 먼저야", true); view.innerHTML = `<div class="empty">항목을 찾을 수 없습니다.</div>`; return; }
   const recent = store.get("recent", []).filter((x) => x !== id); recent.unshift(id); store.set("recent", recent.slice(0, 20));
   renderItem(it, tab, `#/item/${enc(id)}/`);
 }
@@ -660,7 +660,7 @@ function paneOverview(it) {
       <a class="gsearch" style="margin-top:14px" href="${safeUrl(googleUrl(it.en || it.ko))}" target="_blank" rel="noopener">${ICO.g}<span>구글에서 ‘<b>${esc(it.ko || it.en)}</b>’ 더 보기</span><i>↗</i></a>
       <button class="btn ghost block" id="editBtn" style="margin-top:10px">${ICO.edit} 정보 수정</button>
     </div>
-    ${it.web && it.desc && sim ? `<div class="section-title">술사전에 수록된 비슷한 술</div>${sim}` : ""}`;
+    ${it.web && it.desc && sim ? `<div class="section-title">수록된 비슷한 술</div>${sim}` : ""}`;
 }
 function panePrice(it) {
   const p = it.price || {}, usd = usdOf(it);
@@ -1030,7 +1030,7 @@ function renderRanking(cat) {
     <section class="hero cat-${cat}" style="margin-bottom:12px"><span class="glyph">${bottle(cat)}</span>
       <span class="kind">Official Ranking</span><h2>${esc(info.t)}</h2><div class="names">${esc(info.d)}</div></section>
     <div class="panel"><h3>최신 순위 공식 사이트</h3><div class="linkbtns">${info.links.map(([n, u]) => `<a href="${safeUrl(u)}" target="_blank" rel="noopener">${esc(n)} ↗</a>`).join("")}</div></div>
-    <div class="section-title">술사전 수록 ${esc(CATS[cat].ko)} <small>${DB.filter((x) => x.cat === cat).length}종</small></div>
+    <div class="section-title">수록된 ${esc(CATS[cat].ko)} <small>${DB.filter((x) => x.cat === cat).length}종</small></div>
     <div id="rlist"></div>`;
   pagedList($("#rlist"), DB.filter((x) => x.cat === cat).sort((a, b) => (a.ko || "").localeCompare(b.ko || "", "ko")));
   $("#rChips").onclick = (e) => { const b = e.target.closest("[data-c]"); if (b) go("#/ranking/" + b.dataset.c); };
@@ -1087,7 +1087,7 @@ function renderSettings() {
 }
 
 /* ───────── 시작 ───────── */
-const APP_VERSION = "2026.11-v11";
+const APP_VERSION = "2026.11-v12";
 loadFX().then(() => { if (/#\/(item|browse|ranking)/.test(location.hash)) render(); });
 // 이전 버전에서 저장된 AI 설정·캐시 정리
 try { Object.keys(localStorage).filter((k) => /^sulsajeon\.(settings|aiItems|live\.|rank\.)/.test(k)).forEach((k) => localStorage.removeItem(k)); } catch {}

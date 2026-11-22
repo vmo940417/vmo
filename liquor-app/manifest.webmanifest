@@ -1,6 +1,6 @@
 {
-  "name": "술사전",
-  "short_name": "술사전",
+  "name": "술이 먼저야",
+  "short_name": "술이 먼저야",
   "description": "와인·사케·위스키·꼬냑·중국술 — 설명, 최신 해외 시세, 품종, 공신력 있는 평가, 페어링",
   "start_url": "./index.html",
   "scope": "./",
