@@ -284,7 +284,10 @@ async function googleSuggest(q) {
   return list.map((x) => (Array.isArray(x) ? x[0] : x)).filter((x) => typeof x === "string" && x.trim()).slice(0, 8);
 }
 
-/* ───────── 카메라 → 구글 렌즈 ───────── */
+/* ───────── 카메라 → 구글 렌즈 ─────────
+ * 구글이 외부 사이트에서 lens.google.com 으로 사진을 직접 올리는 요청(POST)을 403으로 막기 때문에,
+ * 휴대폰 공유 기능으로 사진을 넘기고 공유 화면에서 'Google 렌즈'(또는 'Google로 검색')를 고르게 한다.
+ * 공유가 안 되는 기기에서는 렌즈 페이지를 열어 방금 찍은 사진을 직접 고르게 한다. */
 const camInput = $("#camInput");
 function openCamera() { camInput.value = ""; camInput.click(); }
 camInput.addEventListener("change", async () => {
@@ -292,8 +295,6 @@ camInput.addEventListener("change", async () => {
   let shot;
   try { shot = await shrink(f); } catch { toast("사진을 열 수 없어요"); return; }
   showLensSheet(shot);
-  // 1차: 자동으로 구글 렌즈에 업로드 (팝업이 막히면 시트의 버튼으로 한 번 더 시도)
-  if (!uploadToLens(shot, true)) toast("‘구글 렌즈로 검색’을 눌러 주세요");
 });
 function shrink(file, max = 1600) {
   return new Promise((res, rej) => {
@@ -309,42 +310,20 @@ function shrink(file, max = 1600) {
     img.src = URL.createObjectURL(file);
   });
 }
-/** 사진을 구글 렌즈에 multipart POST. 성공적으로 전송 시도하면 true */
-function uploadToLens(shot, auto = false) {
-  let fileOk = false;
-  const form = document.createElement("form");
-  form.method = "POST"; form.enctype = "multipart/form-data"; form.style.display = "none";
-  form.action = `https://lens.google.com/v3/upload?hl=ko&st=${Date.now()}`;
-  const fi = document.createElement("input"); fi.type = "file"; fi.name = "encoded_image";
-  try {
-    const dt = new DataTransfer();
-    dt.items.add(new File([shot.blob], "label.jpg", { type: "image/jpeg" }));
-    fi.files = dt.files; fileOk = fi.files.length === 1;
-  } catch { fileOk = false; }
-  if (!fileOk) {                       // 자동 업로드 불가 → 렌즈 페이지를 열어 직접 선택
-    if (!auto) openLensPage();
-    return false;
-  }
-  const dim = document.createElement("input"); dim.type = "hidden"; dim.name = "processed_image_dimensions"; dim.value = `${shot.w},${shot.h}`;
-  form.append(fi, dim);
-  const win = window.open("", "sulsajeon_lens");
-  if (!win) { form.remove(); return false; }   // 팝업 차단
-  form.target = "sulsajeon_lens";
-  document.body.appendChild(form); form.submit(); form.remove();
-  return true;
-}
+const lensFile = (shot) => new File([shot.blob], "label.jpg", { type: "image/jpeg" });
+const canShareShot = (shot) => !!navigator.canShare?.({ files: [lensFile(shot)] });
 function openLensPage() {
   window.open("https://lens.google.com/", "_blank", "noopener");
   toast("렌즈 화면에서 방금 찍은 사진을 선택해 주세요");
 }
 async function shareToLens(shot) {
-  const f = new File([shot.blob], "label.jpg", { type: "image/jpeg" });
-  if (navigator.canShare?.({ files: [f] })) {
-    try { await navigator.share({ files: [f] }); } catch {}
-  } else toast("이 기기에서는 공유를 지원하지 않아요");
+  if (!canShareShot(shot)) return openLensPage();
+  try { await navigator.share({ files: [lensFile(shot)] }); }
+  catch (e) { if (e?.name !== "AbortError") openLensPage(); }   // 사용자가 공유 창을 닫은 경우는 그대로 둔다
 }
 function showLensSheet(shot) {
   $("#lensSheet")?.remove();
+  const share = canShareShot(shot);
   const el = document.createElement("div");
   el.id = "lensSheet"; el.className = "sheet-wrap";
   el.innerHTML = `<div class="sheet-bg"></div><div class="sheet">
@@ -354,17 +333,17 @@ function showLensSheet(shot) {
       <button class="btn block" data-a="lens"><svg viewBox="0 0 24 24"><path d="M4 9V6a2 2 0 0 1 2-2h3M15 4h3a2 2 0 0 1 2 2v3M20 15v3a2 2 0 0 1-2 2h-3M9 20H6a2 2 0 0 1-2-2v-3"/><circle cx="12" cy="12" r="3.2"/></svg> 구글 렌즈로 검색</button>
       <div class="linkbtns">
         <button class="btn ghost" data-a="page">렌즈 페이지 열기</button>
-        <button class="btn ghost" data-a="share">공유로 렌즈 열기</button>
+        <button class="btn ghost" data-a="retake">다시 찍기</button>
       </div>
-      <button class="btn ghost block" data-a="retake" style="margin-top:8px">다시 찍기</button>
-      <p class="hint" style="text-align:center;margin-bottom:0">자동 업로드가 안 되면 ‘렌즈 페이지 열기’ 후 사진을 선택하세요</p>
+      <p class="hint" style="text-align:center;margin-bottom:0">${share
+        ? "공유 화면에서 <b>Google 렌즈</b>(또는 <b>Google로 검색</b>)를 고르세요"
+        : "렌즈 화면이 열리면 방금 찍은 사진을 선택하세요"}</p>
     </div>`;
   document.body.appendChild(el);
   const close = () => el.remove();
   el.querySelector(".sheet-bg").onclick = close;
-  el.querySelector("[data-a=lens]").onclick = () => uploadToLens(shot) || openLensPage();
+  el.querySelector("[data-a=lens]").onclick = () => shareToLens(shot);
   el.querySelector("[data-a=page]").onclick = openLensPage;
-  el.querySelector("[data-a=share]").onclick = () => shareToLens(shot);
   el.querySelector("[data-a=retake]").onclick = () => { close(); openCamera(); };
 }
 
@@ -1141,7 +1120,7 @@ function renderSettings() {
 // 페어링 모듈(pairing.js)이 쓰는 공통 함수
 window.SulApp = { $, view, esc, enc, go, store, setChrome, pagedList, itemRow, bindItems };
 $("#setBtn").onclick = () => go("#/settings");
-const APP_VERSION = "2026.11-v16";
+const APP_VERSION = "2026.11-v17";
 loadFX().then(() => { if (/#\/(item|browse|ranking)/.test(location.hash)) render(); });
 // 이전 버전에서 저장된 AI 설정·캐시 정리
 try { Object.keys(localStorage).filter((k) => /^sulsajeon\.(settings|aiItems|live\.|rank\.)/.test(k)).forEach((k) => localStorage.removeItem(k)); } catch {}
