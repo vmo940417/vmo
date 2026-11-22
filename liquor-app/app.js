@@ -373,40 +373,51 @@ function showLensSheet(shot) {
 const cleanName = (n) => String(n || "").replace(/\([^)]*\)/g, " ").replace(/[",]/g, " ").replace(/\s+/g, " ").trim();
 const lucky = (q) => googleUrl(q.replace(/"/g, ""));
 const quoted = (n) => `"${String(n).replace(/"/g, "")}"`;
+/* 출처별: site(도메인 한정 검색) · kw(도메인이 없는 국내 시상은 키워드) · lang(그 출처가 쓰는 이름) · score(점수 형식) */
 const SOURCE_INFO = {
-  "Vivino": { url: (n) => lucky(`site:vivino.com ${quoted(n)}`), d: "전 세계 사용자 평점 평균(5점 만점)" },
-  "Robert Parker (Wine Advocate)": { url: (n) => lucky(`site:robertparker.com ${quoted(n)}`), d: "로버트 파커 와인 애드버킷(100점 만점)" },
-  "Wine Spectator": { url: (n) => lucky(`site:winespectator.com ${quoted(n)}`), d: "미국 와인 전문지(100점 만점)" },
-  "James Suckling": { url: (n) => lucky(`site:jamessuckling.com ${quoted(n)}`), d: "제임스 서클링(100점 만점)" },
-  "SAKE COMPETITION": { url: (n) => googleUrl(`site:sakecompetition.com ${n}`), d: "일본 최대 규모 시판주 블라인드 품평회" },
-  "全国新酒鑑評会": { url: () => "https://www.nrib.go.jp/kan/", d: "일본 주류총합연구소 주최 신주 품평회(금상)" },
-  "IWC SAKE": { url: (n) => googleUrl(`site:internationalwinechallenge.com ${quoted(n)}`), d: "영국 IWC 사케 부문" },
-  "Kura Master": { url: () => "https://kuramaster.com/", d: "프랑스 소믈리에 심사 사케 품평회" },
-  "さけのわ (Sakenowa)": { url: (n) => lucky(`site:sakenowa.com ${n}`), d: "일본 최대 사케 체크인 앱 인기 랭킹" },
-  "World Whiskies Awards": { url: (n) => googleUrl(`site:worldwhiskiesawards.com ${quoted(n)}`), d: "Whisky Magazine 주관 세계 위스키 어워드" },
-  "ISC": { url: (n) => googleUrl(`site:isc.co.uk ${quoted(n)}`), d: "International Spirits Challenge (영국)" },
-  "IWSC": { url: (n) => googleUrl(`site:iwsc.net ${quoted(n)}`), d: "International Wine & Spirit Competition (영국)" },
-  "San Francisco WSC": { url: (n) => googleUrl(`site:sfspiritscomp.com ${quoted(n)}`), d: "San Francisco World Spirits Competition" },
-  "Whisky Bible": { url: () => "https://whiskybible.com/", d: "Jim Murray's Whisky Bible" },
-  "BNIC 등급": { url: () => "https://www.cognac.fr/", d: "꼬냑 사무국(BNIC) 숙성 등급 규정" },
-  "中国名酒(全国评酒会)": { url: (n) => googleUrl(n + " 中国名酒 全国评酒会"), d: "중국 전국평주회(1952~1989) 선정 '명주'" },
-  "Untappd": { url: (n) => lucky(`site:untappd.com ${quoted(n)}`), d: "세계 최대 맥주 체크인 앱 평점(5점 만점)" },
-  "RateBeer": { url: (n) => lucky(`site:ratebeer.com ${quoted(n)}`), d: "맥주 평점 커뮤니티(100점 환산)" },
-  "World Beer Cup": { url: () => "https://www.worldbeercup.org/", d: "미국 양조협회 주최 세계 맥주 대회" },
-  "대한민국 우리술 품평회": { url: (n) => googleUrl(`${quoted(n)} 대한민국 우리술 품평회`), d: "농림축산식품부 주최 전통주 품평회" },
-  "대한민국주류대상": { url: (n) => googleUrl(`${quoted(n)} 대한민국주류대상`), d: "국내 주류 시장 소비자·전문가 평가 시상" },
-  "우리술 대축제": { url: (n) => googleUrl(`${quoted(n)} 우리술 대축제`), d: "한국 전통주 박람회·품평" },
-  "Concours Mondial de Bruxelles": { url: (n) => googleUrl(`site:concoursmondial.com ${quoted(n)}`), d: "브뤼셀 국제 품평회 Spirits Selection" },
+  "Vivino": { site: "vivino.com", score: "5", d: "전 세계 사용자 평점 평균(5점 만점)" },
+  "Robert Parker (Wine Advocate)": { site: "robertparker.com", score: "100", d: "로버트 파커 와인 애드버킷(100점 만점)" },
+  "Wine Spectator": { site: "winespectator.com", score: "100", d: "미국 와인 전문지(100점 만점)" },
+  "James Suckling": { site: "jamessuckling.com", score: "100", d: "제임스 서클링(100점 만점)" },
+  "SAKE COMPETITION": { site: "sakecompetition.com", lang: "ja", score: "medal", d: "일본 최대 규모 시판주 블라인드 품평회" },
+  "全国新酒鑑評会": { site: "nrib.go.jp", lang: "ja", score: "medal", d: "일본 주류총합연구소 주최 신주 품평회(금상)" },
+  "IWC SAKE": { site: "internationalwinechallenge.com", score: "medal", d: "영국 IWC 사케 부문" },
+  "Kura Master": { site: "kuramaster.com", score: "medal", d: "프랑스 소믈리에 심사 사케 품평회" },
+  "さけのわ (Sakenowa)": { site: "sakenowa.com", lang: "ja", score: "5", d: "일본 최대 사케 체크인 앱 인기 랭킹" },
+  "World Whiskies Awards": { site: "worldwhiskiesawards.com", score: "medal", d: "Whisky Magazine 주관 세계 위스키 어워드" },
+  "ISC": { site: "isc.co.uk", score: "medal", d: "International Spirits Challenge (영국)" },
+  "IWSC": { site: "iwsc.net", score: "medal", d: "International Wine & Spirit Competition (영국)" },
+  "San Francisco WSC": { site: "sfspiritscomp.com", score: "medal", d: "San Francisco World Spirits Competition" },
+  "Whisky Bible": { site: "whiskybible.com", score: "100", d: "Jim Murray's Whisky Bible" },
+  "BNIC 등급": { site: "cognac.fr", score: "medal", d: "꼬냑 사무국(BNIC) 숙성 등급 규정" },
+  "中国名酒(全国评酒会)": { kw: "中国名酒 全国评酒会", lang: "zh", score: "medal", d: "중국 전국평주회(1952~1989) 선정 '명주'" },
+  "Untappd": { site: "untappd.com", score: "5", d: "세계 최대 맥주 체크인 앱 평점(5점 만점)" },
+  "RateBeer": { site: "ratebeer.com", score: "100", d: "맥주 평점 커뮤니티(100점 환산)" },
+  "World Beer Cup": { site: "worldbeercup.org", score: "medal", d: "미국 양조협회 주최 세계 맥주 대회" },
+  "대한민국 우리술 품평회": { kw: "대한민국 우리술 품평회", lang: "ko", score: "medal", d: "농림축산식품부 주최 전통주 품평회" },
+  "대한민국주류대상": { kw: "대한민국주류대상", lang: "ko", score: "medal", d: "국내 주류 시장 소비자·전문가 평가 시상" },
+  "우리술 대축제": { kw: "우리술 대축제", lang: "ko", score: "medal", d: "한국 전통주 박람회·품평" },
+  "Concours Mondial de Bruxelles": { site: "concoursmondial.com", score: "medal", d: "브뤼셀 국제 품평회 Spirits Selection" },
 };
-function sourceUrl(src, name) {
-  name = cleanName(name);
-  const key = Object.keys(SOURCE_INFO).find((k) => src.startsWith(k) || k.startsWith(src));
-  return key ? SOURCE_INFO[key].url(name) : googleUrl(`${src} ${quoted(name)}`);
+const srcKey = (src) => Object.keys(SOURCE_INFO).find((k) => src.startsWith(k) || k.startsWith(src));
+// 그 출처가 실제로 쓰는 표기로 검색 (사케는 일본어, 중국술은 한자, 국내 시상은 한글)
+function nameFor(it, lang) {
+  if (typeof it === "string") return it;
+  if (lang === "ja") return it.ja || it.en || it.ko;
+  if (lang === "zh") return it.zh || it.ja || it.en || it.ko;
+  if (lang === "ko") return it.ko || it.en;
+  return it.en || it.ko;
 }
+function sourceQuery(src, it) {
+  const k = srcKey(src), info = k ? SOURCE_INFO[k] : {};
+  const n = cleanName(nameFor(it, info.lang));
+  return info.site ? `site:${info.site} ${n}` : `${n} ${info.kw || src}`;
+}
+const sourceUrl = (src, it) => lucky(sourceQuery(src, it));
 function priceLinks(it) {
   const n = it.en || it.ko;
   const L = [["Wine-Searcher", `https://www.wine-searcher.com/find/${enc(n.replace(/\s+/g, "+"))}`]];
-  if (it.cat === "wine") L.push(["Vivino", (store.get("score." + it.id)?.rs || []).find((r) => r.src === "Vivino" && r.url)?.url || sourceUrl("Vivino", n)]);
+  if (it.cat === "wine") L.push(["Vivino", (store.get("score." + it.id)?.rs || []).find((r) => r.src === "Vivino" && r.url)?.url || sourceUrl("Vivino", it)]);
   if (it.cat === "sake") L.push(["楽天 (일본)", `https://search.rakuten.co.jp/search/mall/${enc(it.ja || n)}/`]);
   if (it.cat === "baijiu") L.push(["京东 (중국)", `https://search.jd.com/Search?keyword=${enc(it.zh || it.ja || n)}`]);
   L.push(["Google 쇼핑", `https://www.google.com/search?tbm=shop&q=${enc(quoted(n))}`]);
@@ -698,29 +709,30 @@ function paneIngredients(it) {
     </div>` : ""}
     ${extra ? `<div class="panel"><h3>알아두기</h3><p>${esc(extra)}</p></div>` : ""}`;
 }
-function ratingCard(r, name) {
+function ratingCard(r, it) {
   const s = String(r.score ?? "확인");
   return `<div class="rating"><div class="medal ${s.length > 5 ? "sm" : ""}">${esc(s)}</div>
     <div class="body"><div class="src">${esc(r.src)}</div>${r.note ? `<div class="note">${esc(r.note)}</div>` : ""}
-    <div class="note"><a href="${safeUrl(r.url || sourceUrl(r.src, name))}" target="_blank" rel="noopener">출처 확인 ↗</a></div></div></div>`;
+    <div class="note"><a href="${safeUrl(r.url || sourceUrl(r.src, it))}" target="_blank" rel="noopener">출처 확인 ↗</a></div></div></div>`;
 }
 function paneRatings(it) {
   const c = CATS[it.cat] || CATS.other, name = it.en || it.ko;
   const live = store.get("score." + it.id)?.rs || [];
-  const exact = Object.fromEntries(live.filter((r) => r.url).map((r) => [r.src, r.url]));
+  const exact = Object.fromEntries(live.filter((r) => r.url).flatMap((r) => [[r.src, r.url], [srcKey(r.src) || r.src, r.url]]));
   const have = new Set((it.ratings || []).map((r) => r.src.split(" (")[0]));
-  const list = [...(it.ratings || []).map((r) => (exact[r.src] && !r.url ? { ...r, url: exact[r.src] } : r)), ...c.sources.filter((src) => !have.has(src.split(" (")[0])).map((src) => ({ src, score: "확인", note: "이 술의 최신 점수·수상 이력은 출처에서 확인" }))];
+  const withUrl = (r) => { const u = exact[r.src] || exact[srcKey(r.src)]; return u && !r.url ? { ...r, url: u } : r; };
+  const list = [...(it.ratings || []), ...c.sources.filter((src) => !have.has(src.split(" (")[0])).map((src) => ({ src, score: "확인", note: "이 술의 최신 점수·수상 이력은 출처에서 확인" }))].map(withUrl);
   return `<div class="panel">
       <h3>공신력 있는 평가</h3>
-      ${list.map((r) => ratingCard(r, name)).join("")}
+      ${list.map((r) => ratingCard(r, it)).join("")}
       <div id="liveScore"></div>
       ${cseOn() ? `<button class="btn gold block" id="liveScoreBtn" style="margin-top:10px">실시간 점수 불러오기 (Google 검색)</button>`
-        : `<p class="hint" style="margin:10px 2px 0">설정에서 Google 검색 키를 넣으면 비비노 평점과 평론가 점수를 실시간으로 불러올 수 있어요.</p>`}
-      <div class="notice">점수는 최근 빈티지/출품 기준 통상 범위이며 '확인'은 출처에서 최신 점수를 보세요. 출처 링크는 해당 사이트로 한정한 구글 검색을 엽니다 — 맨 위 결과를 누르면 이 술의 페이지입니다. ‘실시간 점수 불러오기’를 한 번 하면 그 뒤로는 비비노 페이지로 바로 연결됩니다.</div>
+        : `<p class="hint" style="margin:10px 2px 0">설정에서 Google 검색 키를 넣으면 평점·평론가 점수·수상 이력을 실시간으로 불러올 수 있어요.</p>`}
+      <div class="notice">점수는 최근 빈티지/출품 기준 통상 범위이며 '확인'은 출처에서 최신 점수를 보세요. 출처 링크는 해당 사이트로 한정한 구글 검색을 엽니다 — 맨 위 결과를 누르면 이 술의 페이지입니다. ‘실시간 점수 불러오기’를 한 번 하면 찾은 출처는 그 술의 페이지로 바로 연결됩니다.</div>
     </div>
     <div class="panel"><h3>${esc(c.ko)} 평가 기관</h3>${c.sources.map((s) => {
-      const k = Object.keys(SOURCE_INFO).find((x) => x.startsWith(s) || s.startsWith(x));
-      return `<div class="price-row"><span><b>${esc(s)}</b>${k ? `<br><small style="color:var(--muted)">${esc(SOURCE_INFO[k].d)}</small>` : ""}</span><a href="${safeUrl(sourceUrl(s, name))}" target="_blank" rel="noopener">↗</a></div>`;
+      const k = srcKey(s), u = exact[s] || exact[k];
+      return `<div class="price-row"><span><b>${esc(s)}</b>${k ? `<br><small style="color:var(--muted)">${esc(SOURCE_INFO[k].d)}</small>` : ""}</span><a href="${safeUrl(u || sourceUrl(s, it))}" target="_blank" rel="noopener">↗</a></div>`;
     }).join("")}</div>`;
 }
 function panePairing(it) {
@@ -894,21 +906,55 @@ async function renderWeb(query, tab) {
 
 /* ───────── 실시간 점수 (Google Custom Search 요약·구조화 데이터) ───────── */
 const CRITIC_SITES = [["Wine Spectator", "winespectator.com"], ["Robert Parker (Wine Advocate)", "robertparker.com"], ["James Suckling", "jamessuckling.com"], ["Decanter", "decanter.com"], ["Wine Enthusiast", "wineenthusiast.com"]];
-async function fetchLiveScores(it) {
-  const name = it.en || it.ko, out = [];
-  const [viv, crit] = await Promise.all([
-    cse(`site:vivino.com ${quoted(name)}`).catch(() => []),
-    cse(`${quoted(name)} (points OR pts) (${CRITIC_SITES.map(([, d]) => "site:" + d).join(" OR ")})`).catch(() => []),
-  ]);
-  const v = viv.find((x) => x.pagemap?.aggregaterating?.[0]?.ratingvalue) || viv.find((x) => /(\d\.\d)\s*(?:\/\s*5|stars?|rating|평점)/i.test(x.snippet || ""));
-  if (v) {
-    const ar = v.pagemap?.aggregaterating?.[0];
-    const val = ar?.ratingvalue || (v.snippet.match(/(\d\.\d)\s*(?:\/\s*5|stars?|rating|평점)/i) || [])[1];
-    if (val) out.push({ src: "Vivino", score: String(val).slice(0, 4), note: `실시간 · ${ar?.reviewcount || ar?.ratingcount ? `평가 ${ar.reviewcount || ar.ratingcount}건 · ` : ""}${v.title.slice(0, 40)}`, url: v.link });
+const MEDAL_RE = /(double gold|platinum|grand gold|best in show|best in class|trophy|gold|silver|bronze|chairman'?s trophy|金賞|入賞|最高金賞|プラチナ|金奖|银奖|大金奖|대상|최우수상|금상|은상|동상|우수상|名酒)/i;
+const MEDAL_KO = { "double gold": "더블 골드", platinum: "플래티넘", "grand gold": "그랜드 골드", "best in show": "최고상", "best in class": "부문 최고", trophy: "트로피", gold: "금상", silver: "은상", bronze: "동상", "金賞": "금상", "最高金賞": "최고 금상", "入賞": "입상", "プラチナ": "플래티넘", "金奖": "금상", "银奖": "은상", "大金奖": "대금상" };
+function scoreFrom(kind, x) {
+  const t = `${x.title || ""} ${x.snippet || ""}`;
+  const ar = x.pagemap?.aggregaterating?.[0];
+  if (kind === "5") {
+    const v = ar?.ratingvalue || (t.match(/\b([0-4]\.\d{1,2}|5\.0)\s*(?:\/\s*5|stars?|rating|평점|点)/i) || [])[1];
+    return v ? { score: String(v).slice(0, 4), extra: ar?.reviewcount || ar?.ratingcount ? `평가 ${ar.reviewcount || ar.ratingcount}건` : "" } : null;
   }
-  for (const [label, dom] of CRITIC_SITES) {
-    const hit = crit.find((x) => (x.displayLink || x.link || "").includes(dom) && /\b(8\d|9\d|100)\s*(?:points|pts|-point|점)/i.test(`${x.title} ${x.snippet}`));
-    if (hit) out.push({ src: label, score: `${(`${hit.title} ${hit.snippet}`.match(/\b(8\d|9\d|100)\s*(?:points|pts|-point|점)/i) || [])[1]}점`, note: `실시간 · ${hit.title.slice(0, 40)}`, url: hit.link });
+  if (kind === "100") {
+    const v = (t.match(/\b(7\d|8\d|9\d|100)(?:\.\d)?\s*(?:\/\s*100|points|pts|-point|점)/i) || [])[1];
+    return v ? { score: `${v}점` } : null;
+  }
+  const m = t.match(MEDAL_RE);
+  if (!m) return null;
+  const yr = (t.match(/\b(20[0-2]\d)\b/) || [])[1];
+  return { score: MEDAL_KO[m[1].toLowerCase()] || MEDAL_KO[m[1]] || m[1], extra: yr ? `${yr}` : "" };
+}
+// 결과가 정말 이 술인지: 이름의 핵심 단어(라틴 4자+ / 한·중·일 앞 2자)가 제목·요약·주소에 있어야 채택
+const GENERIC = new Set(["year", "years", "old", "the", "junmai", "daiginjo", "ginjo", "single", "malt", "whisky", "whiskey", "scotch", "blended", "edition", "reserve", "vol", "beer", "lager", "draught"]);
+function relevantTo(n) {
+  const fold = (t) => String(t || "").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").normalize("NFC").toLowerCase();
+  const lat = fold(n).split(/[^a-z0-9]+/).filter((w) => w.length >= 4 && !GENERIC.has(w) && !/^\d+$/.test(w));
+  const cjk = (String(n).match(/[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7a3]{2,}/g) || []).map((w) => w.slice(0, 2));
+  const keys = [...lat, ...cjk];
+  return (x) => !keys.length || keys.some((k) => fold(`${x.title} ${x.snippet} ${decodeURIComponent(x.link || "")}`).includes(k));
+}
+async function fetchLiveScores(it) {
+  const c = CATS[it.cat] || CATS.other;
+  const srcs = [...new Set([...c.sources, ...(it.ratings || []).map((r) => r.src)])].map((s) => [s, srcKey(s)]).filter(([, k], i, A) => k && A.findIndex(([, k2]) => k2 === k) === i);
+  if (it.cat === "wine") for (const [label] of CRITIC_SITES) if (!srcs.some(([s]) => s === label)) srcs.push([label, null]);
+  const site = (s, k) => (k ? SOURCE_INFO[k].site : CRITIC_SITES.find(([l]) => l === s)?.[1]);
+  // 도메인 있는 출처는 언어별로 묶어 한 번에(검색 할당량 절약), 키워드형 국내·중국 시상은 각각
+  const groups = {};
+  for (const [s, k] of srcs) {
+    const dom = site(s, k); if (!dom) continue;
+    const n = cleanName(nameFor(it, k ? SOURCE_INFO[k].lang : "")); (groups[n] ||= []).push([s, dom, k]);
+  }
+  const jobs = Object.entries(groups).map(([n, L]) => cse(`"${n}" (${L.map(([, d]) => "site:" + d).join(" OR ")})`).then((r) => ({ L, r: r.filter(relevantTo(n)) })).catch(() => ({ L, r: [] })));
+  for (const [s, k] of srcs) if (k && !SOURCE_INFO[k].site) jobs.push(cse(sourceQuery(s, it)).then((r) => ({ kw: [s, k], r: r.filter(relevantTo(nameFor(it, SOURCE_INFO[k].lang))) })).catch(() => ({ kw: [s, k], r: [] })));
+  const out = [];
+  for (const { L, kw, r } of await Promise.all(jobs)) {
+    const pairs = L ? L.map(([s, dom, k]) => [s, k, r.filter((x) => (x.displayLink || x.link || "").includes(dom))]) : [[kw[0], kw[1], r.filter((x) => `${x.title} ${x.snippet}`.includes(SOURCE_INFO[kw[1]].kw.split(" ")[0]))]];
+    for (const [s, k, hits] of pairs) {
+      if (!hits.length) continue;
+      const kind = k ? SOURCE_INFO[k].score : "100";
+      const hit = hits.find((x) => scoreFrom(kind, x)) || hits[0], sc = scoreFrom(kind, hit);
+      out.push({ src: s, score: sc ? sc.score : "확인", note: `실시간 · ${[sc?.extra, (hit.title || "").slice(0, 40)].filter(Boolean).join(" · ")}`, url: hit.link });
+    }
   }
   return out;
 }
@@ -916,7 +962,7 @@ function wireLiveScore(it) {
   const btn = $("#liveScoreBtn"), box = $("#liveScore"); if (!box) return;
   const key = "score." + it.id, cached = store.get(key);
   const draw = (rs) => {
-    box.innerHTML = rs.length ? `<h3 style="margin-top:14px">실시간 점수 <small class="prov">Google 검색 결과 기준</small></h3>${rs.map((r) => ratingCard(r, it.en || it.ko)).join("")}`
+    box.innerHTML = rs.length ? `<h3 style="margin-top:14px">실시간 점수 <small class="prov">Google 검색 결과 기준</small></h3>${rs.map((r) => ratingCard(r, it)).join("")}`
       : `<p class="hint">검색 결과에서 점수를 찾지 못했어요. 위 출처 링크에서 확인해 주세요.</p>`;
   };
   if (cached && Date.now() - cached.at < 7 * 864e5) draw(cached.rs);
@@ -1092,7 +1138,7 @@ function renderSettings() {
 }
 
 /* ───────── 시작 ───────── */
-const APP_VERSION = "2026.11-v13";
+const APP_VERSION = "2026.11-v14";
 loadFX().then(() => { if (/#\/(item|browse|ranking)/.test(location.hash)) render(); });
 // 이전 버전에서 저장된 AI 설정·캐시 정리
 try { Object.keys(localStorage).filter((k) => /^sulsajeon\.(settings|aiItems|live\.|rank\.)/.test(k)).forEach((k) => localStorage.removeItem(k)); } catch {}
