@@ -26,6 +26,13 @@
     cognac: { good: ["다크초콜릿", "시가", "푸아그라", "견과류"], avoid: ["짠 해산물", "매운 요리"], temp: "상온(18~20℃)", glass: "튤립 글라스", decant: "잔에서 5~10분", caution: "손으로 과하게 데우면 알코올 향만 올라온다." },
     baijiu: { good: ["북경오리·동파육", "탕수육", "양꼬치", "땅콩·냉채"], avoid: ["회·초밥", "탄산·맥주 혼합", "공복 음용"], temp: "상온", glass: "소형 백주잔", decant: "불필요", caution: "고도주 — 물과 함께 소량씩." },
   };
+  Object.assign(P, {
+    soju: { good: ["삼겹살·목살", "회·해물탕", "김치찌개·부대찌개", "골뱅이무침"], avoid: ["공복 음용", "맥주와 섞는 폭탄주(빠른 취기)"], temp: "4~8℃ (차게)", glass: "소주잔", decant: "불필요", caution: "희석식 소주는 차게, 증류식 소주(화요·일품진로 등)는 상온·온더락으로 향을 즐기기 좋다." },
+    makgeolli: { good: ["파전·빈대떡", "두부김치", "보쌈", "도토리묵"], avoid: ["탄산음료 혼합", "단 디저트"], temp: "4~8℃", glass: "사발·막걸리잔", decant: "가라앉은 앙금을 살살 섞어서", caution: "생막걸리는 냉장 보관, 유통기한이 짧다. 개봉 시 탄산으로 넘칠 수 있음." },
+    beer: { good: ["치킨", "피자", "감자튀김", "소시지"], avoid: ["섬세한 회(쓴맛 강한 IPA)", "단 디저트(라거)"], temp: "4~7℃ (라거) / 8~12℃ (에일)", glass: "필스너·파인트 잔", decant: "잔을 기울여 따르고 거품 2~3cm", caution: "에일·흑맥주는 너무 차가우면 향이 닫힌다." },
+    spirit: { good: ["칵테일 베이스", "라임·레몬", "타코(데킬라)", "훈제 연어(보드카)"], avoid: ["공복 음용", "에너지음료 혼합"], temp: "상온 / 냉동(보드카)", glass: "샷잔·록 글라스", decant: "불필요", caution: "고도주 — 물과 함께 천천히." },
+  });
+  window.PAIRING_PRESETS = P;
   const V = (x) => ({ src: "Vivino", score: String(x), note: "사용자 평균 근사치" });
   const C = (src, note = "최신 점수·수상은 AI 조회/출처 링크로 확인") => ({ src, score: "확인", note });
   const RR = (score, note = "최근 빈티지 통상 범위") => ({ src: "Robert Parker (Wine Advocate)", score, note });

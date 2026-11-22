@@ -10,6 +10,10 @@ window.CATEGORIES = {
   whisky: { ko: "위스키", en: "Whisky",  glyph: "麦", emoji: "🥃", sources: ["World Whiskies Awards", "ISC", "IWSC", "San Francisco WSC"] },
   cognac: { ko: "꼬냑",   en: "Cognac",  glyph: "樽", emoji: "🥂", sources: ["IWSC", "ISC", "San Francisco WSC", "BNIC 등급"] },
   baijiu: { ko: "중국술", en: "Baijiu",  glyph: "白", emoji: "🏮", sources: ["中国名酒(全国评酒会)", "San Francisco WSC", "Concours Mondial de Bruxelles", "IWSC"] },
+  // 아래는 웹 검색 결과 전용 분류(내장 데이터 없음)
+  soju:   { ko: "소주·전통주", en: "Soju & Korean", glyph: "燒", emoji: "🥢", sources: ["대한민국 우리술 품평회", "대한민국주류대상", "San Francisco WSC"] },
+  beer:   { ko: "맥주",   en: "Beer",    glyph: "泡", emoji: "🍺", sources: ["Untappd", "RateBeer", "World Beer Cup"] },
+  other:  { ko: "기타 주류", en: "Spirits", glyph: "酒", emoji: "🍸", sources: ["San Francisco WSC", "IWSC", "ISC"] },
 };
 
 window.LIQUORS = [

@@ -24,6 +24,9 @@
   --g-whisky: linear-gradient(140deg, #5a2f0c 0%, #a8661b 55%, #d9a24f 100%);
   --g-cognac: linear-gradient(140deg, #3b1a0e 0%, #8a4b2a 55%, #c08356 100%);
   --g-baijiu: linear-gradient(140deg, #5c0c0c 0%, #a8231c 55%, #d6a24a 100%);
+  --g-soju: linear-gradient(140deg, #0f3d2e 0%, #2e7d5b 55%, #8cc7a1 100%);
+  --g-beer: linear-gradient(140deg, #6b3d00 0%, #c98a12 55%, #f2c75c 100%);
+  --g-other: linear-gradient(140deg, #23233a 0%, #4b4b7a 55%, #9a9ac4 100%);
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -137,6 +140,7 @@ main { padding: 14px 16px 28px; max-width: 720px; margin: 0 auto; animation: fad
 .item .score b { display: block; font-size: 15px; color: var(--gold); font-family: var(--serif); }
 .cat-wine { background: var(--g-wine); } .cat-sake { background: var(--g-sake); } .cat-whisky { background: var(--g-whisky); }
 .cat-cognac { background: var(--g-cognac); } .cat-baijiu { background: var(--g-baijiu); }
+.cat-soju { background: var(--g-soju); } .cat-beer { background: var(--g-beer); } .cat-other { background: var(--g-other); }
 
 /* ── Detail hero ─────────────────────────── */
 .hero { position: relative; overflow: hidden; border-radius: 22px; padding: 20px 18px 18px; color: #fff; box-shadow: var(--shadow); margin-bottom: 6px; }
@@ -337,3 +341,12 @@ main { padding: 14px 16px 28px; max-width: 720px; margin: 0 auto; animation: fad
 .sheet .btn svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
 .sheet .linkbtns { margin-top: 8px; }
 .sheet .linkbtns .btn { font-size: 13.5px; padding: 11px 8px; }
+
+/* ── 웹 결과 상세 ─────────────────────────── */
+.hero .thumb { position: absolute; right: 16px; top: 16px; width: 74px; height: 96px; object-fit: contain; border-radius: 12px; background: rgba(255,255,255,.9); padding: 4px; box-shadow: 0 6px 16px -6px rgba(0,0,0,.5); }
+.hero.has-thumb h2, .hero.has-thumb .names { padding-right: 84px; }
+.web-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); margin: 10px 2px 0; }
+.src-line { font-size: 12.5px; color: var(--muted); margin-top: 6px; }
+.src-line a { color: var(--accent); }
+.skel { background: linear-gradient(90deg, var(--chip) 25%, var(--line) 50%, var(--chip) 75%); background-size: 200% 100%; animation: skel 1.2s infinite; border-radius: 10px; }
+@keyframes skel { from { background-position: 200% 0; } to { background-position: -200% 0; } }

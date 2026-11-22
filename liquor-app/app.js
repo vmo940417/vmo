@@ -238,6 +238,11 @@ const SOURCE_INFO = {
   "Whisky Bible": { url: () => "https://whiskybible.com/", d: "Jim Murray's Whisky Bible" },
   "BNIC 등급": { url: () => "https://www.cognac.fr/", d: "꼬냑 사무국(BNIC) 숙성 등급 규정" },
   "中国名酒(全国评酒会)": { url: (n) => googleUrl(n + " 中国名酒 全国评酒会"), d: "중국 전국평주회(1952~1989) 선정 '명주'" },
+  "Untappd": { url: (n) => `https://untappd.com/search?q=${enc(n)}`, d: "세계 최대 맥주 체크인 앱 평점(5점 만점)" },
+  "RateBeer": { url: (n) => googleUrl("site:ratebeer.com " + n), d: "맥주 평점 커뮤니티(100점 환산)" },
+  "World Beer Cup": { url: () => "https://www.worldbeercup.org/", d: "미국 양조협회 주최 세계 맥주 대회" },
+  "대한민국 우리술 품평회": { url: (n) => googleUrl(n + " 대한민국 우리술 품평회"), d: "농림축산식품부 주최 전통주 품평회" },
+  "대한민국주류대상": { url: (n) => googleUrl(n + " 대한민국주류대상"), d: "국내 주류 시장 소비자·전문가 평가 시상" },
   "Concours Mondial de Bruxelles": { url: () => "https://concoursmondial.com/", d: "브뤼셀 국제 품평회 Spirits Selection" },
 };
 function sourceUrl(src, name) {
@@ -274,6 +279,7 @@ function render() {
   const [, route = "search", a, b] = location.hash.split(/[\/?]/).map(decodeURIComponent);
   applyTheme();
   if (route === "item") return renderDetail(a, b || "overview");
+  if (route === "web") return renderWeb(a || "", b || "overview");
   if (route === "browse") return renderBrowse(a);
   if (route === "ranking") return renderRanking(a || "sake");
   if (route === "settings") return renderSettings();
@@ -347,7 +353,7 @@ function renderSearch(q) {
       const box = $("#sugBox"); if (!box) return;
       if (!list.length) { box.classList.add("hidden"); return; }
       $("#sugList").innerHTML = list.map((s) => `
-        <div class="sug-row"><a href="${safeUrl(googleUrl(s))}" target="_blank" rel="noopener">${ICO.search}<span>${esc(s)}</span></a>
+        <div class="sug-row"><a href="#/web/${enc(s)}">${ICO.search}<span>${esc(s)}</span></a>
         <button class="sug-fill" data-s="${esc(s)}" aria-label="검색창에 넣기">${ICO.fill}</button></div>`).join("");
       $("#sugList").querySelectorAll(".sug-fill").forEach((b) => (b.onclick = () => { input.value = b.dataset.s; input.focus(); draw(); }));
       box.classList.remove("hidden");
@@ -357,7 +363,12 @@ function renderSearch(q) {
   };
   // 조합 중인 글자까지 반영: input + composition 이벤트 모두 사용
   ["input", "compositionupdate", "compositionend", "keyup"].forEach((ev) => input.addEventListener(ev, () => requestAnimationFrame(draw)));
-  $("#sform").onsubmit = (e) => { e.preventDefault(); input.blur(); };
+  $("#sform").onsubmit = (e) => {
+    e.preventDefault(); input.blur();
+    const v = input.value.trim(); if (!v) return;
+    const r = search(v, 2);
+    go(r.length === 1 ? `#/item/${enc(r[0].id)}/overview` : `#/web/${enc(v)}/overview`);
+  };
   draw();
 }
 function drawHome(out) {
@@ -369,7 +380,7 @@ function drawHome(out) {
   bindItems(out);
 }
 function catGrid() {
-  const keys = Object.keys(CATS);
+  const keys = Object.keys(CATS).filter((k) => DB.some((x) => x.cat === k));
   return `<div class="cat-grid">${keys.map((k, i) => {
     const c = CATS[k]; const n = DB.filter((x) => x.cat === k).length;
     return `<button class="cat-tile cat-${k} ${i === keys.length - 1 && keys.length % 2 ? "wide" : ""}" data-cat="${k}">
@@ -386,7 +397,7 @@ function renderBrowse(cat) {
   view.innerHTML = `
     <div class="chips" id="catChips">
       <button class="chip ${sel === "all" ? "active" : ""}" data-c="">전체</button>
-      ${Object.entries(CATS).map(([k, c]) => `<button class="chip ${sel === k ? "active" : ""}" data-c="${k}">${c.emoji} ${c.ko}</button>`).join("")}
+      ${Object.entries(CATS).filter(([k]) => DB.some((x) => x.cat === k)).map(([k, c]) => `<button class="chip ${sel === k ? "active" : ""}" data-c="${k}">${c.emoji} ${c.ko}</button>`).join("")}
     </div>
     <div class="chips" id="sortChips" style="padding-top:0">${Object.entries(sorts).map(([k, v]) => `<button class="chip ${sort === k ? "active" : ""}" data-s="${k}">${v}</button>`).join("")}</div>
     ${sel !== "all" ? `<p class="hint">평가 기준: ${CATS[sel].sources.join(" · ")}</p>` : ""}
@@ -401,32 +412,35 @@ function renderBrowse(cat) {
 }
 
 /* ───────── 상세 ───────── */
-const ING_LABEL = { wine: "품종", sake: "쌀·정미", whisky: "원료·캐스크", cognac: "포도·크뤼", baijiu: "원료·향형" };
+const ING_LABEL = { wine: "품종", sake: "쌀·정미", whisky: "원료·캐스크", cognac: "포도·크뤼", baijiu: "원료·향형", soju: "원료", beer: "원료·스타일", other: "원료" };
 function renderDetail(id, tab) {
   const it = findById(id);
   if (!it) { setChrome("search", "술사전", true); view.innerHTML = `<div class="empty">항목을 찾을 수 없습니다.</div>`; return; }
   const recent = store.get("recent", []).filter((x) => x !== id); recent.unshift(id); store.set("recent", recent.slice(0, 20));
-  const c = CATS[it.cat];
+  renderItem(it, tab, `#/item/${enc(id)}/`);
+}
+function renderItem(it, tab, base) {
+  const c = CATS[it.cat] || CATS.other;
   setChrome("search", esc(it.ko || it.en), true);
   const tabs = [["overview", "개요"], ["price", "가격"], ["ingredients", ING_LABEL[it.cat] || "원료"], ["ratings", "평가"], ["pairing", "페어링"]];
   const pr = it.price?.usd;
   view.innerHTML = `
-    <section class="hero cat-${esc(it.cat)}">
-      <span class="glyph">${esc(c.glyph)}</span>
-      <span class="kind">${esc(c.en)} · ${esc(c.ko)}</span>
+    <section class="hero cat-${esc(it.cat)} ${it.thumb ? "has-thumb" : ""}">
+      <span class="glyph">${esc(c.glyph)}</span>${it.thumb ? `<img class="thumb" src="${safeUrl(it.thumb)}" alt="" referrerpolicy="no-referrer" />` : ""}
+      <span class="kind">${esc(c.en)} · ${esc(c.ko)}${it.web ? " · WEB" : ""}</span>
       <h2>${esc(it.ko || it.en)}</h2>
       <div class="names">${esc([it.en, it.ja, it.zh].filter((x) => x && x !== it.ko).join("  ·  "))}</div>
       <div class="stats">
         <div class="stat"><small>도수</small><b>${esc(it.abv || "—")}</b></div>
         <div class="stat"><small>산지</small><b>${esc(it.country || "—")}</b></div>
-        <div class="stat"><small>참고가</small><b>${pr ? `${fmtUSD(pr[0])}~` : "—"}</b></div>
+        <div class="stat"><small>참고가</small><b>${pr ? `${fmtUSD(pr[0])}~` : "시세 탭"}</b></div>
       </div>
     </section>
     <nav class="dtabs" id="dtabs">${tabs.map(([k, v]) => `<button data-t="${k}" class="${k === tab ? "active" : ""}">${v}</button>`).join("")}</nav>
     <div id="pane"></div>`;
   $("#dtabs").onclick = (e) => {
     const b = e.target.closest("[data-t]"); if (!b) return;
-    history.replaceState(null, "", `#/item/${enc(id)}/${b.dataset.t}`);
+    history.replaceState(null, "", base + b.dataset.t);
     document.querySelectorAll("#dtabs button").forEach((x) => x.classList.toggle("active", x === b));
     drawPane(it, b.dataset.t);
   };
@@ -438,29 +452,34 @@ function drawPane(it, tab) {
 }
 function paneOverview(it) {
   const t = it.tasting || {};
-  return `<div class="panel">
-      <p class="lede">${esc(it.desc)}</p>
-      <h3>테이스팅 노트</h3>
-      <div class="tasting"><div><small>NOSE 향</small>${esc(t.nose || "—")}</div><div><small>PALATE 맛</small>${esc(t.palate || "—")}</div><div><small>FINISH 여운</small>${esc(t.finish || "—")}</div></div>
+  const sim = it.web && it.similar?.length ? `<div class="list">${it.similar.map((id) => findById(id)).filter(Boolean).map(itemRow).join("")}</div>` : "";
+  return `${it.web && !it.desc && sim ? `<div class="section-title">이 술을 찾으셨나요?</div>${sim}<div style="height:6px"></div>` : ""}<div class="panel">
+      <p class="lede">${esc(it.desc || "공개 백과사전에서 이 술의 설명을 찾지 못했어요. 아래 구글 검색과 각 탭의 출처 링크로 확인해 보세요.")}</p>
+      ${it.web ? `<div class="src-line">${it.wikiUrl ? `출처: <a href="${safeUrl(it.wikiUrl)}" target="_blank" rel="noopener">위키백과 ↗</a>${it.qid ? ` · <a href="https://www.wikidata.org/wiki/${esc(it.qid)}" target="_blank" rel="noopener">위키데이터 ↗</a>` : ""}` : "출처: 웹 검색"} · 검색어 ‘${esc(it.query)}’</div>` : ""}
+      ${it.tasting ? `<h3>테이스팅 노트</h3>
+      <div class="tasting"><div><small>NOSE 향</small>${esc(t.nose || "—")}</div><div><small>PALATE 맛</small>${esc(t.palate || "—")}</div><div><small>FINISH 여운</small>${esc(t.finish || "—")}</div></div>` : ""}
       <h3>기본 정보</h3>
       <dl class="kv">
         <dt>생산자</dt><dd>${esc(it.producer || "—")}</dd>
         <dt>국가 · 산지</dt><dd>${esc([it.country, it.region].filter(Boolean).join(" · ") || "—")}</dd>
         <dt>스타일</dt><dd>${esc(it.style || "—")}</dd>
         <dt>도수</dt><dd>${esc(it.abv || "—")}</dd>
+        ${it.inception ? `<dt>출시</dt><dd>${esc(it.inception)}년</dd>` : ""}
+        ${it.website ? `<dt>공식 사이트</dt><dd><a href="${safeUrl(it.website)}" target="_blank" rel="noopener">${esc(it.website.replace(/^https?:\/\//, ""))}</a></dd>` : ""}
       </dl>
       <a class="gsearch" style="margin-top:14px" href="${safeUrl(googleUrl(it.en || it.ko))}" target="_blank" rel="noopener">${ICO.g}<span>구글에서 ‘<b>${esc(it.ko || it.en)}</b>’ 더 보기</span><i>↗</i></a>
-    </div>`;
+    </div>
+    ${it.web && it.desc && sim ? `<div class="section-title">술사전에 수록된 비슷한 술</div>${sim}` : ""}`;
 }
 function panePrice(it) {
   const p = it.price || {}; const u = p.usd || [];
   return `<div class="panel">
-      <h3>참고 가격대 <small style="font-family:var(--sans);font-weight:400;color:var(--muted);font-size:12px">(${esc(p.asOf || window.LIQUOR_ASOF)} 수집)</small></h3>
+      ${u.length ? `<h3>참고 가격대 <small style="font-family:var(--sans);font-weight:400;color:var(--muted);font-size:12px">(${esc(p.asOf || window.LIQUOR_ASOF)} 수집)</small></h3>
       <div class="price-card"><div class="price-big">${u.length ? `${fmtUSD(u[0])} – ${fmtUSD(u[1])}` : "—"}</div>
-        <div class="price-sub">해외 소매 · USD · ${esc(p.note || "750ml 기준")}</div></div>
+        <div class="price-sub">해외 소매 · USD · ${esc(p.note || "750ml 기준")}</div></div>` : ""}
       <h3>최신 시세 확인</h3>
       <div class="linkbtns">${priceLinks(it).map(([n, url]) => `<a href="${safeUrl(url)}" target="_blank" rel="noopener">${esc(n)} ↗</a>`).join("")}</div>
-      <div class="notice">참고 가격대는 수집 시점의 값입니다. 조회 시점 최신 가격은 위 사이트에서 확인하세요.</div>
+      <div class="notice">${u.length ? "참고 가격대는 수집 시점의 값입니다. " : ""}조회 시점 최신 가격은 위 사이트에서 확인하세요.</div>
     </div>`;
 }
 function paneIngredients(it) {
@@ -470,6 +489,9 @@ function paneIngredients(it) {
     sake: "정미보합(精米歩合): 쌀을 깎고 남은 비율. 다이긴죠 ≤50%, 긴죠 ≤60%. 준마이 = 쌀·누룩·물만 사용(양조알코올 무첨가).",
     whisky: "싱글 몰트 = 한 증류소의 100% 맥아 보리. 블렌디드 = 몰트 + 그레인. 버번 = 옥수수 51% 이상, 새 탄화 오크통.",
     cognac: "꼬냑 크뤼: Grande Champagne > Petite Champagne > Borderies > Fins Bois 순. 숙성 등급: VS 2년 / VSOP 4년 / XO 10년 이상.",
+    soju: "희석식 소주 = 주정(타피오카·쌀 등) + 물 + 감미료. 증류식 소주 = 쌀·보리 등을 발효 후 단식 증류. 막걸리 = 쌀·누룩을 발효한 탁주.",
+    beer: "라거 = 하면발효(깔끔), 에일 = 상면발효(풍부한 향), IPA = 홉을 많이 쓴 에일, 스타우트 = 볶은 맥아의 흑맥주.",
+    other: "보드카(곡물·감자), 진(주니퍼베리), 럼(사탕수수), 데킬라(블루 아가베) 등 원료에 따라 스타일이 갈린다.",
     baijiu: "향형: 장향(茅台) · 농향(五粮液·泸州) · 청향(汾酒) · 미향(米香) · 봉향(西凤) 등. 주원료는 수수, 누룩(大曲)은 밀·보리·완두.",
   }[it.cat];
   return `<div class="panel">
@@ -487,13 +509,13 @@ function ratingCard(r, name) {
     <div class="note"><a href="${safeUrl(r.url || sourceUrl(r.src, name))}" target="_blank" rel="noopener">출처 확인 ↗</a></div></div></div>`;
 }
 function paneRatings(it) {
-  const c = CATS[it.cat], name = it.en || it.ko;
+  const c = CATS[it.cat] || CATS.other, name = it.en || it.ko;
   return `<div class="panel">
       <h3>공신력 있는 평가</h3>
       ${(it.ratings || []).map((r) => ratingCard(r, name)).join("") || "<p>등록된 평가가 없습니다.</p>"}
       <div class="notice">점수는 최근 빈티지/출품 기준 통상 범위이며 '확인'은 출처에서 최신 점수를 보세요.</div>
     </div>
-    <div class="panel"><h3>${esc(c.ko)} 평가 기관</h3>${c.sources.map((s) => {
+    <div class="panel"><h3>${esc((c || CATS.other).ko)} 평가 기관</h3>${c.sources.map((s) => {
       const k = Object.keys(SOURCE_INFO).find((x) => x.startsWith(s) || s.startsWith(x));
       return `<div class="price-row"><span><b>${esc(s)}</b><br><small style="color:var(--muted)">${esc(k ? SOURCE_INFO[k].d : "")}</small></span><a href="${safeUrl(sourceUrl(s, name))}" target="_blank" rel="noopener">↗</a></div>`;
     }).join("")}</div>`;
@@ -513,6 +535,116 @@ function panePairing(it) {
       ${p.caution ? `<div class="caution"><b>유의사항</b><br>${esc(p.caution)}</div>` : ""}
     </div>
     <div class="notice">공통 유의: 고도주(40%↑)는 물과 함께 천천히, 공복 음용과 탄산·에너지음료 혼합은 피하세요. 복용 중인 약이 있다면 음주 전 확인이 필요합니다.</div>`;
+}
+
+/* ───────── 웹 결과 (위키백과 · 위키데이터) ───────── */
+const STRIP_WORDS = /\s*(가격|최저가|추천|후기|리뷰|할인|구매|파는\s*곳|판매처?|면세점?|코스트코|이마트|도수|칼로리|맛|종류|안주|price|review|buy)\s*$/i;
+function cleanQuery(q) { let s = q.trim(); for (let i = 0; i < 4; i++) s = s.replace(STRIP_WORDS, "").trim(); return s || q.trim(); }
+const DRINK_RE = /(술|주류|와인|포도주|위스키|버번|브랜디|코냑|꼬냑|사케|청주|니혼슈|소주|맥주|막걸리|약주|전통주|증류|양조|리큐어|보드카|럼주|데킬라|고량|백주|바이주|샴페인|wine|whisk|bourbon|brandy|cognac|sake|soju|beer|lager|ale\b|liquor|spirit|vodka|\bgin\b|\brum\b|tequila|baijiu|champagne|distill|brew|酒|焼酎|ワイン|ウイスキー|ビール|啤酒)/i;
+const CAT_RULES = [
+  ["baijiu", /(백주|바이주|고량|baijiu|白酒|高粱|茅台|五粮|汾酒|二锅头|泸州)/i],
+  ["sake", /(사케|니혼슈|준마이|긴죠|다이긴죠|일본\s*청주|sake|nihonshu|junmai|ginjo|日本酒|純米|吟醸)/i],
+  ["cognac", /(꼬냑|코냑|브랜디|아르마냑|칼바도스|cognac|brandy|armagnac|calvados|ブランデー)/i],
+  ["whisky", /(위스키|버번|스카치|whisk|bourbon|scotch|ウイスキー|威士忌)/i],
+  ["wine", /(와인|포도주|샴페인|스파클링|프로세코|까바|wine|champagne|prosecco|\bcava\b|ワイン|葡萄酒)/i],
+  ["soju", /(소주|막걸리|약주|전통주|탁주|청주|soju|makgeolli|焼酎)/i],
+  ["beer", /(맥주|라거|에일|스타우트|beer|lager|\bale\b|stout|\bipa\b|ビール|啤酒)/i],
+];
+const guessCat = (text) => (CAT_RULES.find(([, re]) => re.test(text)) || ["other"])[0];
+function pickPreset(cat, text) {
+  const t = text.toLowerCase();
+  const map = {
+    wine: /스파클링|샴페인|champagne|prosecco|cava|sparkling/.test(t) ? "bubbly" : /모스카토|moscato|스위트|sweet|아이스와인/.test(t) ? "sweet" : /화이트|white|샤르도네|chardonnay|소비뇽 ?블랑|sauvignon blanc|리슬링|riesling/.test(t) ? "whiteCrisp" : /피노 ?누아|pinot noir/.test(t) ? "pinot" : "redFull",
+    sake: /긴죠|ginjo|吟醸/.test(t) ? "sakeGinjo" : /생주|나마|nama|生/.test(t) ? "sakeNama" : "sakeJunmai",
+    whisky: /아일라|islay|피트|peat|라프로익|laphroaig|아드벡|ardbeg|탈리스커|talisker|라가불린/.test(t) ? "scotchPeat" : /버번|bourbon|테네시|tennessee|켄터키|kentucky|라이 ?위스키|rye/.test(t) ? "bourbon" : /일본|japan|산토리|suntory|니카|nikka/.test(t) ? "japanese" : /셰리|sherry/.test(t) ? "scotchSherry" : /블렌디드|blended/.test(t) ? "blend" : /아일랜드|irish/.test(t) ? "irish" : "scotchLight",
+    cognac: "cognac", baijiu: "baijiu", beer: "beer", other: "spirit",
+    soju: /막걸리|탁주|makgeolli/.test(t) ? "makgeolli" : "soju",
+  };
+  return window.PAIRING_PRESETS[map[cat] || "spirit"];
+}
+async function getJSON(url, ms = 7000) {
+  const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), ms);
+  try { const r = await fetch(url, { signal: ctl.signal }); if (!r.ok) throw new Error(String(r.status)); return await r.json(); }
+  finally { clearTimeout(tm); }
+}
+async function wikiFind(q) {
+  const langs = /[\u3040-\u30ff]/.test(q) ? ["ja", "ko", "en"] : /[\u4e00-\u9fff]/.test(q) && !hasHangul(q) ? ["zh", "ja", "ko", "en"] : /[a-z]/i.test(q) && !hasHangul(q) ? ["en", "ko"] : ["ko", "en"];
+  for (const lang of langs) {
+    try {
+      const s = await getJSON(`https://${lang}.wikipedia.org/w/api.php?action=query&list=search&srsearch=${enc(q)}&srlimit=4&format=json&origin=*`);
+      const hits = (s?.query?.search || []).map((h) => h.title);
+      const sums = await Promise.all(hits.map((t) => getJSON(`https://${lang}.wikipedia.org/api/rest_v1/page/summary/${enc(t.replace(/ /g, "_"))}`).catch(() => null)));
+      for (const sum of sums) {
+        if (!sum || sum.type === "disambiguation") continue;
+        if (DRINK_RE.test(`${sum.title} ${sum.description || ""} ${sum.extract || ""}`))
+          return { lang, title: sum.title, desc: sum.description || "", extract: sum.extract || "", thumb: sum.thumbnail?.source, url: sum.content_urls?.mobile?.page || sum.content_urls?.desktop?.page, qid: sum.wikibase_item };
+      }
+    } catch {}
+  }
+  return null;
+}
+async function wikidata(qid) {
+  const api = "https://www.wikidata.org/w/api.php?format=json&origin=*&action=wbgetentities";
+  const d = await getJSON(`${api}&ids=${qid}&props=labels|claims&languages=ko|en|ja|zh`);
+  const e = d?.entities?.[qid]; if (!e) return {};
+  const vals = (pp) => (e.claims?.[pp] || []).map((c) => c.mainsnak?.datavalue?.value).filter((v) => v != null);
+  const ids = (pp) => vals(pp).map((v) => v.id).filter(Boolean);
+  const need = [...new Set([...ids("P31"), ...ids("P176"), ...ids("P495"), ...ids("P17"), ...ids("P186"), ...ids("P279")])].slice(0, 45);
+  let lab = {};
+  if (need.length) { try { lab = (await getJSON(`${api}&ids=${need.join("|")}&props=labels&languages=ko|en`))?.entities || {}; } catch {} }
+  const L = (id) => lab[id]?.labels?.ko?.value || lab[id]?.labels?.en?.value;
+  const own = (l) => e.labels?.[l]?.value;
+  const abv = vals("P2665")[0]?.amount;
+  return {
+    ko: own("ko"), en: own("en"), ja: own("ja"), zh: own("zh"),
+    types: [...ids("P31"), ...ids("P279")].map(L).filter(Boolean),
+    maker: ids("P176").map(L).filter(Boolean),
+    country: (ids("P495").length ? ids("P495") : ids("P17")).map(L).filter(Boolean),
+    materials: ids("P186").map(L).filter(Boolean),
+    abv: abv ? `${parseFloat(abv)}%` : "",
+    inception: (vals("P571")[0]?.time || "").slice(1, 5),
+    website: vals("P856")[0],
+  };
+}
+async function buildWebItem(query) {
+  const q = cleanQuery(query);
+  const cached = store.get("web." + q);
+  if (cached && Date.now() - cached.at < 7 * 864e5) return cached.it;
+  let wiki = null, wd = {};
+  try { wiki = await wikiFind(q); } catch {}
+  if (wiki?.qid) { try { wd = await wikidata(wiki.qid); } catch {} }
+  const text = [q, wiki?.title, wiki?.desc, wiki?.extract, ...(wd.types || [])].join(" ");
+  const sim = search(q, 4);
+  let cat = guessCat(text);
+  if (cat === "other" && sim[0]) cat = sim[0].cat;           // 백과 정보가 없으면 가장 비슷한 수록 술의 분류
+  const sources = (CATS[cat] || CATS.other).sources;
+  const it = {
+    id: "web:" + q, web: true, query: q, cat,
+    ko: q, en: wd.en || (wiki?.lang === "en" ? wiki.title : ""), ja: wd.ja || "", zh: wd.zh || "",
+    alt: wiki && wiki.title !== q ? wiki.title : "",
+    producer: (wd.maker || []).join(", "), country: (wd.country || []).join(", "), region: "",
+    style: (wd.types || []).slice(0, 2).join(" · ") || wiki?.desc || CATS[cat].ko,
+    abv: wd.abv || "", inception: wd.inception || "", website: wd.website || "",
+    desc: wiki?.extract || "", wikiUrl: wiki?.url || "", qid: wiki?.qid || "", thumb: wiki?.thumb || "",
+    tasting: null,
+    ingredients: (wd.materials || []).map((name) => ({ name })),
+    price: null,
+    ratings: sources.map((src) => ({ src, score: "확인", note: "이 술의 최신 점수·수상 이력은 출처에서 확인" })),
+    pairing: pickPreset(cat, text),
+    similar: sim.map((x) => x.id),
+  };
+  if (wiki) store.set("web." + q, { at: Date.now(), it });
+  return it;
+}
+async function renderWeb(query, tab) {
+  setChrome("search", esc(cleanQuery(query)), true);
+  view.innerHTML = `<div class="skel" style="height:190px;border-radius:22px"></div>
+    <div class="skel" style="height:50px;margin-top:10px"></div><div class="skel" style="height:220px;margin-top:10px"></div>
+    <p class="hint" style="text-align:center">‘${esc(query)}’ 정보를 모으는 중…</p>`;
+  const it = await buildWebItem(query);
+  if (!location.hash.startsWith(`#/web/${enc(query)}`)) return;   // 그 사이 다른 화면으로 이동
+  if (it.alt) it.en = it.en || it.alt;
+  renderItem(it, tab, `#/web/${enc(query)}/`);
 }
 
 /* ───────── 랭킹 (공식 출처 바로가기) ───────── */
