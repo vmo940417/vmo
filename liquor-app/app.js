@@ -368,8 +368,10 @@ function showLensSheet(shot) {
 
 /* ───────── 외부 링크 ─────────
  * 특정 술 한 건으로 바로 가도록: 구글 '첫 결과로 바로 이동'(btnI) + 사이트·정확한 이름 제한 */
-// DuckDuckGo의 "\" 검색은 서버에서 첫 번째 결과 페이지로 바로 이동시킨다 (구글 btnI는 모바일에서 무시되는 경우가 많음)
-const lucky = (q) => `https://duckduckgo.com/?q=${enc("\\" + q)}`;
+// 구글 검색(사이트 한정). 모바일 구글은 '첫 결과 바로 이동(btnI)'을 무시하므로 결과 맨 위 항목을 한 번 누르는 방식.
+// 이름은 따옴표·쉼표·괄호를 빼서 너무 엄격하지 않게 (예: "Domaine de la Romanée-Conti, Romanée-Conti" → 결과 0건 방지)
+const cleanName = (n) => String(n || "").replace(/\([^)]*\)/g, " ").replace(/[",]/g, " ").replace(/\s+/g, " ").trim();
+const lucky = (q) => googleUrl(q.replace(/"/g, ""));
 const quoted = (n) => `"${String(n).replace(/"/g, "")}"`;
 const SOURCE_INFO = {
   "Vivino": { url: (n) => lucky(`site:vivino.com ${quoted(n)}`), d: "전 세계 사용자 평점 평균(5점 만점)" },
@@ -397,13 +399,14 @@ const SOURCE_INFO = {
   "Concours Mondial de Bruxelles": { url: (n) => googleUrl(`site:concoursmondial.com ${quoted(n)}`), d: "브뤼셀 국제 품평회 Spirits Selection" },
 };
 function sourceUrl(src, name) {
+  name = cleanName(name);
   const key = Object.keys(SOURCE_INFO).find((k) => src.startsWith(k) || k.startsWith(src));
   return key ? SOURCE_INFO[key].url(name) : googleUrl(`${src} ${quoted(name)}`);
 }
 function priceLinks(it) {
   const n = it.en || it.ko;
   const L = [["Wine-Searcher", `https://www.wine-searcher.com/find/${enc(n.replace(/\s+/g, "+"))}`]];
-  if (it.cat === "wine") L.push(["Vivino", SOURCE_INFO.Vivino.url(n)]);
+  if (it.cat === "wine") L.push(["Vivino", (store.get("score." + it.id)?.rs || []).find((r) => r.src === "Vivino" && r.url)?.url || sourceUrl("Vivino", n)]);
   if (it.cat === "sake") L.push(["楽天 (일본)", `https://search.rakuten.co.jp/search/mall/${enc(it.ja || n)}/`]);
   if (it.cat === "baijiu") L.push(["京东 (중국)", `https://search.jd.com/Search?keyword=${enc(it.zh || it.ja || n)}`]);
   L.push(["Google 쇼핑", `https://www.google.com/search?tbm=shop&q=${enc(quoted(n))}`]);
@@ -703,15 +706,17 @@ function ratingCard(r, name) {
 }
 function paneRatings(it) {
   const c = CATS[it.cat] || CATS.other, name = it.en || it.ko;
+  const live = store.get("score." + it.id)?.rs || [];
+  const exact = Object.fromEntries(live.filter((r) => r.url).map((r) => [r.src, r.url]));
   const have = new Set((it.ratings || []).map((r) => r.src.split(" (")[0]));
-  const list = [...(it.ratings || []), ...c.sources.filter((src) => !have.has(src.split(" (")[0])).map((src) => ({ src, score: "확인", note: "이 술의 최신 점수·수상 이력은 출처에서 확인" }))];
+  const list = [...(it.ratings || []).map((r) => (exact[r.src] && !r.url ? { ...r, url: exact[r.src] } : r)), ...c.sources.filter((src) => !have.has(src.split(" (")[0])).map((src) => ({ src, score: "확인", note: "이 술의 최신 점수·수상 이력은 출처에서 확인" }))];
   return `<div class="panel">
       <h3>공신력 있는 평가</h3>
       ${list.map((r) => ratingCard(r, name)).join("")}
       <div id="liveScore"></div>
       ${cseOn() ? `<button class="btn gold block" id="liveScoreBtn" style="margin-top:10px">실시간 점수 불러오기 (Google 검색)</button>`
         : `<p class="hint" style="margin:10px 2px 0">설정에서 Google 검색 키를 넣으면 비비노 평점과 평론가 점수를 실시간으로 불러올 수 있어요.</p>`}
-      <div class="notice">점수는 최근 빈티지/출품 기준 통상 범위이며 '확인'은 출처에서 최신 점수를 보세요. 출처 링크는 이 술 이름과 정확히 일치하는 첫 번째 페이지로 바로 이동합니다(DuckDuckGo를 거쳐 잠깐 이동 화면이 보일 수 있음).</div>
+      <div class="notice">점수는 최근 빈티지/출품 기준 통상 범위이며 '확인'은 출처에서 최신 점수를 보세요. 출처 링크는 해당 사이트로 한정한 구글 검색을 엽니다 — 맨 위 결과를 누르면 이 술의 페이지입니다. ‘실시간 점수 불러오기’를 한 번 하면 그 뒤로는 비비노 페이지로 바로 연결됩니다.</div>
     </div>
     <div class="panel"><h3>${esc(c.ko)} 평가 기관</h3>${c.sources.map((s) => {
       const k = Object.keys(SOURCE_INFO).find((x) => x.startsWith(s) || s.startsWith(x));
@@ -1087,7 +1092,7 @@ function renderSettings() {
 }
 
 /* ───────── 시작 ───────── */
-const APP_VERSION = "2026.11-v12";
+const APP_VERSION = "2026.11-v13";
 loadFX().then(() => { if (/#\/(item|browse|ranking)/.test(location.hash)) render(); });
 // 이전 버전에서 저장된 AI 설정·캐시 정리
 try { Object.keys(localStorage).filter((k) => /^sulsajeon\.(settings|aiItems|live\.|rank\.)/.test(k)).forEach((k) => localStorage.removeItem(k)); } catch {}
