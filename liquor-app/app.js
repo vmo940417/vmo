@@ -37,10 +37,21 @@ const isJamo = (ch) => ch >= "ㄱ" && ch <= "ㆎ";
 const hasHangul = (s) => /[가-힣ㄱ-ㆎ]/.test(s);
 
 /** 정규화: 한글(완성형·자모)은 보존, 나머지는 NFKC + 악센트 제거 + 소문자, 가타카나→히라가나, 공백·기호 제거 */
+// 외래어 표기 흔들림 흡수: 까/카, 따/타, 빠/파, 짜/차 · 쟈/자, 죠/조, 쥬/주, 져/저
+const TENSE = { 1: 15, 4: 16, 8: 17, 13: 14 };              // ㄲ→ㅋ ㄸ→ㅌ ㅃ→ㅍ ㅉ→ㅊ (초성 인덱스)
+const TENSE_J = { "ㄲ": "ㅋ", "ㄸ": "ㅌ", "ㅃ": "ㅍ", "ㅉ": "ㅊ" };
+const GLIDE = { 2: 0, 6: 4, 12: 8, 17: 13 };                 // ㅑ→ㅏ ㅕ→ㅓ ㅛ→ㅗ ㅠ→ㅜ (ㅈ·ㅊ 뒤)
+function foldKo(ch) {
+  const d = dec(ch);
+  if (!d) return TENSE_J[ch] || ch;
+  let cho = TENSE[d.cho] ?? d.cho, jung = d.jung;
+  if ((cho === 12 || cho === 14) && GLIDE[jung] != null) jung = GLIDE[jung];
+  return String.fromCharCode(0xac00 + (cho * 21 + jung) * 28 + d.jong);
+}
 function norm(s) {
   let out = "";
   for (const ch of String(s || "")) {
-    if (dec(ch) || isJamo(ch)) { out += ch; continue; }
+    if (dec(ch) || isJamo(ch)) { out += foldKo(ch); continue; }
     out += ch.normalize("NFKC").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
   }
   return out
@@ -631,6 +642,7 @@ function paneOverview(it) {
       ${desc ? `<p class="lede">${esc(desc)}</p>` : it.web ? `<p class="lede">공개 자료에서 이 술의 설명을 찾지 못했어요. 아는 정보가 있다면 아래 ‘정보 수정’으로 직접 채워 두세요.</p>` : ""}
       ${srcs.length ? `<div class="src-line">출처: ${srcs.map((s) => `<a href="${safeUrl(s.url)}" target="_blank" rel="noopener">${esc(s.label)} ↗</a>`).join(" · ")}</div>` : ""}
       ${it.user || it.edited ? `<div class="src-line">✎ 직접 수정한 정보가 반영되어 있어요</div>` : ""}
+      ${it.lineup ? `<div class="src-line">ⓘ 브랜드·양조장은 실재하며, 이 항목은 등급별 <b>대표 라인업</b> 기준이에요. 실제 상품명·도수·가격은 양조장 정보로 확인하고, 다르면 ‘정보 수정’으로 고쳐 주세요.</div>` : ""}
       ${tast.length ? `<h3>테이스팅 노트</h3><div class="tasting" style="grid-template-columns:repeat(${tast.length},1fr)">${tast.map(([k, v]) => `<div><small>${k}</small>${esc(v)}</div>`).join("")}</div>` : ""}
       ${kvRows(it)}
       <a class="gsearch" style="margin-top:14px" href="${safeUrl(googleUrl(it.en || it.ko))}" target="_blank" rel="noopener">${ICO.g}<span>구글에서 ‘<b>${esc(it.ko || it.en)}</b>’ 더 보기</span><i>↗</i></a>
