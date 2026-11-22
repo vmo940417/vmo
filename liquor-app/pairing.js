@@ -11,6 +11,7 @@
   const STYLES = Object.fromEntries(DATA.beverages.map((b) => [b.id, b]));
   const TYPE_LABEL = { wine: "와인", sake: "사케", whisky: "위스키", brandy: "꼬냑", chinese: "중국술", korean: "전통주" };
   const FILTERS = [["all", "전체"], ...Object.entries(TYPE_LABEL)];
+  const CUISINES = ["한식", "중식", "일식", "양식", "아시아", "안주·디저트"];
   const SUGGEST = ["삼겹살", "스테이크", "광어회", "해물파전", "동파육", "떡볶이", "후라이드 치킨", "초콜릿 케이크"];
   const AXES = [["acidity", "산도"], ["sweetness", "당도"], ["body", "바디"], ["tannin", "탄닌"], ["umami", "감칠맛"], ["aroma", "향 강도"], ["alcohol", "알코올"], ["oak", "오크"]];
 
@@ -121,6 +122,7 @@
     setChrome("pair");
     const food = queryParam("f");
     const filter = queryParam("t") || "all";
+    const cat = CUISINES.includes(queryParam("c")) ? queryParam("c") : "";
     view.innerHTML = `
       <section class="home-hero pair-hero">
         <div class="eyebrow">Food First · 오늘술상</div>
@@ -132,6 +134,7 @@
         </form>
         <div class="sug hidden" id="psug"></div>
       </section>
+      <div id="pcats"></div>
       <div id="pchips"></div>
       <div id="presult"></div>`;
     const input = $("#pf");
@@ -143,6 +146,24 @@
       box.classList.toggle("hidden", !m.length || input.value.trim() === food);
       box.innerHTML = m.map((f) => `<div class="sug-row"><a href="#/pair?f=${enc(f.name_ko)}"><span>${esc(f.name_ko)}</span><small>${esc(f.cuisine)}</small></a></div>`).join("");
     };
+    // 분류로 고르기: 분류 버튼 → 그 분류의 음식 버튼
+    const link = (params) => "#/pair" + (Object.keys(params).length ? "?" + Object.entries(params).map(([k, v]) => `${k}=${enc(v)}`).join("&") : "");
+    const catFoods = cat ? DATA.foods.filter((f) => f.cuisine === cat) : [];
+    $("#pcats").innerHTML = `
+      <div class="section-title">분류로 고르기 <small>음식 ${DATA.foods.length}종</small></div>
+      <div class="chips p-cats">${CUISINES.map((c) => `<button class="chip ${c === cat ? "active" : ""}" data-c="${esc(c)}" aria-pressed="${c === cat}">${esc(c)} <small>${DATA.foods.filter((f) => f.cuisine === c).length}</small></button>`).join("")}</div>
+      ${cat ? `<div class="p-foodgrid" role="list" aria-label="${esc(cat)} 음식">${catFoods.map((f) =>
+        `<button class="chip ${f.name_ko === food ? "active" : ""}" role="listitem" data-pick="${esc(f.name_ko)}">${esc(f.name_ko)}</button>`).join("")}</div>` : ""}`;
+    $("#pcats").onclick = (e) => {
+      const c = e.target.closest("[data-c]");
+      if (c) {   // 같은 분류를 다시 누르면 닫는다
+        const next = c.dataset.c === cat ? {} : { c: c.dataset.c };
+        return go(link(food ? { f: food, ...next } : next));
+      }
+      const f = e.target.closest("[data-pick]");
+      if (f) go(link({ f: f.dataset.pick, c: cat }));
+    };
+
     const rec = recent.get();
     const chipFoods = food ? rec.filter((x) => x !== food).slice(0, 8) : (rec.length ? rec.slice(0, 8) : SUGGEST);
     $("#pchips").innerHTML = chipFoods.length ? `
@@ -159,7 +180,12 @@
       ${res.source === "keyword" ? `<p class="hint">등록되지 않은 음식이라 이름으로 맛을 추정했어요. 결과가 대략적일 수 있습니다.</p>` : ""}
       <div class="chips" id="pfilter">${FILTERS.map(([k, v]) => `<button class="chip ${k === filter ? "active" : ""}" data-t="${k}">${v}</button>`).join("")}</div>
       <div class="list">${rows.map((r, i) => styleRow(r, i + 1, res.food.name_ko)).join("")}</div>`;
-    $("#pfilter").onclick = (e) => { const b = e.target.closest("[data-t]"); if (b) go(`#/pair?f=${enc(food)}${b.dataset.t === "all" ? "" : "&t=" + b.dataset.t}`); };
+    $("#pfilter").onclick = (e) => {
+      const b = e.target.closest("[data-t]");
+      if (b) go(link({ f: food, ...(b.dataset.t === "all" ? {} : { t: b.dataset.t }), ...(cat ? { c: cat } : {}) }));
+    };
+    // 분류 목록에서 고른 경우 결과가 바로 보이도록 내려 준다
+    if (cat) requestAnimationFrame(() => $("#presult").scrollIntoView({ block: "start", behavior: "smooth" }));
   }
   function drawExample() {
     const { $ } = A();
