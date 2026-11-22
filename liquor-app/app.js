@@ -294,6 +294,7 @@ camInput.addEventListener("change", async () => {
   const f = camInput.files?.[0]; if (!f) return;
   let shot;
   try { shot = await shrink(f); } catch { toast("사진을 열 수 없어요"); return; }
+  shot.file = f;   // 라벨 글자 읽기는 더 큰 원본에서 (label-ocr.js)
   showLensSheet(shot);
 });
 function shrink(file, max = 1600) {
@@ -340,6 +341,7 @@ function showLensSheet(shot) {
         : "렌즈 화면이 열리면 방금 찍은 사진을 선택하세요"}</p>
     </div>`;
   document.body.appendChild(el);
+  window.LabelOCR?.attach(el.querySelector(".sheet"), shot);   // 앱 안에서 라벨 글자 읽기 (label-ocr.js)
   const close = () => el.remove();
   el.querySelector(".sheet-bg").onclick = close;
   el.querySelector("[data-a=lens]").onclick = () => shareToLens(shot);
@@ -1120,7 +1122,7 @@ function renderSettings() {
 // 페어링 모듈(pairing.js)이 쓰는 공통 함수
 window.SulApp = { $, view, esc, enc, go, store, setChrome, pagedList, itemRow, bindItems };
 $("#setBtn").onclick = () => go("#/settings");
-const APP_VERSION = "2026.11-v18";
+const APP_VERSION = "2026.11-v19";
 loadFX().then(() => { if (/#\/(item|browse|ranking)/.test(location.hash)) render(); });
 // 이전 버전에서 저장된 AI 설정·캐시 정리
 try { Object.keys(localStorage).filter((k) => /^sulsajeon\.(settings|aiItems|live\.|rank\.)/.test(k)).forEach((k) => localStorage.removeItem(k)); } catch {}
