@@ -615,6 +615,7 @@ function drawPane(it, tab) {
   const P = { overview: paneOverview, price: panePrice, ingredients: paneIngredients, ratings: paneRatings, pairing: panePairing }[tab] || paneOverview;
   $("#pane").innerHTML = P(it);
   if (tab === "overview" || !P || P === paneOverview) { loadPhoto(it); const e = $("#editBtn"); if (e) e.onclick = () => openEditor(it); }
+  if (tab === "ratings") wireLiveScore(it);
 }
 function autoDesc(it) {
   if (!it.bulk && !it.user) return "";
@@ -695,6 +696,9 @@ function paneRatings(it) {
   return `<div class="panel">
       <h3>공신력 있는 평가</h3>
       ${list.map((r) => ratingCard(r, name)).join("")}
+      <div id="liveScore"></div>
+      ${cseOn() ? `<button class="btn gold block" id="liveScoreBtn" style="margin-top:10px">실시간 점수 불러오기 (Google 검색)</button>`
+        : `<p class="hint" style="margin:10px 2px 0">설정에서 Google 검색 키를 넣으면 비비노 평점과 평론가 점수를 실시간으로 불러올 수 있어요.</p>`}
       <div class="notice">점수는 최근 빈티지/출품 기준 통상 범위이며 '확인'은 출처에서 최신 점수를 보세요. 출처 링크는 이 술 이름과 정확히 일치하는 첫 번째 페이지로 바로 이동합니다(DuckDuckGo를 거쳐 잠깐 이동 화면이 보일 수 있음).</div>
     </div>
     <div class="panel"><h3>${esc(c.ko)} 평가 기관</h3>${c.sources.map((s) => {
@@ -871,6 +875,42 @@ async function renderWeb(query, tab) {
   renderItem(it, tab, `#/web/${enc(query)}/`);
 }
 
+/* ───────── 실시간 점수 (Google Custom Search 요약·구조화 데이터) ───────── */
+const CRITIC_SITES = [["Wine Spectator", "winespectator.com"], ["Robert Parker (Wine Advocate)", "robertparker.com"], ["James Suckling", "jamessuckling.com"], ["Decanter", "decanter.com"], ["Wine Enthusiast", "wineenthusiast.com"]];
+async function fetchLiveScores(it) {
+  const name = it.en || it.ko, out = [];
+  const [viv, crit] = await Promise.all([
+    cse(`site:vivino.com ${quoted(name)}`).catch(() => []),
+    cse(`${quoted(name)} (points OR pts) (${CRITIC_SITES.map(([, d]) => "site:" + d).join(" OR ")})`).catch(() => []),
+  ]);
+  const v = viv.find((x) => x.pagemap?.aggregaterating?.[0]?.ratingvalue) || viv.find((x) => /(\d\.\d)\s*(?:\/\s*5|stars?|rating|평점)/i.test(x.snippet || ""));
+  if (v) {
+    const ar = v.pagemap?.aggregaterating?.[0];
+    const val = ar?.ratingvalue || (v.snippet.match(/(\d\.\d)\s*(?:\/\s*5|stars?|rating|평점)/i) || [])[1];
+    if (val) out.push({ src: "Vivino", score: String(val).slice(0, 4), note: `실시간 · ${ar?.reviewcount || ar?.ratingcount ? `평가 ${ar.reviewcount || ar.ratingcount}건 · ` : ""}${v.title.slice(0, 40)}`, url: v.link });
+  }
+  for (const [label, dom] of CRITIC_SITES) {
+    const hit = crit.find((x) => (x.displayLink || x.link || "").includes(dom) && /\b(8\d|9\d|100)\s*(?:points|pts|-point|점)/i.test(`${x.title} ${x.snippet}`));
+    if (hit) out.push({ src: label, score: `${(`${hit.title} ${hit.snippet}`.match(/\b(8\d|9\d|100)\s*(?:points|pts|-point|점)/i) || [])[1]}점`, note: `실시간 · ${hit.title.slice(0, 40)}`, url: hit.link });
+  }
+  return out;
+}
+function wireLiveScore(it) {
+  const btn = $("#liveScoreBtn"), box = $("#liveScore"); if (!box) return;
+  const key = "score." + it.id, cached = store.get(key);
+  const draw = (rs) => {
+    box.innerHTML = rs.length ? `<h3 style="margin-top:14px">실시간 점수 <small class="prov">Google 검색 결과 기준</small></h3>${rs.map((r) => ratingCard(r, it.en || it.ko)).join("")}`
+      : `<p class="hint">검색 결과에서 점수를 찾지 못했어요. 위 출처 링크에서 확인해 주세요.</p>`;
+  };
+  if (cached && Date.now() - cached.at < 7 * 864e5) draw(cached.rs);
+  if (btn) btn.onclick = async () => {
+    btn.disabled = true; btn.textContent = "불러오는 중…";
+    try { const rs = await fetchLiveScores(it); store.set(key, { at: Date.now(), rs }); draw(rs); }
+    catch (e) { box.innerHTML = `<p class="hint">불러오지 못했어요 (${esc(e.message)})</p>`; }
+    finally { btn.disabled = false; btn.textContent = "실시간 점수 다시 불러오기"; }
+  };
+}
+
 /* ───────── 사진 ───────── */
 async function findPhoto(it) {
   if (it.photo) return { src: it.photo, cap: "직접 등록한 사진" };
@@ -1010,7 +1050,7 @@ function renderSettings() {
     </div>
     <div class="panel">
       <h3>데이터</h3>
-      <p class="hint" style="margin-top:0">수록 ${DB.length.toLocaleString()}종 · 내가 수정한 술 ${nEdit}건 · 내가 저장한 술 ${nUser}건</p>
+      <p class="hint" style="margin-top:0">앱 버전 ${APP_VERSION} · 수록 ${DB.length.toLocaleString()}종 · 내가 수정한 술 ${nEdit}건 · 내가 저장한 술 ${nUser}건</p>
       <button class="btn ghost block" id="clear">최근 본 기록 지우기</button>
       <button class="btn ghost block" id="clearCache" style="margin-top:8px">웹 검색·사진 캐시 지우기</button>
       <button class="btn ghost block" id="clearMine" style="margin-top:8px">내 수정·저장 정보 모두 지우기</button>
@@ -1035,6 +1075,7 @@ function renderSettings() {
 }
 
 /* ───────── 시작 ───────── */
+const APP_VERSION = "2026.11-v8";
 // 이전 버전에서 저장된 AI 설정·캐시 정리
 try { Object.keys(localStorage).filter((k) => /^sulsajeon\.(settings|aiItems|live\.|rank\.)/.test(k)).forEach((k) => localStorage.removeItem(k)); } catch {}
 if ("serviceWorker" in navigator && location.protocol !== "file:") navigator.serviceWorker.register("sw.js").catch(() => {});
