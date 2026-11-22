@@ -105,6 +105,11 @@
         if (['grilled', 'bbq', 'steak'].some((t) => food.tags.includes(t))) return [b.oak * 1.2, '오크의 훈연·토스트 향이 불향과 어울립니다'];
         return null;
       },
+      function regional(b, f, food, bev) {
+        // 같은 지역에서 오랜 세월 함께 발전한 음식과 술 (중식×중국술, 일식×사케, 한식×전통주)
+        if (bev.home_cuisine && bev.home_cuisine === food.cuisine) return [7, `${food.cuisine}과 같은 지역 술로 오래 함께해 온 조합입니다`];
+        return null;
+      },
       function classic(b, f, food, bev) {
         const matched = bev.pairs_with.filter((t) => food.tags.includes(t));
         if (!matched.length) return null;
@@ -143,7 +148,8 @@
         for (const [axis, d] of Object.entries(adjust)) profile[axis] += d;
       }
       for (const k of Object.keys(profile)) profile[k] = Math.max(0, Math.min(5, profile[k]));
-      return { id: `custom:${name}`, name_ko: name, aliases: [], cuisine: '', protein: protein || 'vegetable', profile, tags };
+      const hint = data.cuisineHints.find(([words]) => words.some((w) => text.includes(w)));
+      return { id: `custom:${name}`, name_ko: name, aliases: [], cuisine: hint ? hint[1] : '', protein: protein || 'vegetable', profile, tags };
     }
 
     const norm = (s) => s.toLowerCase().replace(/\s+/g, '');
@@ -154,7 +160,23 @@
       if (!q) return null;
       return data.foods.find((f) => names(f).includes(q))
         || data.foods.find((f) => names(f).some((n) => n.includes(q) || (n.length >= 3 && q.includes(n))))
+        // 한 글자 오타 허용 ("유실슬" → 유산슬). 3자 이상일 때만.
+        || (q.length >= 3 && data.foods.find((f) => names(f).some((n) => n.length >= 3 && oneEdit(q, n))))
         || null;
+    }
+
+    function oneEdit(a, b) {
+      if (a === b || Math.abs(a.length - b.length) > 1) return a === b;
+      if (a.length > b.length) [a, b] = [b, a];
+      let i = 0, j = 0, diff = 0;
+      while (i < a.length && j < b.length) {
+        if (a[i] !== b[j]) {
+          if (++diff > 1) return false;
+          if (a.length === b.length) i++;
+          j++;
+        } else { i++; j++; }
+      }
+      return diff + (b.length - j) <= 1;
     }
 
     function searchFoods(query, limit = 8) {
