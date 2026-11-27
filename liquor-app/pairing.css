@@ -91,3 +91,16 @@ a.item { text-decoration: none; }
 .lens-name-row input { flex: 1; min-width: 0; font-size: 16px; padding: 11px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); }
 .lens-name-row input:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 22%, transparent); }
 .lens-name-row .btn { padding: 0 18px; }
+
+/* 카메라 시트: 라벨 읽기 → 후보 고르기 (label-ocr.js) */
+.ocr-top { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }
+.shot-thumb { width: 64px; height: 84px; object-fit: cover; border-radius: 10px; box-shadow: var(--shadow); flex: none; }
+.ocr-box { margin: 0 0 6px; display: flex; flex-direction: column; gap: 8px; }
+.ocr-note { text-align: center; margin: 0; }
+.ocr-status { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 14px; border-radius: 14px; background: var(--chip); color: var(--ink-2); font-size: 14px; }
+.ocr-spin { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--accent); animation: ocrspin .8s linear infinite; }
+@keyframes ocrspin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .ocr-spin { animation: none; } }
+.ocr-h { font-family: var(--serif); font-weight: 700; font-size: 16px; }
+.ocr-h small { font-family: var(--sans); font-weight: 500; color: var(--muted); font-size: 12px; margin-left: 4px; }
+.ocr-list { max-height: 44vh; overflow-y: auto; }

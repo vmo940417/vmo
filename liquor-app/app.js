@@ -284,7 +284,7 @@ async function googleSuggest(q) {
   return list.map((x) => (Array.isArray(x) ? x[0] : x)).filter((x) => typeof x === "string" && x.trim()).slice(0, 8);
 }
 
-/* ───────── 카메라 → 구글 렌즈 ─────────
+/* ───────── 카메라 → 라벨 읽기(후보 고르기) · 구글 렌즈 ─────────
  * 구글이 외부 사이트에서 lens.google.com 으로 사진을 직접 올리는 요청(POST)을 403으로 막기 때문에,
  * 휴대폰 공유 기능으로 사진을 넘기고 공유 화면에서 'Google 렌즈'(또는 'Google로 검색')를 고르게 한다.
  * 렌즈가 알려 준 이름은 시트의 입력칸에 넣어 바로 수록된 술에서 찾는다. */
@@ -294,6 +294,7 @@ camInput.addEventListener("change", async () => {
   const f = camInput.files?.[0]; if (!f) return;
   let shot;
   try { shot = await shrink(f); } catch { toast("사진을 열 수 없어요"); return; }
+  shot.file = f;   // 라벨 글자 읽기는 더 큰 원본에서 (label-ocr.js)
   showLensSheet(shot);
 });
 function shrink(file, max = 1600) {
@@ -323,38 +324,36 @@ async function shareToLens(shot) {
 }
 function showLensSheet(shot) {
   $("#lensSheet")?.remove();
-  const share = canShareShot(shot);
   const el = document.createElement("div");
   el.id = "lensSheet"; el.className = "sheet-wrap";
   el.innerHTML = `<div class="sheet-bg"></div><div class="sheet">
       <div class="grab"></div>
-      <img class="shot" src="${shot.url}" alt="찍은 사진" />
-      <h3 class="sheet-h">구글 렌즈로 이 술 찾기</h3>
-      ${share ? `<ol class="lens-steps">
-        <li>아래 <b>구글 렌즈로 검색</b>을 누르세요.</li>
-        <li>공유 화면 아래 앱 줄을 옆으로 넘겨 <b>Google 렌즈</b>(G 아이콘)를 누르세요. 길게 눌러 <b>고정</b>하면 다음부터 맨 앞에 나와요.</li>
-        <li>렌즈가 알려 준 술 이름을 아래 칸에 넣으면 오늘술상에서 바로 찾아요.</li>
-      </ol>` : `<p class="hint" style="margin-top:0">렌즈 화면이 열리면 방금 찍은 사진을 선택하고, 알아낸 술 이름을 아래 칸에 넣으세요.</p>`}
-      <button class="btn block" data-a="lens"><svg viewBox="0 0 24 24"><path d="M4 9V6a2 2 0 0 1 2-2h3M15 4h3a2 2 0 0 1 2 2v3M20 15v3a2 2 0 0 1-2 2h-3M9 20H6a2 2 0 0 1-2-2v-3"/><circle cx="12" cy="12" r="3.2"/></svg> 구글 렌즈로 검색</button>
+      <div class="ocr-top">
+        <img class="shot-thumb" src="${shot.url}" alt="찍은 사진" />
+        <div><h3 class="sheet-h">사진 속 술 찾기</h3><p class="hint" style="margin:0">라벨 글자를 읽어 비슷한 술을 골라 드려요</p></div>
+      </div>
+      <div class="ocr-box"></div>
       <form class="lens-name" id="lensName" autocomplete="off">
-        <label for="lensQ">렌즈가 알려 준 술 이름</label>
+        <label for="lensQ">후보에 없으면 이름으로 찾기</label>
         <div class="lens-name-row"><input id="lensQ" type="search" enterkeyhint="search" placeholder="예) Aubert Chardonnay" /><button class="btn" type="submit">찾기</button></div>
       </form>
       <div class="linkbtns">
-        <button class="btn ghost" type="button" data-a="page">렌즈 페이지 열기</button>
+        <button class="btn ghost" type="button" data-a="lens">구글 렌즈로 찾기</button>
         <button class="btn ghost" type="button" data-a="retake">다시 찍기</button>
       </div>
+      <p class="hint" style="margin-top:8px">구글 렌즈는 필기체 라벨도 잘 찾아요. 공유 화면에서 <b>Google 렌즈</b>를 고르고, 알아낸 이름을 위 칸에 넣으세요.</p>
     </div>`;
   document.body.appendChild(el);
   const close = () => el.remove();
+  const q = el.querySelector("#lensQ");
+  window.LabelOCR?.attach(el.querySelector(".ocr-box"), shot, { onText: (t) => { if (!q.value) q.value = t; } });
   el.querySelector(".sheet-bg").onclick = close;
   el.querySelector("[data-a=lens]").onclick = () => shareToLens(shot);
-  el.querySelector("[data-a=page]").onclick = openLensPage;
   el.querySelector("[data-a=retake]").onclick = () => { close(); openCamera(); };
   el.querySelector("#lensName").onsubmit = (e) => {
     e.preventDefault();
-    const q = el.querySelector("#lensQ").value.trim(); if (!q) return;
-    close(); go(`#/search?q=${enc(q)}`);
+    const v = q.value.trim(); if (!v) return;
+    close(); go(`#/search?q=${enc(v)}`);
   };
 }
 
@@ -1149,7 +1148,7 @@ function renderSettings() {
 // 페어링 모듈(pairing.js)이 쓰는 공통 함수
 window.SulApp = { $, view, esc, enc, go, store, setChrome, pagedList, itemRow, bindItems };
 $("#setBtn").onclick = () => go("#/settings");
-const APP_VERSION = "2026.11-v26";
+const APP_VERSION = "2026.11-v27";
 loadFX().then(() => { if (/#\/(item|browse|ranking)/.test(location.hash)) render(); });
 // 이전 버전에서 저장된 AI 설정·캐시 정리
 try { Object.keys(localStorage).filter((k) => /^sulsajeon\.(settings|aiItems|live\.|rank\.)/.test(k)).forEach((k) => localStorage.removeItem(k)); } catch {}
