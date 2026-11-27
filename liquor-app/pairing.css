@@ -76,3 +76,18 @@ a.item { text-decoration: none; }
 .buy-main i { font-style: normal; color: var(--muted); }
 .buy .linkbtns a { word-break: keep-all; display: flex; flex-direction: column; gap: 2px; }
 .buy .linkbtns small { font-weight: 500; color: var(--muted); font-size: 12px; }
+
+/* 술검색: 카메라 → 구글 렌즈 */
+.searchbox input#q { padding-right: 58px; }
+.cam-btn { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 42px; height: 42px; border-radius: 12px; border: 0;
+  display: grid; place-items: center; background: var(--g-wine); color: #fff; box-shadow: 0 4px 12px -4px rgba(110,22,48,.6); }
+.cam-btn svg { width: 22px; height: 22px; stroke: #fff; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.cam-btn:active { transform: translateY(-50%) scale(.94); }
+.sheet .shot { display: block; max-width: 100%; max-height: 34vh; margin: 0 auto 12px; border-radius: 14px; box-shadow: var(--shadow); }
+.lens-steps { margin: 4px 0 12px; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; color: var(--ink-2); }
+.lens-name { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
+.lens-name label { font-size: 13px; color: var(--muted); }
+.lens-name-row { display: flex; gap: 8px; }
+.lens-name-row input { flex: 1; min-width: 0; font-size: 16px; padding: 11px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); }
+.lens-name-row input:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 22%, transparent); }
+.lens-name-row .btn { padding: 0 18px; }

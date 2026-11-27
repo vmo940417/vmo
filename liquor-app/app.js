@@ -284,6 +284,80 @@ async function googleSuggest(q) {
   return list.map((x) => (Array.isArray(x) ? x[0] : x)).filter((x) => typeof x === "string" && x.trim()).slice(0, 8);
 }
 
+/* ───────── 카메라 → 구글 렌즈 ─────────
+ * 구글이 외부 사이트에서 lens.google.com 으로 사진을 직접 올리는 요청(POST)을 403으로 막기 때문에,
+ * 휴대폰 공유 기능으로 사진을 넘기고 공유 화면에서 'Google 렌즈'(또는 'Google로 검색')를 고르게 한다.
+ * 렌즈가 알려 준 이름은 시트의 입력칸에 넣어 바로 수록된 술에서 찾는다. */
+const camInput = $("#camInput");
+function openCamera() { camInput.value = ""; camInput.click(); }
+camInput.addEventListener("change", async () => {
+  const f = camInput.files?.[0]; if (!f) return;
+  let shot;
+  try { shot = await shrink(f); } catch { toast("사진을 열 수 없어요"); return; }
+  showLensSheet(shot);
+});
+function shrink(file, max = 1600) {
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => {
+      const k = Math.min(1, max / Math.max(img.width, img.height));
+      const cv = document.createElement("canvas"); cv.width = Math.round(img.width * k); cv.height = Math.round(img.height * k);
+      cv.getContext("2d").drawImage(img, 0, 0, cv.width, cv.height);
+      URL.revokeObjectURL(img.src);
+      cv.toBlob((blob) => blob ? res({ blob, w: cv.width, h: cv.height, url: URL.createObjectURL(blob) }) : rej(new Error("encode")), "image/jpeg", 0.88);
+    };
+    img.onerror = () => rej(new Error("image"));
+    img.src = URL.createObjectURL(file);
+  });
+}
+const lensFile = (shot) => new File([shot.blob], "label.jpg", { type: "image/jpeg" });
+const canShareShot = (shot) => !!navigator.canShare?.({ files: [lensFile(shot)] });
+function openLensPage() {
+  window.open("https://lens.google.com/", "_blank", "noopener");
+  toast("렌즈 화면에서 방금 찍은 사진을 선택해 주세요");
+}
+async function shareToLens(shot) {
+  if (!canShareShot(shot)) return openLensPage();
+  try { await navigator.share({ files: [lensFile(shot)] }); }
+  catch (e) { if (e?.name !== "AbortError") openLensPage(); }   // 사용자가 공유 창을 닫은 경우는 그대로 둔다
+}
+function showLensSheet(shot) {
+  $("#lensSheet")?.remove();
+  const share = canShareShot(shot);
+  const el = document.createElement("div");
+  el.id = "lensSheet"; el.className = "sheet-wrap";
+  el.innerHTML = `<div class="sheet-bg"></div><div class="sheet">
+      <div class="grab"></div>
+      <img class="shot" src="${shot.url}" alt="찍은 사진" />
+      <h3 class="sheet-h">구글 렌즈로 이 술 찾기</h3>
+      ${share ? `<ol class="lens-steps">
+        <li>아래 <b>구글 렌즈로 검색</b>을 누르세요.</li>
+        <li>공유 화면 아래 앱 줄을 옆으로 넘겨 <b>Google 렌즈</b>(G 아이콘)를 누르세요. 길게 눌러 <b>고정</b>하면 다음부터 맨 앞에 나와요.</li>
+        <li>렌즈가 알려 준 술 이름을 아래 칸에 넣으면 오늘술상에서 바로 찾아요.</li>
+      </ol>` : `<p class="hint" style="margin-top:0">렌즈 화면이 열리면 방금 찍은 사진을 선택하고, 알아낸 술 이름을 아래 칸에 넣으세요.</p>`}
+      <button class="btn block" data-a="lens"><svg viewBox="0 0 24 24"><path d="M4 9V6a2 2 0 0 1 2-2h3M15 4h3a2 2 0 0 1 2 2v3M20 15v3a2 2 0 0 1-2 2h-3M9 20H6a2 2 0 0 1-2-2v-3"/><circle cx="12" cy="12" r="3.2"/></svg> 구글 렌즈로 검색</button>
+      <form class="lens-name" id="lensName" autocomplete="off">
+        <label for="lensQ">렌즈가 알려 준 술 이름</label>
+        <div class="lens-name-row"><input id="lensQ" type="search" enterkeyhint="search" placeholder="예) Aubert Chardonnay" /><button class="btn" type="submit">찾기</button></div>
+      </form>
+      <div class="linkbtns">
+        <button class="btn ghost" type="button" data-a="page">렌즈 페이지 열기</button>
+        <button class="btn ghost" type="button" data-a="retake">다시 찍기</button>
+      </div>
+    </div>`;
+  document.body.appendChild(el);
+  const close = () => el.remove();
+  el.querySelector(".sheet-bg").onclick = close;
+  el.querySelector("[data-a=lens]").onclick = () => shareToLens(shot);
+  el.querySelector("[data-a=page]").onclick = openLensPage;
+  el.querySelector("[data-a=retake]").onclick = () => { close(); openCamera(); };
+  el.querySelector("#lensName").onsubmit = (e) => {
+    e.preventDefault();
+    const q = el.querySelector("#lensQ").value.trim(); if (!q) return;
+    close(); go(`#/search?q=${enc(q)}`);
+  };
+}
+
 /* ───────── 외부 링크 ─────────
  * 특정 술 한 건으로 바로 가도록: 구글 '첫 결과로 바로 이동'(btnI) + 사이트·정확한 이름 제한 */
 // 구글 검색(사이트 한정). 모바일 구글은 '첫 결과 바로 이동(btnI)'을 무시하므로 결과 맨 위 항목을 한 번 누르는 방식.
@@ -416,6 +490,7 @@ function pagedList(root, items, step = 60) {
   more.onclick = draw; root.appendChild(more); draw();
 }
 const ICO = {
+  cam: `<svg viewBox="0 0 24 24"><path d="M4 8h3l1.6-2.2h6.8L17 8h3v11H4z"/><circle cx="12" cy="13.3" r="3.4"/></svg>`,
   search: `<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>`,
   fill: `<svg viewBox="0 0 24 24"><path d="M7 17 17 7M8 7h9v9"/></svg>`,
   edit: `<svg viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13 7 4 4"/></svg>`,
@@ -434,10 +509,12 @@ function renderSearch(q) {
         <span class="s-ico">${ICO.search}</span>
         <input id="q" type="search" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false"
           placeholder="예) ㅊㅇㅅ, 발베, 獺祭" value="${esc(q)}" />
+        <button type="button" class="cam-btn" id="camBtn" aria-label="카메라로 검색">${ICO.cam}</button>
       </form>
     </section>
     <div id="results"></div>`;
   const input = $("#q");
+  $("#camBtn").onclick = openCamera;
   let sugTimer = 0, lastQ = null;
   const draw = () => {
     const v = input.value.trim();
@@ -1072,7 +1149,7 @@ function renderSettings() {
 // 페어링 모듈(pairing.js)이 쓰는 공통 함수
 window.SulApp = { $, view, esc, enc, go, store, setChrome, pagedList, itemRow, bindItems };
 $("#setBtn").onclick = () => go("#/settings");
-const APP_VERSION = "2026.11-v25";
+const APP_VERSION = "2026.11-v26";
 loadFX().then(() => { if (/#\/(item|browse|ranking)/.test(location.hash)) render(); });
 // 이전 버전에서 저장된 AI 설정·캐시 정리
 try { Object.keys(localStorage).filter((k) => /^sulsajeon\.(settings|aiItems|live\.|rank\.)/.test(k)).forEach((k) => localStorage.removeItem(k)); } catch {}
