@@ -79,7 +79,8 @@ export function setupCellar(ctx) {
     if (!b.vintage) return { from: buyY, to: buyY + Math.max(2, Math.round(e / 3)), why: why + " · 빈티지 미입력이라 구매일 기준" };
     return { from: +b.vintage + s, to: +b.vintage + e, why };
   }
-  const windowOf = (b) => (b.from || b.to ? { from: b.from ? +b.from : null, to: b.to ? +b.to : null, why: "직접 입력", manual: true } : estimateWindow(b));
+  // 시음 적기는 저장하지 않고 조회할 때마다 계산 (빈티지·와인·구매일 기준)
+  const windowOf = (b) => estimateWindow(b);
   const ST = {
     aging: { t: "숙성 중", c: "aging", rank: 3 }, ready: { t: "시음 적기", c: "ready", rank: 1 },
     late: { t: "서둘러요", c: "late", rank: 0 }, past: { t: "정점 지남", c: "past", rank: 2 }, any: { t: "언제든", c: "any", rank: 4 },
@@ -244,7 +245,7 @@ export function setupCellar(ctx) {
           <div class="stat"><small>시음 적기</small><b>${esc(winText(w))}</b></div><div class="stat"><small>상태</small><b>${st.t}</b></div></div></section>
       ${b.photo ? `<figure class="photo"><img src="${esc(b.photo)}" alt="라벨 사진" /></figure>` : ""}
       <div class="panel"><h3>시음 적기</h3>${winBar(b)}
-        <p class="hint" style="margin:8px 0 0">${esc(w.manual ? "직접 입력한 시음 적기" : "자동 추정 — " + w.why)}${w.manual ? "" : ". 실제 적기는 빈티지 작황·보관 상태에 따라 달라요. ‘수정’에서 직접 바꿀 수 있어요."}</p></div>
+        <p class="hint" style="margin:8px 0 0">자동 추정 — ${esc(w.why)}. 실제 적기는 빈티지 작황·보관 상태에 따라 달라요.</p></div>
       <div class="linkbtns" style="margin-top:10px"><button class="btn" id="bDrink" ${b.qty ? "" : "disabled"}>🍷 한 병 마셨어요</button><button class="btn ghost" id="bEdit">수정</button></div>
       ${cat === "wine" || !it ? `<div class="panel"><h3>와인서쳐 시세 <small class="prov">Wine-Searcher</small></h3>
         ${b.ws ? `<div class="price-card"><div class="price-big">${fmtUSDv(b.ws.usd)}</div>
@@ -295,7 +296,7 @@ export function setupCellar(ctx) {
   }
   function openBottleSheet(b0, preItem) {
     const edit = !!b0;
-    const b = b0 ? { ...b0 } : { id: uid(), itemId: preItem?.id || "", name: "", vintage: "", size: 750, qty: 1, buyDate: today(), loc: "", note: "", from: "", to: "", photo: "" };
+    const b = b0 ? { ...b0 } : { id: uid(), itemId: preItem?.id || "", name: "", vintage: "", size: 750, qty: 1, buyDate: today(), loc: "", note: "", photo: "" };
     const { el, form, close } = sheet(`
       <h3 class="sheet-h">${edit ? "보유 와인 수정" : "셀러에 추가"}</h3>
       <div class="field"><label>와인</label><input id="bq" autocomplete="off" placeholder="이름·초성으로 검색 (예: 딸보, ㅇㅍㅅㅇ)" value="${esc(itemOf(b)?.ko || b.name)}" />
@@ -307,8 +308,6 @@ export function setupCellar(ctx) {
         <div class="field"><label>용량</label><select name="size">${[[375, "375ml (하프)"], [500, "500ml"], [750, "750ml"], [1500, "1.5L (매그넘)"], [3000, "3L"]].map(([v, t]) => `<option value="${v}" ${+b.size === v ? "selected" : ""}>${t}</option>`).join("")}</select></div></div>
       <a class="wslink" id="bWsLink" target="_blank" rel="noopener" href="#">와인서쳐에서 시세 보기 ↗</a>
       <div class="field"><label>보관 위치</label><input name="loc" placeholder="예: 셀러 A · 3단 · 왼쪽 2번째" value="${esc(b.loc)}" /></div>
-      <div class="field"><label>시음 적기 <small id="wHint" style="font-weight:400"></small></label>
-        <div class="frow" style="margin:0"><input name="from" inputmode="numeric" placeholder="시작 연도" value="${esc(b.from)}" /><span style="align-self:center;padding:0 6px">–</span><input name="to" inputmode="numeric" placeholder="끝 연도" value="${esc(b.to)}" /></div></div>
       <div class="field"><label>메모</label><textarea name="note" rows="2" placeholder="선물 받음, 결혼기념일용 등">${esc(b.note)}</textarea></div>
       <div class="field"><label>라벨 사진</label><div class="frow" style="margin:0;align-items:center">${b.photo ? `<img id="bPh" class="cthumb lg" src="${esc(b.photo)}" alt="" />` : `<img id="bPh" class="cthumb lg hidden" alt="" />`}
         <button type="button" class="btn ghost" id="bPhoto" style="flex:1">📷 사진 ${b.photo ? "바꾸기" : "추가"}</button></div>
@@ -318,8 +317,6 @@ export function setupCellar(ctx) {
     const q = el.querySelector("#bq"), res = el.querySelector("#bRes"), picked = el.querySelector("#bPicked");
     const hint = () => {
       const f = new FormData(form);
-      const w = estimateWindow({ ...b, vintage: f.get("vintage"), buyDate: f.get("buyDate") });
-      el.querySelector("#wHint").textContent = `자동 추정 ${winText(w)} · 비우면 자동`;
       const lk = el.querySelector("#bWsLink"), nm = wsName(b);
       lk.classList.toggle("hidden", !nm); lk.href = wsUrl({ ...b, vintage: String(f.get("vintage") || "").replace(/\D/g, "").slice(0, 4) });
       lk.textContent = `와인서쳐에서 ‘${nm}${f.get("vintage") ? " " + f.get("vintage") : ""}’ 시세 보기 ↗`;
@@ -350,7 +347,8 @@ export function setupCellar(ctx) {
       if (!b.itemId && !b.name) { toast("와인을 검색해서 고르거나 이름을 입력해 주세요"); return; }
       const num = (v) => String(v || "").replace(/[^\d.]/g, "");
       Object.assign(b, { vintage: num(f.vintage).slice(0, 4), qty: Math.max(0, parseInt(f.qty) || 0), buyDate: f.buyDate, size: +f.size,
-        loc: f.loc.trim(), note: f.note.trim(), from: num(f.from).slice(0, 4), to: num(f.to).slice(0, 4) });
+        loc: f.loc.trim(), note: f.note.trim() });
+      delete b.from; delete b.to;
       if (!b.itemId) b.cat = "wine";
       if (b0 && (b0.vintage !== b.vintage || b0.itemId !== b.itemId || b0.name !== b.name)) delete b.ws;
       C = load();
@@ -453,7 +451,7 @@ export function setupCellar(ctx) {
   function itemCellarHTML(it) {
     const mine = load().bottles.filter((b) => b.itemId === it.id && b.qty > 0);
     const n = mine.reduce((s, b) => s + b.qty, 0);
-    return `<div class="incellar">${n ? `<button class="incellar-on" id="inCellar">🍷 내 셀러에 <b>${n}병</b> · ${mine.map((b) => `${b.vintage || "NV"} ${statusOf(b).t}`).join(", ")} ›</button>` : ""}
+    return `<div class="incellar">${n ? `<button class="incellar-on" id="inCellar">🍷 내 셀러에 <b>${n}병</b> · ${mine.map((b) => `${b.vintage || "NV"} ${statusOf(b).t}(${winText(windowOf(b))})`).join(", ")} ›</button>` : ""}
       <button class="btn ghost block" id="toCellar">＋ 내 셀러에 추가</button></div>`;
   }
   function wireItemCellar(it) {
