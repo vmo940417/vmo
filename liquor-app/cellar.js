@@ -353,8 +353,7 @@ export function setupCellar(ctx) {
     view.innerHTML = `
       <section class="hero cat-wine cellar-hero"><span class="glyph">${bottle("wine")}</span>
         <span class="kind">My Cellar</span><h2>${n ? `${n}병 <small>${A.length}종</small>` : "셀러가 비어 있어요"}</h2>
-        ${n ? `<div class="stats" style="grid-template-columns:repeat(2,1fr)">
-          <div class="stat"><small>와인서쳐 시세 합계${wsN ? ` · ${wsN}/${A.length}종` : ""}</small><b>${ws ? fmtUSDv(ws) : "—"}</b>${ws ? `<small>${krwOf(ws)}</small>` : ""}</div>
+        ${n ? `<div class="stats" style="grid-template-columns:1fr">
           <div class="stat"><small>현지 참고가 합계</small><b>${val ? fmtUSDv(val) : "—"}</b>${val ? `<small>${krwOf(val)}</small>` : ""}</div></div>` : `<div class="names">와인을 추가하면 시음 적기와 페어링을 관리해 드려요</div>`}
       </section>
       <button class="btn gold block" id="cAdd" style="margin-top:12px">＋ 와인 추가</button>
