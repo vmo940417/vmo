@@ -70,7 +70,7 @@ main { padding: 14px 16px 28px; max-width: 720px; margin: 0 auto; animation: fad
 @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 
 /* ── Bottom tab bar ─────────────────────────── */
-.tabbar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 20; display: grid; grid-template-columns: repeat(5, 1fr);
+.tabbar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 20; display: grid; grid-template-columns: repeat(6, 1fr);
   background: color-mix(in srgb, var(--paper) 88%, transparent); backdrop-filter: blur(18px) saturate(1.5); -webkit-backdrop-filter: blur(18px) saturate(1.5);
   border-top: 1px solid var(--line); padding: 4px 6px env(safe-area-inset-bottom); }
 .tabbar button { background: none; border: 0; color: var(--muted); padding: 7px 0 7px; font-size: 10.5px; letter-spacing: .02em;
@@ -378,3 +378,40 @@ main { padding: 14px 16px 28px; max-width: 720px; margin: 0 auto; animation: fad
 .hero .glyph { right: 4px; bottom: -14px; opacity: .16; color: #fff; }
 .hero .glyph .btl { width: 112px; height: 140px; }
 .topbar h1 .seal .btl { width: 15px; height: 19px; color: #f6e7c8; }
+
+/* ── 나의 와인셀러 ─────────────────────────── */
+.cellar-hero h2 small { font-size: 15px; opacity: .8; font-family: var(--sans); font-weight: 500; }
+.alerts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 10px; }
+.al { border: 0; border-radius: 14px; padding: 10px 4px; background: var(--paper); box-shadow: var(--shadow); display: flex; flex-direction: column; align-items: center; gap: 2px; color: var(--ink); }
+.al b { font-size: 21px; font-family: var(--serif); }
+.al span { font-size: 11.5px; color: var(--muted); }
+.al.late b { color: var(--warn); } .al.ready b { color: var(--good); } .al.aging b { color: #3d6fa8; } .al.past b { color: var(--muted); }
+.cst { display: inline-block; font-size: 10.5px; font-weight: 700; padding: 1px 7px; border-radius: 6px; vertical-align: 1px; }
+.cst.ready { color: var(--good); background: color-mix(in srgb, var(--good) 14%, transparent); }
+.cst.late { color: var(--warn); background: color-mix(in srgb, var(--warn) 16%, transparent); }
+.cst.aging { color: #3d6fa8; background: color-mix(in srgb, #3d6fa8 14%, transparent); }
+.cst.past, .cst.any { color: var(--muted); background: var(--chip); }
+.hero .kind .cst { background: rgba(255,255,255,.2); color: #fff; }
+.vin { font-family: var(--serif); color: var(--gold); font-weight: 700; }
+.cthumb { width: 38px; height: 48px; object-fit: cover; border-radius: 8px; flex: none; box-shadow: var(--shadow); }
+.cthumb.lg { width: 56px; height: 72px; }
+.winbar { position: relative; height: 12px; border-radius: 6px; background: var(--chip); margin: 4px 0 4px; overflow: hidden; }
+.winbar .seg { position: absolute; top: 0; bottom: 0; border-radius: 6px; background: linear-gradient(90deg, var(--good), color-mix(in srgb, var(--good) 55%, var(--warn))); }
+.winbar .now { position: absolute; top: -2px; bottom: -2px; width: 3px; margin-left: -1px; background: var(--ink); border-radius: 2px; }
+.winlab { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
+.frow { display: flex; gap: 10px; }
+.frow > .field { flex: 1; min-width: 0; }
+.picked { font-size: 13px; color: var(--good); margin-top: 6px; }
+.picked small { color: var(--muted); }
+.list.mini .item { padding: 8px 10px; }
+.seg3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.seg3 button { border: 1px solid var(--line); background: var(--paper); color: var(--ink-2); border-radius: 12px; padding: 10px 4px; font-size: 14px; }
+.seg3 button.active { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.mypairs { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; font-size: 14px; }
+.mypairs small { color: var(--muted); font-size: 11.5px; }
+.mypairs .bad { color: var(--muted); }
+.incellar { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+.incellar-on { border: 0; text-align: left; padding: 12px 14px; border-radius: 14px; background: color-mix(in srgb, var(--good) 12%, var(--paper)); color: var(--ink); font-size: 14px; }
+.cellar-cta { display: flex; flex-direction: column; gap: 2px; width: 100%; text-align: left; border: 0; background: var(--g-wine); color: #fff; border-radius: 16px; padding: 13px 15px; margin-top: 4px; box-shadow: var(--shadow); }
+.cellar-cta b { font-size: 14.5px; } .cellar-cta span { font-size: 12.5px; opacity: .85; }
+.tabbar button { font-size: 10px; }

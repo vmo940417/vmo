@@ -1,4 +1,5 @@
 /* 술사전 — 검색 중심 앱 (외부 AI 연동 없음) */
+import { setupCellar } from "./cellar.js";
 const CATS = window.CATEGORIES;
 const DB = window.LIQUORS;
 // 사케 평가는 さけのわ(일본 최대 사케 유저 평점·랭킹)만 사용
@@ -463,6 +464,7 @@ function render() {
   if (route === "browse") return renderBrowse(a);
   if (route === "ranking") return renderRanking(a || "sake");
   if (route === "settings") return renderSettings();
+  if (route === "cellar") return CELLAR.renderCellar(a);
   return renderSearch(new URLSearchParams(location.hash.split("?")[1] || "").get("q") || "");
 }
 
@@ -565,10 +567,12 @@ function renderSearch(q) {
 }
 function drawHome(out) {
   const recent = store.get("recent", []).map(findById).filter(Boolean).slice(0, 6);
-  out.innerHTML = `
+  const due = CELLAR.dueSummary();
+  out.innerHTML = `${due.late || due.ready ? `<button class="cellar-cta" id="cellarCta"><b>🍷 내 셀러 · ${due.total}병</b><span>${[due.late && `서둘러 마실 와인 ${due.late}병`, due.ready && `지금 시음 적기 ${due.ready}병`].filter(Boolean).join(" · ")}</span></button>` : ""}
     <div class="section-title">주종 둘러보기 <small>${DB.length.toLocaleString()}종 수록</small></div>${catGrid()}
     ${recent.length ? `<div class="section-title">최근 본 술</div><div class="list">${recent.map(itemRow).join("")}</div>` : ""}`;
   out.querySelectorAll(".cat-tile").forEach((t) => (t.onclick = () => go("#/browse/" + t.dataset.cat)));
+  $("#cellarCta")?.addEventListener("click", () => go("#/cellar"));
   bindItems(out);
 }
 function catGrid() {
@@ -636,7 +640,7 @@ function renderItem(it, tab, base) {
 function drawPane(it, tab) {
   const P = { overview: paneOverview, price: panePrice, ingredients: paneIngredients, ratings: paneRatings, pairing: panePairing }[tab] || paneOverview;
   $("#pane").innerHTML = P(it);
-  if (tab === "overview" || !P || P === paneOverview) { loadPhoto(it); const e = $("#editBtn"); if (e) e.onclick = () => openEditor(it); }
+  if (tab === "overview" || !P || P === paneOverview) { loadPhoto(it); const e = $("#editBtn"); if (e) e.onclick = () => openEditor(it); CELLAR.wireItemCellar(it); }
   if (tab === "ratings") wireLiveScore(it);
 }
 function autoDesc(it) {
@@ -671,6 +675,7 @@ function paneOverview(it) {
       ${kvRows(it)}
       <a class="gsearch" style="margin-top:14px" href="${safeUrl(googleUrl(it.en || it.ko))}" target="_blank" rel="noopener">${ICO.g}<span>구글에서 ‘<b>${esc(it.ko || it.en)}</b>’ 더 보기</span><i>↗</i></a>
       <button class="btn ghost block" id="editBtn" style="margin-top:10px">${ICO.edit} 정보 수정</button>
+      ${CELLAR.itemCellarHTML(it)}
     </div>
     ${it.web && it.desc && sim ? `<div class="section-title">수록된 비슷한 술</div>${sim}` : ""}`;
 }
@@ -1136,7 +1141,8 @@ function renderSettings() {
 }
 
 /* ───────── 시작 ───────── */
-const APP_VERSION = "2026.11-v15";
+const APP_VERSION = "2026.11-v16";
+var CELLAR = setupCellar({ store, $, view, esc, enc, toast, go, setChrome, bottle: window.bottle, CATS, findById, search, usdOf, fmtUSDv, fxRate, shrink, render: () => render() });
 loadFX().then(() => { if (/#\/(item|browse|ranking)/.test(location.hash)) render(); });
 // 이전 버전에서 저장된 AI 설정·캐시 정리
 try { Object.keys(localStorage).filter((k) => /^sulsajeon\.(settings|aiItems|live\.|rank\.)/.test(k)).forEach((k) => localStorage.removeItem(k)); } catch {}
