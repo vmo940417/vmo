@@ -444,3 +444,7 @@ main { padding: 14px 16px 28px; max-width: 720px; margin: 0 auto; animation: fad
 .drow.pointed .dl { color: var(--ink); font-weight: 700; }
 .dcol.pointed b { color: var(--ink); }
 @media (prefers-reduced-motion: reduce) { .cbub { animation: none; } }
+.pf-head { margin: 14px 2px 8px; font-weight: 700; font-size: 14.5px; }
+.pf-head small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; margin-top: 2px; }
+#pfSug .sug-row small { margin-left: auto; color: var(--muted); font-size: 12px; }
+#pick a.item, #pick a.item .name { color: var(--ink); text-decoration: none; }

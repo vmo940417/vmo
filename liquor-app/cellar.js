@@ -420,7 +420,7 @@ export function setupCellar(ctx) {
         ${n ? `<div class="stats" style="grid-template-columns:1fr">
           <div class="stat"><small>현지 참고가 합계</small><b>${val ? fmtUSDv(val) : "—"}</b>${val ? `<small>${krwOf(val)}</small>` : ""}</div></div>` : `<div class="names">와인을 추가하면 시음 적기와 페어링을 관리해 드려요</div>`}
       </section>
-      <button class="btn gold block" id="cAdd" style="margin-top:12px">＋ 와인 추가</button>
+      <button class="btn gold block" id="cAdd" style="margin-top:12px">＋ 셀러에 추가</button>
       ${n ? `<button class="btn ghost block" id="cDash" style="margin-top:8px">📊 셀러 대시보드</button>` : ""}
       ${n && cseOn() ? `<button class="btn ghost block" id="cWsAll" style="margin-top:8px">와인서쳐 시세 모두 불러오기</button>` : ""}
       ${n ? `<div class="alerts">
@@ -428,8 +428,10 @@ export function setupCellar(ctx) {
         <button data-f="ready" class="al ready"><b>${cnt("ready")}</b><span>지금 적기</span></button>
         <button data-f="aging" class="al aging"><b>${cnt("aging")}</b><span>숙성 중</span></button>
         <button data-f="past" class="al past"><b>${cnt("past")}</b><span>정점 지남</span></button></div>
-      <div class="panel"><h3>오늘 뭘 열까?</h3><p class="hint" style="margin:0 0 8px">음식을 고르면 보유 와인 중 어울리는 병을 시음 적기가 급한 순으로 추천해요</p>
-        <div class="chips" id="foodChips" style="margin:0 -16px;padding-bottom:6px">${FOODS.map(([f], i) => `<button class="chip" data-i="${i}">${esc(f)}</button>`).join("")}</div>
+      <div class="panel"><h3>페어링 검색</h3><p class="hint" style="margin:0 0 10px">음식 이름을 입력하면 보유한 술 중 어울리는 병을 점수 순으로 골라 드려요</p>
+        <form class="searchbox" id="pfForm" role="search"><span class="s-ico"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></span>
+          <input id="pfQ" type="search" enterkeyhint="search" autocomplete="off" placeholder="예) 양념갈비, 광어회, 마라탕" value="${esc(store.get("cellar.pq", ""))}" /></form>
+        <div class="sug hidden" id="pfSug" style="margin-top:6px"></div>
         <div id="pick"></div></div>
       <div class="section-title">보유 목록 <small>${fl.length}종 · ${qOf(fl)}병</small></div>
       <div class="chips dchips" id="lcChips"><button class="chip ${lc === "all" ? "active" : ""}" data-lc="all">전체 <small>${n}</small></button>${[...catQ].map(([c, q]) => `<button class="chip ${lc === c ? "active" : ""}" data-lc="${c}">${CATS[c]?.emoji || ""} ${esc(CATS[c]?.ko || c)} <small>${q}</small></button>`).join("")}</div>
@@ -463,18 +465,26 @@ export function setupCellar(ctx) {
     view.querySelectorAll("[data-lc]").forEach((el) => (el.onclick = () => keepY(() => { store.set("cellar.c", el.dataset.lc); store.set("cellar.t", "all"); })));
     view.querySelectorAll("[data-lt]").forEach((el) => (el.onclick = () => keepY(() => store.set("cellar.t", el.dataset.lt))));
     view.querySelectorAll("[data-lg]").forEach((el) => (el.onclick = () => keepY(() => store.set("cellar.g." + lc, el.dataset.lg))));
-    const fc = $("#foodChips");
-    if (fc) fc.onclick = (e) => {
-      const ch = e.target.closest("[data-i]"); if (!ch) return;
-      fc.querySelectorAll(".chip").forEach((x) => x.classList.toggle("active", x === ch));
-      const i = +ch.dataset.i;
-      const r = A.map((b) => ({ b, p: pairScore(b, i), st: statusOf(b) })).filter((x) => x.p.s > 0 && x.st.c !== "aging")
-        .sort((x, y) => x.st.rank - y.st.rank || y.p.s - x.p.s).slice(0, 5);
-      const aging = A.filter((b) => pairScore(b, i).s > 0 && statusOf(b).c === "aging").length;
-      $("#pick").innerHTML = r.length ? `<div class="list" style="margin-top:6px">${r.map(({ b, p }) => bottleRow(b, esc(p.why))).join("")}</div>`
-        : `<p class="hint" style="margin-top:8px">지금 마시기 좋은 병 중에는 ${esc(FOODS[i][0])}와 딱 맞는 와인이 없어요.${aging ? ` (숙성 중인 병 ${aging}종은 어울리지만 아직 일러요)` : ""}</p>`;
-      bindRows($("#pick"));
-    };
+    // 페어링 검색: 입력 → 자동완성(등록 음식 323종) → 보유 병 추천
+    const pfQ = $("#pfQ");
+    if (pfQ) {
+      const P = window.Pairing, sug = $("#pfSug");
+      const run = (q) => {
+        q = q.trim(); sug.classList.add("hidden"); store.set("cellar.pq", q);
+        if (!q) { $("#pick").innerHTML = ""; return; }
+        if (!P?.cellarSearch) { $("#pick").innerHTML = `<p class="hint">페어링 엔진을 불러오지 못했어요.</p>`; return; }
+        const r = P.cellarSearch(q);
+        $("#pick").innerHTML = `<div class="pf-head">‘${esc(r.food.name_ko)}’에 어울리는 내 술${r.known ? "" : ` <small>등록되지 않은 음식이라 이름으로 맛을 추정했어요</small>`}</div>${r.html}`;
+      };
+      pfQ.oninput = () => {
+        const q = pfQ.value.trim(), m = q && P?.engine ? P.engine.searchFoods(q).slice(0, 6) : [];
+        sug.classList.toggle("hidden", !m.length);
+        sug.innerHTML = m.map((f) => `<div class="sug-row"><a href="#" data-f="${esc(f.name_ko)}"><span>${esc(f.name_ko)}</span><small>${esc(f.cuisine)}</small></a></div>`).join("");
+        sug.querySelectorAll("[data-f]").forEach((x) => (x.onclick = (e) => { e.preventDefault(); pfQ.value = x.dataset.f; pfQ.blur(); run(x.dataset.f); }));
+      };
+      $("#pfForm").onsubmit = (e) => { e.preventDefault(); pfQ.blur(); run(pfQ.value); };
+      if (pfQ.value) run(pfQ.value);
+    }
     $("#cExp").onclick = exportJSON; $("#cCsv").onclick = exportCSV;
     $("#cImp").onclick = () => $("#cImpFile").click();
     $("#cImpFile").onchange = importJSON;

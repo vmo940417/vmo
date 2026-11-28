@@ -199,6 +199,11 @@
       box.innerHTML = `<a class="p-cellar-empty" href="#/cellar">🍷 셀러에 와인을 넣어 두면 ‘${esc(food.name_ko)}’에 맞는 병을 내 셀러에서 골라 드려요 ›</a>`;
       return;
     }
+    box.innerHTML = `<div class="section-title">🍷 내 셀러에서 고르기 <small>보유 ${list.length}종 중</small></div>${cellarPicksHTML(food, list)}`;
+  }
+  // 음식 하나에 대해 보유 병을 점수 매겨 목록 HTML로 (페어링 탭·셀러 화면 공용)
+  function cellarPicksHTML(food, list) {
+    const { esc, enc } = A();
     const fn = food.name_ko;
     const same = (l) => { const t = `${l.food || ""} ${(l.foods || []).join(" ")}`; return t && (t.includes(fn) || (l.food && fn.includes(l.food))); };
     const rows = list.map((x) => {
@@ -217,15 +222,20 @@
     const aging = rows.filter((r) => r.x.st.c === "aging" && r.score >= 70).length;
     const top = open.filter((r) => r.score >= 55).slice(0, 5);
     const show = top.length ? top : open.slice(0, 2);
-    box.innerHTML = `<div class="section-title">🍷 내 셀러에서 고르기 <small>보유 ${list.length}종 중</small></div>
-      ${show.length ? `<div class="list">${show.map((r) => `<a class="item p-row" href="#/cellar/${enc(r.x.id)}">
+    return `${show.length ? `<div class="list">${show.map((r) => `<a class="item p-row" href="#/cellar/${enc(r.x.id)}">
         <span class="dot cat-${esc(r.x.it.cat || "wine")}">${window.bottle(r.x.it.cat || "wine")}</span>
         <span class="meta"><div class="name">${esc(r.x.name)}${r.x.vintage ? ` <b class="vin">${esc(r.x.vintage)}</b>` : ""}</div>
-          <div class="sub"><span class="cst ${r.x.st.c}">${esc(r.x.st.t)}</span> ${esc(r.x.win)}${r.x.loc ? ` · ${esc(r.x.loc)}` : ""} · ${r.x.qty}병</div>
+          <div class="sub"><span class="cst ${r.x.st.c}">${esc(r.x.st.t)}</span>${r.x.win !== r.x.st.t ? " " + esc(r.x.win) : ""}${r.x.loc ? ` · ${esc(r.x.loc)}` : ""} · ${r.x.qty}병</div>
           ${r.why ? `<div class="sub p-why ${r.plus ? "plus" : "minus"}">${esc(r.why)}</div>` : ""}</span>
         <span class="p-score ${scoreClass(r.score)}"><b>${r.score}</b>점</span></a>`).join("")}</div>
         ${top.length ? "" : `<p class="hint">셀러에 ${esc(fn)}와(과) 잘 맞는 병이 없어 그나마 나은 병을 보여 드려요.</p>`}` : `<p class="hint">지금 열 수 있는 병이 없어요.</p>`}
       ${aging ? `<p class="hint">숙성 중인 병 ${aging}종도 잘 맞지만 아직 이르러 뺐어요.</p>` : ""}`;
+  }
+  // 셀러 화면 '페어링 검색': 단어 → 음식(등록 음식 우선, 없으면 이름으로 추정) → 보유 병 추천
+  function cellarSearch(q) {
+    const known = engine.findFood(q), food = known || engine.parseFood(q);
+    const list = A().cellar?.()?.pairingList() || [];
+    return { food, known: !!known, html: list.length ? cellarPicksHTML(food, list) : "" };
   }
   function drawExample() {
     const { $ } = A();
@@ -292,5 +302,5 @@
     </div>`;
   }
 
-  window.Pairing = { renderPair, renderStyle, foodsPanel, styleOf, engine };
+  window.Pairing = { renderPair, renderStyle, foodsPanel, styleOf, engine, cellarSearch };
 })();
