@@ -146,6 +146,45 @@ export function setupCellar(ctx) {
   const bindRows = (root) => root.querySelectorAll("[data-b]").forEach((el) => (el.onclick = () => go("#/cellar/" + enc(el.dataset.b))));
 
   /* ───────── 셀러 메인 ───────── */
+  /* ───────── 만화식 말풍선: 누른 막대를 꼬리로 가리키고, 그 막대 색을 입는다 ───────── */
+  const closeBubble = () => { document.querySelector(".cbub")?.remove(); document.querySelector(".pointed")?.classList.remove("pointed"); };
+  window.addEventListener("hashchange", closeBubble);
+  document.addEventListener("click", (e) => { if (!e.target.closest(".cbub, [data-tip]")) closeBubble(); }, true);
+  function markOf(el) { return el.querySelector(".dtrack i, .dbar i") || el; }
+  function bubbleColor(el) {
+    const m = markOf(el);
+    let c = getComputedStyle(m).backgroundColor;
+    // 반투명(표의 칸)이면 그 칸의 바탕색인 강조색을 쓴다
+    if (el.closest(".dmx") || /rgba\(.*,\s*0?\.\d+\)$|\/\s*0?\.\d+\)$/.test(c) || c === "transparent") c = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim();
+    const probe = document.createElement("i"); probe.style.color = c; document.body.appendChild(probe);
+    const [r, g, b] = (getComputedStyle(probe).color.match(/\d+(\.\d+)?/g) || [0, 0, 0]).map(Number); probe.remove();
+    const lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+    return { bg: c, ink: lum > 0.5 ? "#1d1614" : "#fff" };
+  }
+  function bubble(el, text) {
+    const same = el.classList.contains("pointed"); closeBubble(); if (same) return;
+    const [head, rest] = String(text).split(" — ");
+    const { bg, ink } = bubbleColor(el), mark = markOf(el), r = mark.getBoundingClientRect();
+    const box = document.createElement("div");
+    box.className = "cbub"; box.setAttribute("role", "status");
+    box.style.setProperty("--bub", bg); box.style.setProperty("--bub-ink", ink);
+    box.innerHTML = `<b>${esc(head)}</b>${rest ? `<span>${esc(rest)}</span>` : ""}`;
+    document.body.appendChild(box);
+    const w = box.offsetWidth, h = box.offsetHeight, vw = document.documentElement.clientWidth;
+    const top0 = (document.querySelector(".topbar")?.getBoundingClientRect().bottom || 0) + 8;
+    // 가로로 긴 막대는 막대 끝을, 나머지는 가운데를 가리킨다
+    const ax = el.classList.contains("drow") ? Math.max(r.left + 8, r.right - 10) : r.left + r.width / 2;
+    const left = Math.min(Math.max(12, ax - w * 0.35), vw - w - 12);
+    const above = r.top - h - 16 > top0;
+    box.classList.add(above ? "above" : "below");
+    box.style.left = left + scrollX + "px";
+    box.style.top = (above ? r.top - h - 14 : r.bottom + 14) + scrollY + "px";
+    box.style.setProperty("--tx", Math.min(Math.max(18, ax - left), w - 22) + "px");
+    el.classList.add("pointed");
+    box.onclick = closeBubble;
+    clearTimeout(bubble._t); bubble._t = setTimeout(closeBubble, Math.min(9000, 3000 + String(text).length * 45));
+  }
+
   /* ───────── 대시보드 ───────── */
   const GRAPE_KO = { "cabernet sauvignon": "까베르네 소비뇽", merlot: "메를로", "pinot noir": "피노 누아", chardonnay: "샤르도네", "sauvignon blanc": "소비뇽 블랑", sangiovese: "산지오베제", nebbiolo: "네비올로",
     syrah: "시라", shiraz: "쉬라즈", tempranillo: "템프라니요", riesling: "리슬링", "nero d'avola": "네로 다볼라", corvina: "코르비나", malbec: "말벡", grenache: "그르나슈", zinfandel: "진판델",
@@ -303,7 +342,8 @@ export function setupCellar(ctx) {
           <div class="stat"><small>내 평균 점수</small><b>${avg ?? "—"}</b></div></div>
           <p class="hint" style="margin:8px 0 0">총 ${C.log.reduce((s, l) => s + (l.n || 1), 0)}병을 마셨어요. ${stockYrs ? `최근 12개월 속도라면 지금 재고는 약 ${stockYrs}년치예요.` : "최근 12개월 기록이 없어 소진 기간은 계산하지 못했어요."}</p>`
           : `<p class="hint" style="margin:0">‘한 병 마셨어요’로 시음 기록을 남기면 마시는 속도와 재고 소진 기간, 내 평균 점수를 보여드려요.</p>`) : ""}`;
-    view.querySelectorAll("[data-tip]").forEach((el) => (el.onclick = () => toast(el.dataset.tip)));
+    closeBubble();
+    view.querySelectorAll("[data-tip]").forEach((el) => (el.onclick = () => bubble(el, el.dataset.tip)));
     view.querySelectorAll("[data-dc]").forEach((el) => (el.onclick = () => { store.set("dash.c", el.dataset.dc); store.set("dash.t", "all"); renderDash(); }));
     view.querySelectorAll("[data-dt]").forEach((el) => (el.onclick = () => { store.set("dash.t", el.dataset.dt); renderDash(); }));
     bindRows(view);

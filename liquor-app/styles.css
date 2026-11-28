@@ -425,3 +425,22 @@ main { padding: 14px 16px 28px; max-width: 720px; margin: 0 auto; animation: fad
 .lgh b { font-family: var(--serif); }
 .lgh span { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 #clist .list + .lgh { margin-top: 18px; }
+
+/* ── 만화식 말풍선 (대시보드) ─────────────────────────── */
+.cbub { position: absolute; z-index: 60; max-width: min(330px, calc(100vw - 24px)); padding: 12px 16px 13px; border-radius: 20px;
+  background: var(--bub); color: var(--bub-ink); font-size: 15px; line-height: 1.5; word-break: keep-all;
+  box-shadow: 0 12px 26px -10px rgba(0,0,0,.5), inset 0 0 0 2px rgba(255,255,255,.16); animation: bubPop .34s cubic-bezier(.2,1.5,.35,1) both; }
+.cbub.above { transform-origin: var(--tx) calc(100% + 14px); }
+.cbub.below { transform-origin: var(--tx) -14px; }
+.cbub b { display: block; font-size: 17px; font-weight: 800; letter-spacing: -.01em; }
+.cbub span { display: block; margin-top: 4px; font-size: 14px; opacity: .9; }
+/* 꼬리: 만화처럼 살짝 비스듬하게 막대를 가리킨다 */
+.cbub::after { content: ""; position: absolute; left: calc(var(--tx) - 8px); width: 22px; height: 16px; background: var(--bub); }
+.cbub.above::after { bottom: -14px; clip-path: polygon(0 0, 100% 0, 28% 100%); }
+.cbub.below::after { top: -14px; clip-path: polygon(28% 0, 100% 100%, 0 100%); }
+@keyframes bubPop { from { opacity: 0; transform: scale(.55) rotate(-3deg); } 70% { opacity: 1; } to { opacity: 1; transform: none; } }
+/* 가리킨 막대 강조 */
+.pointed .dtrack i, .pointed .dbar i, .seg.pointed, .dmx td button.pointed { filter: brightness(1.12) saturate(1.1); box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px currentColor; }
+.drow.pointed .dl { color: var(--ink); font-weight: 700; }
+.dcol.pointed b { color: var(--ink); }
+@media (prefers-reduced-motion: reduce) { .cbub { animation: none; } }
