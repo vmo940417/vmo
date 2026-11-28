@@ -547,6 +547,15 @@
   ].forEach(([cat, ko, en, country, region, producer, style, abv, g, p, usd, desc]) => { const [e, orig] = en.split("|");
     window.BULK.add({ cat, ko, en: e, ...(orig ? { ja: orig } : {}), country, region, producer, style, abv, p, desc,
       ingredients: g ? g.split("/").map((name) => ({ name })) : [], price: { usd, note: "근사치" } }); });
+  // 사용자 요청 추가 — 몽지람 M9(양허 梦之蓝 M9), 발베니 18년
+  window.BULK.add({ cat: "baijiu", ko: "양하 몽지람 M9", en: "Yanghe Dream Blue M9", zh: "洋河 梦之蓝 M9", aliases: ["몽지람 M9", "몽지람M9", "梦之蓝M9", "梦之蓝 M9", "洋河 M9", "m9", "양허 M9"],
+    country: "중국", region: "장쑤성 쑤첸", producer: "장쑤 양하 (江苏洋河酒厂)", style: "면유형(绵柔型) 백주", abv: "52%", p: "baijiu",
+    ingredients: [{ name: "수수 (高粱)" }, { name: "밀·보리·완두 (누룩 및 부원료)" }], price: { usd: [200, 270], note: "500ml 근사치" },
+    desc: "양허의 '몽지람(梦之蓝)' 라인 가운데 상위 등급인 M9. '부드러움(绵柔)'을 내세운 장쑤 면유형 백주로 꿀·과일 향과 둥근 단맛, 깔끔한 여운이 특징이다." });
+  window.BULK.add({ cat: "whisky", ko: "발베니 18년 더블우드", en: "The Balvenie 18 Year Old DoubleWood", ja: "ザ・バルヴェニー 18年 ダブルウッド", aliases: ["발베니 18", "발베니18", "balvenie 18", "balvenie eighteen", "발베니 18년"],
+    country: "스코틀랜드", region: "스페이사이드", producer: "William Grant & Sons", style: "싱글 몰트 · 더블우드", abv: "43%", p: "scotchSherry",
+    price: { usd: [190, 270], note: "700ml 근사치" },
+    desc: "전통 위스키 캐스크와 셰리 캐스크 두 가지 오크에서 숙성한 발베니 18년. 꿀·말린 과일·셰리의 부드럽고 풍성한 풍미." });
   // 폰토디 플라치아넬로 델라 피에베 — 라벨 기준 정보 보강 (사용자 요청)
   const fl = window.LIQUORS.find((x) => x.en === "Fontodi Flaccianello della Pieve");
   if (fl) Object.assign(fl, {
