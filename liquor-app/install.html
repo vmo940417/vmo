@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1f3f94">
+<title>오늘술상 설치</title>
+<meta name="description" content="오늘술상을 휴대폰 홈 화면에 설치하는 방법">
+<meta property="og:title" content="오늘술상 설치하기">
+<meta property="og:description" content="음식에 어울리는 술 찾기 · 술 이름으로 정보 찾기. 눌러서 바로 설치하세요.">
+<meta property="og:image" content="https://vmo940417.github.io/vmo/liquor-app/icon-512.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Noto+Serif+KR:wght@700&display=swap">
+<script>
+  // 카카오톡 안의 브라우저에서는 설치가 안 되므로 기본 브라우저로 넘긴다.
+  (function () {
+    var ua = navigator.userAgent;
+    if (!/KAKAOTALK/i.test(ua)) return;
+    var url = location.href;
+    if (/android/i.test(ua)) {
+      location.href = "intent://" + url.replace(/^https?:\/\//, "") + "#Intent;scheme=https;package=com.android.chrome;end";
+    } else if (/iphone|ipad|ipod/i.test(ua)) {
+      location.href = "kakaotalk://web/openExternal?url=" + encodeURIComponent(url);
+    }
+  })();
+</script>
+<style>
+  /* 레이아웃: 한 화면 안내. 청금색 머리 카드 + 기기별 설치 카드 하나 + 다른 기기 안내 */
+  :root {
+    --bg: #F4F1EC; --surface: #FFFDF9; --ink: #1C2033; --muted: #5E6478; --line: #E3E0DA;
+    --lapis: #1F3F94; --lapis-deep: #0E1E52; --gold: #B8913A; --on-lapis: #F7EBDD; --good: #2F7A52;
+    --font-display: "Noto Serif KR", "Apple SD Gothic Neo", serif;
+    --font-body: "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg: #10131F; --surface: #191D2D; --ink: #EEF0F7; --muted: #A6ACC0; --line: #2C3247; --gold: #E2C277; --good: #6CC796; color-scheme: dark; }
+  }
+  :root[data-theme="dark"] { --bg: #10131F; --surface: #191D2D; --ink: #EEF0F7; --muted: #A6ACC0; --line: #2C3247; --gold: #E2C277; --good: #6CC796; color-scheme: dark; }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.6; word-break: keep-all; }
+  main { max-width: 480px; margin: 0 auto; padding-block: 18px 32px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+    display: flex; flex-direction: column; gap: 14px; }
+  .hero { border-radius: 24px; padding: 26px 20px 22px; text-align: center; color: var(--on-lapis);
+    background: radial-gradient(120% 90% at 30% 0%, #3A63C4 0%, var(--lapis) 55%, var(--lapis-deep) 100%);
+    display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .hero img { width: 84px; height: 84px; border-radius: 22px; box-shadow: 0 0 0 2px rgba(247,235,221,.28); }
+  h1 { font-family: var(--font-display); font-size: 28px; line-height: 1.25; margin: 6px 0 0; }
+  .hero p { margin: 0; color: #DCE3F5; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+  .card h2 { font-family: var(--font-display); font-size: 18px; margin: 0; }
+  .tag { align-self: flex-start; font-size: 12px; font-weight: 700; letter-spacing: .04em; color: var(--gold); }
+  .btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; border: 0; border-radius: 14px;
+    padding: 15px 16px; font: inherit; font-size: 17px; font-weight: 700; text-decoration: none; cursor: pointer;
+    background: var(--lapis); color: #FFFFFF; }
+  .btn.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); font-size: 15px; padding: 12px 14px; }
+  .btn:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+  ol { margin: 0; padding: 0; list-style: none; counter-reset: step; display: flex; flex-direction: column; gap: 10px; }
+  ol li { counter-increment: step; display: grid; grid-template-columns: 28px 1fr; gap: 10px; align-items: start; }
+  ol li::before { content: counter(step); width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center;
+    background: color-mix(in srgb, var(--lapis) 14%, var(--surface)); color: var(--lapis); font-weight: 700; font-size: 13px; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) ol li::before { color: #9DB6F0; } }
+  :root[data-theme="dark"] ol li::before { color: #9DB6F0; }
+  .ico { display: inline-block; vertical-align: -4px; width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+  .note { color: var(--muted); font-size: 13px; margin: 0; }
+  .done { color: var(--good); font-weight: 700; text-align: center; margin: 0; }
+  details { border-top: 1px solid var(--line); padding-top: 10px; }
+  summary { cursor: pointer; font-weight: 700; font-size: 14px; color: var(--muted); }
+  details[open] summary { margin-bottom: 10px; }
+  .qr { display: grid; grid-template-columns: 120px 1fr; gap: 14px; align-items: center; }
+  .qr img { width: 120px; height: 120px; background: #fff; border-radius: 12px; padding: 6px; }
+  .url { font-size: 13px; overflow-wrap: anywhere; user-select: all; }
+</style>
+</head>
+<body>
+<main>
+  <section class="hero">
+    <img src="icon-192.png" alt="오늘술상 아이콘">
+    <h1>오늘술상 설치하기</h1>
+    <p>음식에 어울리는 술 찾기 · 술 이름으로 정보 찾기</p>
+  </section>
+
+  <!-- 안드로이드 -->
+  <section class="card" id="android" hidden>
+    <span class="tag">안드로이드</span>
+    <h2>버튼 한 번으로 설치</h2>
+    <button class="btn" id="installBtn" type="button" hidden>앱 설치하기</button>
+    <p class="done" id="installed" hidden>설치됐어요! 홈 화면의 오늘술상을 눌러 시작하세요.</p>
+    <div id="androidManual">
+      <ol>
+        <li><span><b>크롬</b>으로 이 페이지를 열어 주세요. (삼성 인터넷이면 아래 버튼)</span></li>
+        <li><span>오른쪽 위 <b>⋮</b> 메뉴를 누르세요.</span></li>
+        <li><span><b>앱 설치</b> (또는 <b>홈 화면에 추가 → 설치</b>)를 누르세요.</span></li>
+      </ol>
+      <a class="btn ghost" id="openChrome" href="#" style="margin-top:12px">크롬으로 열기</a>
+    </div>
+  </section>
+
+  <!-- 아이폰 -->
+  <section class="card" id="ios" hidden>
+    <span class="tag">아이폰 · 아이패드</span>
+    <h2>홈 화면에 추가 (추천)</h2>
+    <ol>
+      <li><span><b>사파리</b>에서 이 페이지를 열어 주세요.</span></li>
+      <li><span>아래쪽 가운데 <b>공유</b> 버튼
+        <svg class="ico" viewBox="0 0 24 24" aria-label="공유 아이콘"><path d="M12 3v12M8 7l4-4 4 4"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>을 누르세요.</span></li>
+      <li><span>목록을 내려 <b>홈 화면에 추가</b> → 오른쪽 위 <b>추가</b>를 누르세요.</span></li>
+    </ol>
+    <a class="btn ghost" href="./">추가했으면 오늘술상 열기</a>
+    <details>
+      <summary>설치 파일(프로필)로 설치하기</summary>
+      <ol>
+        <li><span>아래 버튼을 누르고 <b>허용</b>을 누르세요.</span></li>
+        <li><span><b>설정</b> 앱 맨 위 <b>프로필이 다운로드됨</b>을 누르세요.</span></li>
+        <li><span>오른쪽 위 <b>설치</b> → 암호 입력 → <b>설치</b>를 누르세요.</span></li>
+      </ol>
+      <a class="btn ghost" href="sulsang.mobileconfig" style="margin-top:12px">설치 파일 받기</a>
+      <p class="note" style="margin-top:10px">"서명되지 않음"이라고 나오지만 홈 화면 아이콘만 추가하는 파일이에요. 지우려면 설정 → 일반 → VPN 및 기기 관리 → 오늘술상 → 프로필 제거.</p>
+    </details>
+  </section>
+
+  <!-- PC 등 -->
+  <section class="card" id="other" hidden>
+    <span class="tag">휴대폰으로 열기</span>
+    <div class="qr">
+      <img src="install-qr.svg" alt="설치 페이지 QR 코드">
+      <p class="note">휴대폰 카메라로 QR을 찍으면 이 설치 페이지가 열려요.<span class="url" style="display:block;margin-top:6px;color:var(--ink)">vmo940417.github.io/vmo/liquor-app/install.html</span></p>
+    </div>
+    <a class="btn ghost" href="./">컴퓨터에서 바로 써 보기</a>
+  </section>
+
+  <p class="note" style="text-align:center">무료 · 가입 없음 · 개인정보를 수집하지 않아요</p>
+</main>
+
+<script>
+  (function () {
+    var ua = navigator.userAgent;
+    var isIOS = /iphone|ipad|ipod/i.test(ua) || (/macintosh/i.test(ua) && navigator.maxTouchPoints > 1);
+    var isAndroid = /android/i.test(ua);
+    var standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+    if (standalone) { location.replace("./"); return; }
+    document.getElementById(isIOS ? "ios" : isAndroid ? "android" : "other").hidden = false;
+
+    if (isAndroid) {
+      document.getElementById("openChrome").href =
+        "intent://" + location.href.replace(/^https?:\/\//, "") + "#Intent;scheme=https;package=com.android.chrome;end";
+      var btn = document.getElementById("installBtn"), prompt = null;
+      window.addEventListener("beforeinstallprompt", function (e) {
+        e.preventDefault(); prompt = e;
+        btn.hidden = false; document.getElementById("androidManual").hidden = true;
+      });
+      btn.addEventListener("click", function () {
+        if (!prompt) return;
+        prompt.prompt();
+        prompt.userChoice.then(function () { prompt = null; });
+      });
+      window.addEventListener("appinstalled", function () {
+        btn.hidden = true; document.getElementById("androidManual").hidden = true;
+        document.getElementById("installed").hidden = false;
+      });
+    }
+    // 설치 조건(서비스워커)을 맞추기 위해 앱과 같은 서비스워커를 등록
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(function () {});
+  })();
+</script>
+</body>
+</html>

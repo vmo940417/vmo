@@ -6,43 +6,42 @@
   <meta name="theme-color" content="#f7f2ea" media="(prefers-color-scheme: light)" />
   <meta name="theme-color" content="#15110f" media="(prefers-color-scheme: dark)" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-title" content="술이 먼저야" />
+  <meta name="apple-mobile-web-app-title" content="오늘술상" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <title>술이 먼저야</title>
+  <title>오늘술상</title>
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
-  <link rel="apple-touch-icon" href="icon.svg" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;700;800&family=Shippori+Mincho:wght@600;800&display=swap" />
   <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="pairing.css" />
 </head>
 <body>
   <header class="topbar">
     <button class="back hidden" id="backBtn" aria-label="뒤로">‹</button>
-    <h1 id="title"><span class="seal"></span>술이 먼저야</h1>
+    <h1 id="title"><span class="seal"></span>오늘술상</h1>
+    <button class="gear" id="setBtn" aria-label="설정"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4"/></svg></button>
   </header>
 
   <main id="view"></main>
 
   <nav class="tabbar" id="tabbar">
-    <button data-tab="search" class="active">
-      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span>검색</span>
+    <button data-tab="pair" class="active">
+      <svg viewBox="0 0 24 24"><path d="M7 3v8a3 3 0 0 0 3 3v7M10 3v5M4 3v5a3 3 0 0 0 3 3"/><path d="M17 21V3c-2 1.5-3 4-3 7v4h3"/></svg><span>페어링</span>
+    </button>
+    <button data-tab="search">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span>술검색</span>
     </button>
     <button data-tab="browse">
       <svg viewBox="0 0 24 24"><path d="M8 3h8l-.6 6.2a3.4 3.4 0 0 1-6.8 0z"/><path d="M12 13v7M8.5 21h7"/></svg><span>분류</span>
-    </button>
-    <button data-tab="camera" class="cam">
-      <span class="bubble" aria-label="카메라로 검색"><svg viewBox="0 0 24 24"><path d="M4 8h3l1.6-2.2h6.8L17 8h3v11H4z"/><circle cx="12" cy="13.3" r="3.4"/></svg></span><span>촬영</span>
     </button>
     <button data-tab="cellar">
       <svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M4 9h16M4 15h16"/><circle cx="8" cy="6" r=".9"/><circle cx="12" cy="6" r=".9"/><circle cx="16" cy="6" r=".9"/><circle cx="8" cy="12" r=".9"/><circle cx="12" cy="12" r=".9"/><circle cx="8" cy="18" r=".9"/></svg><span>셀러</span>
     </button>
     <button data-tab="ranking">
       <svg viewBox="0 0 24 24"><path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8.5 20h7"/></svg><span>랭킹</span>
-    </button>
-    <button data-tab="settings">
-      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4"/></svg><span>설정</span>
     </button>
   </nav>
 
@@ -61,6 +60,10 @@
   <script src="data-bulk-7.js"></script>
   <script src="data-scores.js"></script>
   <script src="data-price.js"></script>
+  <script src="pairing-engine.js"></script>
+  <script src="pairing-data.js"></script>
+  <script src="pairing.js"></script>
+  <script src="label-ocr.js"></script>
   <script type="module" src="app.js"></script>
 </body>
 </html>

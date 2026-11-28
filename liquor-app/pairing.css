@@ -1,0 +1,106 @@
+/* 오늘술상 — 페어링(음식 → 술) 화면. styles.css 의 토큰·부품을 그대로 쓰고 필요한 것만 더한다. */
+:root {
+  --g-lapis: linear-gradient(140deg, #0e1e52 0%, #1f3f94 55%, #3a63c4 100%);
+  --s-great: #2f7a52; --s-good: #6a8a2a; --s-ok: #b0802a; --s-bad: #b0442a;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --s-great: #6cc796; --s-good: #b4cc66; --s-ok: #e2b455; --s-bad: #f08a72; }
+}
+:root[data-theme="dark"] { --s-great: #6cc796; --s-good: #b4cc66; --s-ok: #e2b455; --s-bad: #f08a72; }
+
+/* 상단 설정 버튼 (탭바에서 옮김) */
+.gear { background: none; border: 0; padding: 6px; margin: -6px -6px -6px 0; color: var(--muted); display: grid; place-items: center; }
+.gear svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.7; stroke-linecap: round; }
+.gear:focus-visible { outline: 2px solid var(--gold); border-radius: 10px; }
+
+/* 페어링 첫 화면 */
+.pair-hero { background: var(--g-lapis); }
+.pair-hero .sug { position: relative; z-index: 2; margin-top: 8px; color: var(--ink); }
+.pair-hero .sug-row a { justify-content: space-between; }
+.pair-hero .sug-row small { color: var(--muted); font-size: 12px; }
+
+/* 스타일 순위 행 (a.item) */
+a.item { text-decoration: none; }
+.p-row .name { display: flex; align-items: baseline; gap: 6px; }
+.p-rank { font-family: var(--serif); color: var(--muted); font-size: 13px; min-width: 16px; font-variant-numeric: tabular-nums; }
+.p-row .p-why { white-space: normal; overflow: visible; margin-top: 2px; color: var(--ink-2); }
+.p-why.plus::first-letter { color: var(--s-great); }
+.p-score { flex: none; display: grid; place-items: center; align-content: center; width: 50px; height: 50px; border-radius: 50%;
+  border: 2.5px solid currentColor; font-size: 10px; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.p-score b { font-family: var(--serif); font-size: 18px; }
+.p-score.inline { display: inline-grid; width: 42px; height: 42px; margin-left: 8px; vertical-align: middle; }
+.p-score.inline b { font-size: 15px; }
+.s-great { color: var(--s-great); } .s-good { color: var(--s-good); } .s-ok { color: var(--s-ok); } .s-bad { color: var(--s-bad); }
+
+/* 궁합 이유 */
+.p-reasons { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 14px; color: var(--ink-2); }
+.p-reasons li { display: flex; gap: 8px; }
+.p-reasons b { flex: none; }
+.p-reasons .plus b { color: var(--s-great); }
+.p-reasons .minus b { color: var(--s-bad); }
+.p-muted { color: var(--muted); font-weight: 500; font-family: var(--sans); font-size: 12px; }
+
+/* 맛 프로파일 막대 */
+.p-bars { display: flex; flex-direction: column; gap: 8px; }
+.p-bar { display: grid; grid-template-columns: 52px 1fr 30px; gap: 10px; align-items: center; font-size: 13px; }
+.p-bar span:first-child { color: var(--muted); }
+.p-bar span:last-child { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+.p-bar i { height: 8px; border-radius: 4px; background: var(--chip); overflow: hidden; }
+.p-bar em { display: block; height: 100%; border-radius: 4px; background: var(--bar, var(--accent)); }
+.cat-text-wine { --bar: #9a2a4a; } .cat-text-sake { --bar: #2f6f8f; } .cat-text-whisky { --bar: #a8661b; }
+.cat-text-cognac { --bar: #8a4b2a; } .cat-text-baijiu { --bar: #a8231c; } .cat-text-soju { --bar: #2e7d5b; } .cat-text-makgeolli { --bar: #8f7a52; }
+
+/* 제품 상세의 '어울리는 음식' */
+.p-foods { display: flex; flex-direction: column; }
+.p-food { display: flex; gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); color: var(--ink); text-decoration: none; }
+.p-food:last-child { border-bottom: 0; }
+.p-food .meta { min-width: 0; display: flex; flex-direction: column; }
+.p-food .meta small { color: var(--muted); font-size: 12px; }
+.p-food .p-score { width: 44px; height: 44px; }
+.p-food .p-score b { font-size: 15px; }
+.panel h3 .p-muted { margin-left: 6px; }
+
+
+/* 페어링: 분류로 고르기 */
+.chips.p-cats { flex-wrap: wrap; overflow: visible; margin: 0; padding: 4px 0 10px; }   /* 분류 6개가 모두 보이게 */
+.p-cats .chip small { font-size: 11px; opacity: .65; margin-left: 2px; }
+.p-foodgrid { display: flex; flex-wrap: wrap; gap: 7px; margin: 2px 0 8px; }
+.p-foodgrid .chip { flex: none; }
+
+/* 술 상세: 살 수 있는 곳 */
+.buy-main { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 16px; text-decoration: none; color: var(--ink);
+  background: color-mix(in srgb, var(--accent) 9%, var(--paper)); border: 1.5px solid color-mix(in srgb, var(--accent) 35%, var(--line)); }
+.buy-main span { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.buy-main b { font-size: 15px; overflow-wrap: anywhere; }
+.buy-main small { color: var(--muted); font-size: 12.5px; }
+.buy-main i { font-style: normal; color: var(--muted); }
+.buy .linkbtns a { word-break: keep-all; display: flex; flex-direction: column; gap: 2px; }
+.buy .linkbtns small { font-weight: 500; color: var(--muted); font-size: 12px; }
+
+/* 술검색: 카메라 → 구글 렌즈 */
+.searchbox input#q { padding-right: 58px; }
+.cam-btn { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 42px; height: 42px; border-radius: 12px; border: 0;
+  display: grid; place-items: center; background: var(--g-wine); color: #fff; box-shadow: 0 4px 12px -4px rgba(110,22,48,.6); }
+.cam-btn svg { width: 22px; height: 22px; stroke: #fff; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.cam-btn:active { transform: translateY(-50%) scale(.94); }
+.sheet .shot { display: block; max-width: 100%; max-height: 34vh; margin: 0 auto 12px; border-radius: 14px; box-shadow: var(--shadow); }
+.lens-steps { margin: 4px 0 12px; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; color: var(--ink-2); }
+.lens-name { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
+.lens-name label { font-size: 13px; color: var(--muted); }
+.lens-name-row { display: flex; gap: 8px; }
+.lens-name-row input { flex: 1; min-width: 0; font-size: 16px; padding: 11px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); }
+.lens-name-row input:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 22%, transparent); }
+.lens-name-row .btn { padding: 0 18px; }
+
+/* 카메라 시트: 라벨 읽기 → 후보 고르기 (label-ocr.js) */
+.ocr-top { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }
+.shot-thumb { width: 64px; height: 84px; object-fit: cover; border-radius: 10px; box-shadow: var(--shadow); flex: none; }
+.ocr-box { margin: 0 0 6px; display: flex; flex-direction: column; gap: 8px; }
+.ocr-note { text-align: center; margin: 0; }
+.ocr-status { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 14px; border-radius: 14px; background: var(--chip); color: var(--ink-2); font-size: 14px; }
+.ocr-spin { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--accent); animation: ocrspin .8s linear infinite; }
+@keyframes ocrspin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .ocr-spin { animation: none; } }
+.ocr-h { font-family: var(--serif); font-weight: 700; font-size: 16px; }
+.ocr-h small { font-family: var(--sans); font-weight: 500; color: var(--muted); font-size: 12px; margin-left: 4px; }
+.ocr-list { max-height: 44vh; overflow-y: auto; }

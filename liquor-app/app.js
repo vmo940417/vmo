@@ -285,16 +285,18 @@ async function googleSuggest(q) {
   return list.map((x) => (Array.isArray(x) ? x[0] : x)).filter((x) => typeof x === "string" && x.trim()).slice(0, 8);
 }
 
-/* ───────── 카메라 → 구글 렌즈 ───────── */
+/* ───────── 카메라 → 라벨 읽기(후보 고르기) · 구글 렌즈 ─────────
+ * 구글이 외부 사이트에서 lens.google.com 으로 사진을 직접 올리는 요청(POST)을 403으로 막기 때문에,
+ * 휴대폰 공유 기능으로 사진을 넘기고 공유 화면에서 'Google 렌즈'(또는 'Google로 검색')를 고르게 한다.
+ * 렌즈가 알려 준 이름은 시트의 입력칸에 넣어 바로 수록된 술에서 찾는다. */
 const camInput = $("#camInput");
 function openCamera() { camInput.value = ""; camInput.click(); }
 camInput.addEventListener("change", async () => {
   const f = camInput.files?.[0]; if (!f) return;
   let shot;
   try { shot = await shrink(f); } catch { toast("사진을 열 수 없어요"); return; }
+  shot.file = f;   // 라벨 글자 읽기는 더 큰 원본에서 (label-ocr.js)
   showLensSheet(shot);
-  // 1차: 자동으로 구글 렌즈에 업로드 (팝업이 막히면 시트의 버튼으로 한 번 더 시도)
-  if (!uploadToLens(shot, true)) toast("‘구글 렌즈로 검색’을 눌러 주세요");
 });
 function shrink(file, max = 1600) {
   return new Promise((res, rej) => {
@@ -310,39 +312,16 @@ function shrink(file, max = 1600) {
     img.src = URL.createObjectURL(file);
   });
 }
-/** 사진을 구글 렌즈에 multipart POST. 성공적으로 전송 시도하면 true */
-function uploadToLens(shot, auto = false) {
-  let fileOk = false;
-  const form = document.createElement("form");
-  form.method = "POST"; form.enctype = "multipart/form-data"; form.style.display = "none";
-  form.action = `https://lens.google.com/v3/upload?hl=ko&st=${Date.now()}`;
-  const fi = document.createElement("input"); fi.type = "file"; fi.name = "encoded_image";
-  try {
-    const dt = new DataTransfer();
-    dt.items.add(new File([shot.blob], "label.jpg", { type: "image/jpeg" }));
-    fi.files = dt.files; fileOk = fi.files.length === 1;
-  } catch { fileOk = false; }
-  if (!fileOk) {                       // 자동 업로드 불가 → 렌즈 페이지를 열어 직접 선택
-    if (!auto) openLensPage();
-    return false;
-  }
-  const dim = document.createElement("input"); dim.type = "hidden"; dim.name = "processed_image_dimensions"; dim.value = `${shot.w},${shot.h}`;
-  form.append(fi, dim);
-  const win = window.open("", "sulsajeon_lens");
-  if (!win) { form.remove(); return false; }   // 팝업 차단
-  form.target = "sulsajeon_lens";
-  document.body.appendChild(form); form.submit(); form.remove();
-  return true;
-}
+const lensFile = (shot) => new File([shot.blob], "label.jpg", { type: "image/jpeg" });
+const canShareShot = (shot) => !!navigator.canShare?.({ files: [lensFile(shot)] });
 function openLensPage() {
   window.open("https://lens.google.com/", "_blank", "noopener");
   toast("렌즈 화면에서 방금 찍은 사진을 선택해 주세요");
 }
 async function shareToLens(shot) {
-  const f = new File([shot.blob], "label.jpg", { type: "image/jpeg" });
-  if (navigator.canShare?.({ files: [f] })) {
-    try { await navigator.share({ files: [f] }); } catch {}
-  } else toast("이 기기에서는 공유를 지원하지 않아요");
+  if (!canShareShot(shot)) return openLensPage();
+  try { await navigator.share({ files: [lensFile(shot)] }); }
+  catch (e) { if (e?.name !== "AbortError") openLensPage(); }   // 사용자가 공유 창을 닫은 경우는 그대로 둔다
 }
 function showLensSheet(shot) {
   $("#lensSheet")?.remove();
@@ -350,23 +329,33 @@ function showLensSheet(shot) {
   el.id = "lensSheet"; el.className = "sheet-wrap";
   el.innerHTML = `<div class="sheet-bg"></div><div class="sheet">
       <div class="grab"></div>
-      <img class="shot" src="${shot.url}" alt="찍은 사진" />
-      <h3 class="sheet-h">구글 렌즈로 이 술 찾기</h3>
-      <button class="btn block" data-a="lens"><svg viewBox="0 0 24 24"><path d="M4 9V6a2 2 0 0 1 2-2h3M15 4h3a2 2 0 0 1 2 2v3M20 15v3a2 2 0 0 1-2 2h-3M9 20H6a2 2 0 0 1-2-2v-3"/><circle cx="12" cy="12" r="3.2"/></svg> 구글 렌즈로 검색</button>
-      <div class="linkbtns">
-        <button class="btn ghost" data-a="page">렌즈 페이지 열기</button>
-        <button class="btn ghost" data-a="share">공유로 렌즈 열기</button>
+      <div class="ocr-top">
+        <img class="shot-thumb" src="${shot.url}" alt="찍은 사진" />
+        <div><h3 class="sheet-h">사진 속 술 찾기</h3><p class="hint" style="margin:0">라벨 글자를 읽어 비슷한 술을 골라 드려요</p></div>
       </div>
-      <button class="btn ghost block" data-a="retake" style="margin-top:8px">다시 찍기</button>
-      <p class="hint" style="text-align:center;margin-bottom:0">자동 업로드가 안 되면 ‘렌즈 페이지 열기’ 후 사진을 선택하세요</p>
+      <div class="ocr-box"></div>
+      <form class="lens-name" id="lensName" autocomplete="off">
+        <label for="lensQ">후보에 없으면 이름으로 찾기</label>
+        <div class="lens-name-row"><input id="lensQ" type="search" enterkeyhint="search" placeholder="예) Aubert Chardonnay" /><button class="btn" type="submit">찾기</button></div>
+      </form>
+      <div class="linkbtns">
+        <button class="btn ghost" type="button" data-a="lens">구글 렌즈로 찾기</button>
+        <button class="btn ghost" type="button" data-a="retake">다시 찍기</button>
+      </div>
+      <p class="hint" style="margin-top:8px">구글 렌즈는 필기체 라벨도 잘 찾아요. 공유 화면에서 <b>Google 렌즈</b>를 고르고, 알아낸 이름을 위 칸에 넣으세요.</p>
     </div>`;
   document.body.appendChild(el);
   const close = () => el.remove();
+  const q = el.querySelector("#lensQ");
+  window.LabelOCR?.attach(el.querySelector(".ocr-box"), shot, { onText: (t) => { if (!q.value) q.value = t; } });
   el.querySelector(".sheet-bg").onclick = close;
-  el.querySelector("[data-a=lens]").onclick = () => uploadToLens(shot) || openLensPage();
-  el.querySelector("[data-a=page]").onclick = openLensPage;
-  el.querySelector("[data-a=share]").onclick = () => shareToLens(shot);
+  el.querySelector("[data-a=lens]").onclick = () => shareToLens(shot);
   el.querySelector("[data-a=retake]").onclick = () => { close(); openCamera(); };
+  el.querySelector("#lensName").onsubmit = (e) => {
+    e.preventDefault();
+    const v = q.value.trim(); if (!v) return;
+    close(); go(`#/search?q=${enc(v)}`);
+  };
 }
 
 /* ───────── 외부 링크 ─────────
@@ -446,17 +435,16 @@ window.addEventListener("hashchange", render);
 $("#backBtn").onclick = () => (history.length > 1 ? history.back() : go("#/search"));
 $("#tabbar").addEventListener("click", (e) => {
   const b = e.target.closest("button[data-tab]"); if (!b) return;
-  if (b.dataset.tab === "camera") return openCamera();
   go("#/" + b.dataset.tab);
 });
 function setChrome(tab, title, back = false) {
   document.querySelectorAll("#tabbar button").forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
-  $("#title").innerHTML = title ?? `<span class="seal">${bottle("wine")}</span>술이 먼저야`;
+  $("#title").innerHTML = title ?? `<span class="seal">${bottle("wine")}</span>오늘술상`;
   $("#backBtn").classList.toggle("hidden", !back);
   window.scrollTo(0, 0);
 }
 function render() {
-  const [, route = "search", a, b] = location.hash.split(/[\/?]/).map(decodeURIComponent);
+  const [, route = "pair", a, b] = location.hash.split(/[\/?]/).map(decodeURIComponent);
   applyTheme();
   $("#editSheet")?.remove();
   if (route === "item") return renderDetail(a, b || "overview");
@@ -465,6 +453,8 @@ function render() {
   if (route === "ranking") return renderRanking(a || "sake");
   if (route === "settings") return renderSettings();
   if (route === "cellar") return CELLAR.renderCellar(a);
+  if (route === "pair") return window.Pairing.renderPair();
+  if (route === "style") return window.Pairing.renderStyle(a);
   return renderSearch(new URLSearchParams(location.hash.split("?")[1] || "").get("q") || "");
 }
 
@@ -501,8 +491,8 @@ function pagedList(root, items, step = 60) {
   more.onclick = draw; root.appendChild(more); draw();
 }
 const ICO = {
-  search: `<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>`,
   cam: `<svg viewBox="0 0 24 24"><path d="M4 8h3l1.6-2.2h6.8L17 8h3v11H4z"/><circle cx="12" cy="13.3" r="3.4"/></svg>`,
+  search: `<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>`,
   fill: `<svg viewBox="0 0 24 24"><path d="M7 17 17 7M8 7h9v9"/></svg>`,
   edit: `<svg viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13 7 4 4"/></svg>`,
   g: `<svg viewBox="0 0 24 24"><path d="M21 12.2c0-.7-.1-1.3-.2-1.9H12v3.6h5.1a4.4 4.4 0 0 1-1.9 2.9v2.4h3.1c1.8-1.7 2.7-4.1 2.7-7z" fill="#4285F4" stroke="none"/><path d="M12 21.5c2.6 0 4.7-.9 6.3-2.3l-3.1-2.4c-.9.6-2 .9-3.2.9-2.5 0-4.6-1.7-5.3-3.9H3.5v2.5A9.5 9.5 0 0 0 12 21.5z" fill="#34A853" stroke="none"/><path d="M6.7 13.8a5.7 5.7 0 0 1 0-3.6V7.7H3.5a9.5 9.5 0 0 0 0 8.6z" fill="#FBBC05" stroke="none"/><path d="M12 6.3c1.4 0 2.6.5 3.6 1.4l2.7-2.7A9.5 9.5 0 0 0 3.5 7.7l3.2 2.5C7.4 8 9.5 6.3 12 6.3z" fill="#EA4335" stroke="none"/></svg>`,
@@ -610,7 +600,7 @@ function renderBrowse(cat) {
 const ING_LABEL = { wine: "품종", sake: "쌀·정미", whisky: "원료·캐스크", cognac: "포도·크뤼", baijiu: "원료·향형", soju: "원료", makgeolli: "원료", beer: "원료·스타일", other: "원료" };
 function renderDetail(id, tab) {
   const it = findById(id);
-  if (!it) { setChrome("search", "술이 먼저야", true); view.innerHTML = `<div class="empty">항목을 찾을 수 없습니다.</div>`; return; }
+  if (!it) { setChrome("search", "오늘술상", true); view.innerHTML = `<div class="empty">항목을 찾을 수 없습니다.</div>`; return; }
   const recent = store.get("recent", []).filter((x) => x !== id); recent.unshift(id); store.set("recent", recent.slice(0, 20));
   renderItem(it, tab, `#/item/${enc(id)}/`);
 }
@@ -677,7 +667,26 @@ function paneOverview(it) {
       <button class="btn ghost block" id="editBtn" style="margin-top:10px">${ICO.edit} 정보 수정</button>
       ${CELLAR.itemCellarHTML(it)}
     </div>
+    ${buyPanel(it)}
     ${it.web && it.desc && sim ? `<div class="section-title">수록된 비슷한 술</div>${sim}` : ""}`;
+}
+/* 살 수 있는 곳: 데일리샷 검색(온라인 주문·매장 픽업) + 지도 앱의 내 주변 매장.
+ * 위치는 지도 앱이 직접 쓰므로 오늘술상은 위치 정보를 받지 않는다. */
+const DAILYSHOT = (q) => `https://dailyshot.co/m/search/result?q=${enc(q)}`;
+const SHOP_WORD = { wine: "와인샵", soju: "주류 판매점", makgeolli: "주류 판매점", beer: "주류 판매점" };
+function buyPanel(it) {
+  const name = cleanName(it.ko || it.en);
+  const shop = SHOP_WORD[it.cat] || "바틀샵";
+  return `<div class="panel buy">
+      <h3>살 수 있는 곳</h3>
+      <a class="buy-main" href="${safeUrl(DAILYSHOT(name))}" target="_blank" rel="noopener">
+        <span><b>데일리샷에서 ‘${esc(name)}’ 찾기</b><small>온라인으로 주문하고 가까운 매장에서 픽업</small></span><i>↗</i></a>
+      <div class="linkbtns">
+        <a href="${safeUrl(`https://map.naver.com/p/search/${enc(shop)}`)}" target="_blank" rel="noopener">네이버 지도 ↗<small>내 주변 ${esc(shop)}</small></a>
+        <a href="${safeUrl(`https://map.kakao.com/link/search/${enc(shop)}`)}" target="_blank" rel="noopener">카카오맵 ↗<small>내 주변 ${esc(shop)}</small></a>
+      </div>
+      <p class="hint" style="margin:10px 2px 0">지도는 휴대폰 위치로 가까운 매장을 보여줘요. 오늘술상은 위치를 받거나 저장하지 않아요.</p>
+    </div>`;
 }
 function panePrice(it) {
   const p = it.price || {}, usd = usdOf(it);
@@ -743,7 +752,7 @@ function panePairing(it) {
   const serve = [["서빙 온도", p.temp], ["잔", p.glass], ["디캔팅/브리딩", p.decant]].filter(([, v]) => !EMPTY(v));
   const cards = [p.good?.length && `<div class="pair-card ok"><h4>잘 어울려요</h4><ul>${p.good.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`,
     p.avoid?.length && `<div class="pair-card no"><h4>피하세요</h4><ul>${p.avoid.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`].filter(Boolean);
-  return `<div class="panel">
+  return `${window.Pairing?.foodsPanel(it) || ""}<div class="panel">
       ${cards.length ? `<div class="pair-grid" style="grid-template-columns:repeat(${cards.length},1fr)">${cards.join("")}</div>` : ""}
       ${serve.length ? `<div class="serve" style="grid-template-columns:repeat(${serve.length},1fr)">${serve.map(([k, v]) => `<div><small>${k}</small>${esc(v)}</div>`).join("")}</div>` : ""}
       ${p.caution ? `<div class="caution"><b>유의사항</b><br>${esc(p.caution)}</div>` : ""}
@@ -1123,7 +1132,7 @@ function renderSettings() {
     </div>
     <div class="panel">
       <h3>검색 팁</h3>
-      <p>· 초성만: <b>ㅊㅇㅅ</b> → 참이슬, <b>ㅂㅂㄴ</b> → 발베니<br>· 일부 글자: <b>발베</b>, <b>맥캘</b><br>· 섞어서: <b>발ㅂ</b>, <b>참ㅇ</b><br>· 영어·일본어·중국어: <b>macallan</b>, <b>獺祭</b>, <b>茅台</b><br>· 없는 술은 Enter 또는 구글 추천어를 누르면 웹에서 정보를 모아 같은 형식으로 보여줍니다<br>· 카메라 버튼: 라벨을 찍어 구글 렌즈로 검색</p>
+      <p>· 초성만: <b>ㅊㅇㅅ</b> → 참이슬, <b>ㅂㅂㄴ</b> → 발베니<br>· 일부 글자: <b>발베</b>, <b>맥캘</b><br>· 섞어서: <b>발ㅂ</b>, <b>참ㅇ</b><br>· 영어·일본어·중국어: <b>macallan</b>, <b>獺祭</b>, <b>茅台</b><br>· 없는 술은 Enter 또는 구글 추천어를 누르면 웹에서 정보를 모아 같은 형식으로 보여줍니다</p>
     </div>`;
   $("#gsave").onclick = () => { store.set("gcse", { key: $("#gkey").value.trim(), cx: $("#gcx").value.trim() }); toast("저장했어요"); };
   $("#gtest").onclick = async (e) => {
@@ -1141,7 +1150,10 @@ function renderSettings() {
 }
 
 /* ───────── 시작 ───────── */
-const APP_VERSION = "2026.11-v16";
+// 페어링 모듈(pairing.js)이 쓰는 공통 함수
+window.SulApp = { $, view, esc, enc, go, store, setChrome, pagedList, itemRow, bindItems };
+$("#setBtn").onclick = () => go("#/settings");
+const APP_VERSION = "2026.11-v28";
 var CELLAR = setupCellar({ store, $, view, esc, enc, toast, go, setChrome, bottle: window.bottle, CATS, findById, search, usdOf, fmtUSDv, fxRate, shrink, render: () => render() });
 loadFX().then(() => { if (/#\/(item|browse|ranking)/.test(location.hash)) render(); });
 // 이전 버전에서 저장된 AI 설정·캐시 정리
