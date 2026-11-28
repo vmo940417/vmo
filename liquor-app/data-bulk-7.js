@@ -533,6 +533,20 @@
   ].forEach(([cat, ko, en, country, region, producer, style, abv, g, p, usd, desc]) => { const [e, orig] = en.split("|");
     window.BULK.add({ cat, ko, en: e, ...(orig ? { ja: orig } : {}), country, region, producer, style, abv, p, desc,
       ingredients: g ? g.split("/").map((name) => ({ name })) : [], price: { usd, note: "근사치" } }); });
+  // 사용자 요청 추가 (라벨 기준) — 칠레·아르헨티나·보르도 스페셜·포트·위스키
+  [
+    ["wine", "크로프트 10년 토니 포트", "Croft 10 Year Old Tawny Port", "포르투갈", "도우루", "Croft", "주정강화 · 토니 포트 10년", "20%", "Touriga Nacional/Touriga Franca/Tinta Roriz", "sweet", [18, 30], "1588년부터 이어 온 포트 하우스 크로프트의 10년 숙성 토니 포트. 오크통에서 숙성되어 견과·버터스카치·말린 과일 향이 난다."],
+    ["wine", "샤또 발랑드로 심포니 No.3 에로이카", "Château Valandraud Symphony No.3 Eroica", "프랑스", "보르도 생테밀리옹", "Château Valandraud (Thunevin)", "레드 · 생테밀리옹 그랑 크뤼 (스페셜 라벨)", "14%", "Merlot/Cabernet Franc", "redFull", [55, 90], "샤또 발랑드로가 베토벤 교향곡 3번 '에로이카'를 라벨에 담은 스페셜 에디션(베토벤 탄생 250주년·GS25 30주년 헌정). 생테밀리옹 그랑 크뤼 AOC."],
+    ["wine", "카테나 사파타 니카시아 빈야드 말벡", "Catena Zapata Nicasia Vineyard Malbec", "아르헨티나", "멘도사 우코 밸리 알타미라", "Bodega Catena Zapata", "레드 · 싱글 빈야드 말벡", "14%", "Malbec", "redFull", [85, 140], "알타미라 지역 니카시아 포도밭의 싱글 빈야드 말벡. 고도가 높은 우코 밸리의 진한 과실과 단단한 구조."],
+    ["wine", "카테나 사파타 말벡 아르헨티노", "Catena Zapata Malbec Argentino", "아르헨티나", "멘도사", "Bodega Catena Zapata", "레드 · 말벡", "14%", "Malbec", "redFull", [75, 120], "'말벡의 아르헨티나 르네상스'를 내건 카테나 사파타의 말벡. 멘도사 고지대 포도의 진한 과실과 부드러운 탄닌."],
+    ["wine", "빅 라 피우 벨", "VIK La Piu Belle", "칠레", "카차포알 밸리", "Viña Vik", "레드 · 블렌드", "14.5%", "Carmenère/Cabernet Sauvignon/Cabernet Franc/Syrah/Merlot", "redFull", [45, 70], "카차포알 밸리의 빅(VIK) 와이너리가 만드는 블렌드 레드. '가장 아름다운'이라는 이름의 세컨드 와인 성격."],
+    ["wine", "니콜라 카테나 파셀라 보나르다", "Nicola Catena Parcela Bonarda", "아르헨티나", "멘도사 남동부", "Bodega Catena Zapata", "레드 · 보나르다", "13.5%", "Bonarda", "redMed", [35, 60], "80년 넘은 포도나무 한 구획에서 얻은 보나르다. 프랑스 오크 소형 통에서 18개월 숙성했다고 라벨에 적혀 있다."],
+    ["wine", "레비아탄 레드 와인", "Leviathan Red Wine", "미국", "캘리포니아", "확인 필요", "레드 · 블렌드", "", "", "redFull", [60, 100], "라벨에 'Red Wine'이라고만 표기된 캘리포니아 레드 블렌드. 포도 품종과 생산자는 확인이 필요하다."],
+    ["whisky", "더 글렌터렛 12년", "The Glenturret 12 Year Old", "스코틀랜드", "하이랜드 퍼스셔", "The Glenturret", "싱글 몰트 · 하이랜드", "46%", "", "scotchLight", [55, 85], "1763년 설립, 스코틀랜드에서 가장 오래된 현역 증류소 글렌터렛의 12년. 말린 과일·생강·시나몬·바닐라의 풍미(2024 릴리즈)."],
+    ["whisky", "산토리 로열", "Suntory Whisky Royal|サントリー ローヤル", "일본", "블렌디드", "Suntory", "재패니즈 블렌디드", "43%", "", "japanese", [30, 60], "1899년 창업 산토리의 블렌디드 위스키 '로열'. 풍성하고 부드러운 향과 선명한 여운."],
+  ].forEach(([cat, ko, en, country, region, producer, style, abv, g, p, usd, desc]) => { const [e, orig] = en.split("|");
+    window.BULK.add({ cat, ko, en: e, ...(orig ? { ja: orig } : {}), country, region, producer, style, abv, p, desc,
+      ingredients: g ? g.split("/").map((name) => ({ name })) : [], price: { usd, note: "근사치" } }); });
   // 폰토디 플라치아넬로 델라 피에베 — 라벨 기준 정보 보강 (사용자 요청)
   const fl = window.LIQUORS.find((x) => x.en === "Fontodi Flaccianello della Pieve");
   if (fl) Object.assign(fl, {
