@@ -448,31 +448,72 @@ window.addEventListener("hashchange", render);
 $("#backBtn").onclick = () => (history.length > 1 ? history.back() : go("#/search"));
 $("#tabbar").addEventListener("click", (e) => {
   const b = e.target.closest("button[data-tab]"); if (!b) return;
-  go("#/" + b.dataset.tab);
+  noFade(); go("#/" + b.dataset.tab);
 });
-/* 좌우로 밀어서 탭 이동 (페어링 ↔ 술검색 ↔ 셀러 ↔ 랭킹) */
+/* 탭을 옮길 때는 카드가 깜빡이며(투명→불투명) 다시 나타나는 효과를 끈다 */
+let nfT = 0;
+function noFade() { document.documentElement.classList.add("tabnav"); clearTimeout(nfT); nfT = setTimeout(() => document.documentElement.classList.remove("tabnav"), 600); }
+/* 좌우로 밀어서 탭 이동 (페어링 ↔ 술검색 ↔ 셀러 ↔ 랭킹)
+   손가락을 따라 화면이 움직이고, 놓으면 이전 화면은 밀려나고 다음 화면이 옆에서 들어온다 (빈 화면 없이 이어짐) */
 const TABS = ["pair", "search", "cellar", "ranking"];
 (() => {
-  let sx = 0, sy = 0, st = 0, on = false;
-  const scrollsX = (el) => { for (; el && el !== document.body; el = el.parentElement) { if (el.scrollWidth > el.clientWidth + 2 && /(auto|scroll)/.test(getComputedStyle(el).overflowX)) return true; } return false; };
+  const view = $("#view");
+  let sx = 0, sy = 0, st = 0, on = false, lock = null, dx = 0, cur = null, idx = -1, busy = false;
+  const W = () => view.clientWidth || innerWidth;
+  const scrollerX = (el) => { for (; el && el !== document.body; el = el.parentElement) { if (el.scrollWidth > el.clientWidth + 2 && /(auto|scroll)/.test(getComputedStyle(el).overflowX)) return el; } return null; };
+  let sc = null;
+  const ease = "transform .32s cubic-bezier(.22,.61,.36,1)";
+  const reset = () => { view.style.transition = ""; view.style.transform = ""; view.style.willChange = ""; };
   document.addEventListener("touchstart", (e) => {
-    on = false; if (e.touches.length !== 1) return;
+    on = false; lock = null; dx = 0; if (busy || e.touches.length !== 1) return;
     const t = e.target;
-    if (!t.closest("#view") || t.closest("input, textarea, select, .cbub, [data-noswipe]") || scrollsX(t)) return;
-    const x = e.touches[0].clientX; if (x < 18 || x > innerWidth - 18) return;   // 화면 가장자리는 브라우저 뒤로가기 제스처에 양보
+    if (!t.closest("#view") || t.closest("input, textarea, select, .cbub, [data-noswipe]")) return;
+    sc = scrollerX(t);                                                           // 가로 스크롤 줄(칩 등) 위라면, 그 줄이 끝까지 간 뒤에만 탭 이동
+    const x = e.touches[0].clientX; if (x < 18 || x > innerWidth - 18) return;   // 가장자리는 브라우저 뒤로가기 제스처에 양보
+    cur = document.querySelector("#tabbar button.active")?.dataset.tab; idx = TABS.indexOf(cur);
+    const route = location.hash.split(/[\/?]/)[1] || "pair";
+    if (idx < 0 || route !== cur) return;                                       // 탭 화면에서만
     sx = x; sy = e.touches[0].clientY; st = Date.now(); on = true;
   }, { passive: true });
-  document.addEventListener("touchend", (e) => {
+  document.addEventListener("touchmove", (e) => {
+    if (!on) return;
+    const mx = e.touches[0].clientX - sx, my = e.touches[0].clientY - sy;
+    if (!lock) { if (Math.abs(mx) < 8 && Math.abs(my) < 8) return; lock = Math.abs(mx) > Math.abs(my) * 1.3 ? "x" : "y";
+      if (lock === "x" && sc && (mx < 0 ? sc.scrollLeft < sc.scrollWidth - sc.clientWidth - 1 : sc.scrollLeft > 1)) lock = "y";
+      if (lock === "y") { on = false; return; } view.style.willChange = "transform"; }
+    e.preventDefault();                                                          // 가로로 미는 동안 세로 스크롤 막기
+    const edge = (mx > 0 && idx === 0) || (mx < 0 && idx === TABS.length - 1);
+    dx = edge ? mx * 0.25 : mx;                                                  // 끝 탭에선 고무줄처럼 조금만
+    view.style.transition = "none"; view.style.transform = `translateX(${dx}px)`;
+  }, { passive: false });
+  const end = () => {
     if (!on) return; on = false;
-    const dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy;
-    if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.8 || Date.now() - st > 700) return;
-    const cur = document.querySelector("#tabbar button.active")?.dataset.tab, i = TABS.indexOf(cur);
-    const route = location.hash.split(/[\/?]/)[1] || "pair";
-    if (i < 0 || route !== cur) return;           // 상세 화면 등에서는 동작하지 않음 (탭 화면에서만)
-    const j = i + (dx < 0 ? 1 : -1); if (j < 0 || j >= TABS.length) return;
-    const v = $("#view"); v.classList.remove("swipe-l", "swipe-r"); void v.offsetWidth; v.classList.add(dx < 0 ? "swipe-l" : "swipe-r");
-    go("#/" + TABS[j]);
-  }, { passive: true });
+    if (lock !== "x") return reset();
+    const w = W(), fast = Math.abs(dx) > 40 && Date.now() - st < 300;
+    const j = idx + (dx < 0 ? 1 : -1);
+    if (!(Math.abs(dx) > w * 0.28 || fast) || j < 0 || j >= TABS.length) {      // 되돌리기
+      view.style.transition = ease; view.style.transform = "translateX(0)";
+      setTimeout(reset, 340); return;
+    }
+    busy = true;
+    const dir = dx < 0 ? -1 : 1, r = view.getBoundingClientRect();
+    // 지금 화면을 그대로 복제해 밀려나는 쪽에 띄워 둔다
+    noFade();
+    const ghost = view.cloneNode(true); ghost.removeAttribute("id"); ghost.setAttribute("aria-hidden", "true"); ghost.classList.add("swipe-ghost");
+    Object.assign(ghost.style, { position: "fixed", left: r.left + "px", top: r.top + "px", width: r.width + "px", height: (innerHeight - r.top) + "px",
+      overflow: "hidden", margin: "0", animation: "none", zIndex: "5", pointerEvents: "none", transition: "none", transform: `translateX(${dx}px)`, background: "var(--bg)" });
+    document.body.appendChild(ghost);
+    history.pushState(null, "", "#/" + TABS[j]); try { render(); } catch (err) { console.error(err); }                     // 새 화면은 바로 그림 (hashchange 이중 렌더 없음)
+    view.style.transition = "none"; view.style.transform = `translateX(${-dir * w + dx}px)`;
+    void view.offsetWidth;
+    requestAnimationFrame(() => {
+      ghost.style.transition = ease; ghost.style.transform = `translateX(${dir * w}px)`;
+      view.style.transition = ease; view.style.transform = "translateX(0)";
+    });
+    setTimeout(() => { ghost.remove(); reset(); busy = false; }, 360);
+  };
+  document.addEventListener("touchend", end, { passive: true });
+  document.addEventListener("touchcancel", () => { if (on) { on = false; view.style.transition = ease; view.style.transform = "translateX(0)"; setTimeout(reset, 340); } }, { passive: true });
 })();
 function setChrome(tab, title, back = false) {
   document.querySelectorAll("#tabbar button").forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
@@ -1250,7 +1291,7 @@ function renderSettings() {
 // 페어링 모듈(pairing.js)이 쓰는 공통 함수
 window.SulApp = { $, view, esc, enc, go, store, setChrome, pagedList, itemRow, bindItems };
 $("#setBtn").onclick = () => go("#/settings");
-const APP_VERSION = "2026.11-v64";
+const APP_VERSION = "2026.11-v66";
 var CELLAR; window.SulApp.cellar = () => CELLAR;
 CELLAR = setupCellar({ store, $, view, esc, enc, toast, go, setChrome, bottle: window.bottle, CATS, findById, search, usdOf, fmtUSDv, fxRate, shrink, cse, cseOn, inferFromName, render: () => render() });
 loadFX().then(() => { if (/#\/(item|browse|ranking)/.test(location.hash)) render(); });

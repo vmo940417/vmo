@@ -538,12 +538,10 @@ h1, h2, h3, .panel h3, .section-title, .hero h2, .sheet-h, .lgh b, .dgh b { lett
 :root[data-style="clean"] .hero .names { opacity: 1; color: var(--muted); }
 :root[data-style="clean"] .hero h2 { color: var(--ink); }
 :root[data-style="clean"] .home-hero .searchbox input { border: 1px solid var(--line); }
-/* 밀어서 탭 이동 애니메이션 */
-@keyframes swl { from { transform: translateX(28px); opacity: .35; } to { transform: none; opacity: 1; } }
-@keyframes swr { from { transform: translateX(-28px); opacity: .35; } to { transform: none; opacity: 1; } }
-#view.swipe-l { animation: swl .22s ease-out; }
-#view.swipe-r { animation: swr .22s ease-out; }
-@media (prefers-reduced-motion: reduce) { #view.swipe-l, #view.swipe-r { animation: none; } }
+/* 밀어서 탭 이동: 가로 넘침 방지 */
+html, body { overflow-x: clip; }
 :root:is([data-style="portal"], [data-style="clean"]) .cam-btn { background: var(--accent); color: var(--on-accent); box-shadow: none; }
 :root:is([data-style="portal"], [data-style="clean"]) :is(.dtabs button.active, .seg3 button.active) { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 :root:is([data-style="portal"], [data-style="clean"]) .topbar h1 .seal { background: var(--accent); }
+/* 탭 이동 중에는 등장(페이드) 효과 끔 — 조명이 꺼졌다 켜지는 느낌 방지 */
+:root.tabnav main, :root.tabnav .panel, .swipe-ghost, .swipe-ghost * { animation: none !important; }
