@@ -136,6 +136,7 @@ function searchScored(q, limit = 50) {
   const nq = norm(q); if (!nq) return [];
   const kor = hasHangul(nq);
   const extraOk = kor ? (nq.match(/[가-힣]/g) || []).length >= 2 : nq.length >= 2;
+  const toks = [...new Set(String(q).split(/[\s,·/]+/).map(norm).filter(Boolean))];
   const res = [];
   for (const { it, keys, extra } of INDEX) {
     let best = 0;
@@ -148,6 +149,16 @@ function searchScored(q, limit = 50) {
     }
     // 생산자·스타일·산지 등 보조 필드는 완성 글자 2자 이상일 때만 (초성 검색 잡음 방지)
     if (!best && extraOk && (kor ? korScore(extra, nq) : extra.includes(nq))) best = 0.6;
+    // 여러 단어: 순서와 상관없이 모든 단어가 이름(또는 생산자·산지 등)에 들어 있으면 일치
+    if (toks.length > 1 && best < 1) {
+      let inName = 0, ok = true;
+      for (const t of toks) {
+        const hit = (s) => (hasHangul(t) ? korScore(s, t) > 0 : s.includes(t));
+        if (keys.some(hit)) inName++;
+        else if (!hit(extra)) { ok = false; break; }
+      }
+      if (ok) best = Math.max(best, inName === toks.length ? 1.0 : 0.8);
+    }
     if (best) res.push([best, it]);
   }
   return res.sort((a, b) => b[0] - a[0] || (a[1].ko || "").localeCompare(b[1].ko || "", "ko")).slice(0, limit);
@@ -1214,7 +1225,7 @@ function renderSettings() {
 // 페어링 모듈(pairing.js)이 쓰는 공통 함수
 window.SulApp = { $, view, esc, enc, go, store, setChrome, pagedList, itemRow, bindItems };
 $("#setBtn").onclick = () => go("#/settings");
-const APP_VERSION = "2026.11-v61";
+const APP_VERSION = "2026.11-v62";
 var CELLAR; window.SulApp.cellar = () => CELLAR;
 CELLAR = setupCellar({ store, $, view, esc, enc, toast, go, setChrome, bottle: window.bottle, CATS, findById, search, usdOf, fmtUSDv, fxRate, shrink, cse, cseOn, inferFromName, render: () => render() });
 loadFX().then(() => { if (/#\/(item|browse|ranking)/.test(location.hash)) render(); });
