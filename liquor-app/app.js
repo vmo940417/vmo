@@ -1287,11 +1287,29 @@ function renderSettings() {
 // 페어링 모듈(pairing.js)이 쓰는 공통 함수
 window.SulApp = { $, view, esc, enc, go, store, setChrome, pagedList, itemRow, bindItems };
 $("#setBtn").onclick = () => go("#/settings");
-const APP_VERSION = "2026.11-v67";
+const APP_VERSION = "2026.11-v68";
 var CELLAR; window.SulApp.cellar = () => CELLAR;
 CELLAR = setupCellar({ store, $, view, esc, enc, toast, go, setChrome, bottle: window.bottle, CATS, findById, search, usdOf, fmtUSDv, fxRate, shrink, cse, cseOn, inferFromName, render: () => render() });
 loadFX().then(() => { if (/#\/(item|browse|ranking)/.test(location.hash)) render(); });
 // 이전 버전에서 저장된 AI 설정·캐시 정리
 try { Object.keys(localStorage).filter((k) => /^sulsajeon\.(settings|aiItems|live\.|rank\.)/.test(k)).forEach((k) => localStorage.removeItem(k)); } catch {}
-if ("serviceWorker" in navigator && location.protocol !== "file:") navigator.serviceWorker.register("sw.js").catch(() => {});
+/* 자동 업데이트: 새 버전이 올라오면 앱을 껐다 켤 필요 없이 스스로 바꿔 끼운다
+   - 앱으로 돌아올 때(화면 켜짐·전환)와 30분마다 새 버전 확인
+   - 새 버전이 준비되면, 입력 중이 아닐 때 조용히 새로고침 (입력 중이면 다음 화면 이동 때) */
+if ("serviceWorker" in navigator && location.protocol !== "file:") {
+  const hadCtrl = !!navigator.serviceWorker.controller;
+  let reloading = false;
+  const busyNow = () => { const a = document.activeElement; return (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) || !!document.querySelector("#editSheet, .sheet"); };
+  const swap = () => { if (reloading) return; reloading = true; location.reload(); };
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (!hadCtrl) return;                                   // 첫 설치는 새로고침 불필요
+    if (document.hidden || !busyNow()) swap();
+    else window.addEventListener("hashchange", swap, { once: true });
+  });
+  navigator.serviceWorker.register("sw.js").then((reg) => {
+    const check = () => reg.update().catch(() => {});
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) check(); });
+    setInterval(check, 30 * 60e3);
+  }).catch(() => {});
+}
 render();
