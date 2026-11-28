@@ -481,6 +481,22 @@
       desc: "화가 산드로 키아가 소유한 몬탈치노의 와이너리 로미토리오의 브루넬로. 산지오베제 100%이며 라벨에 키아의 작품이 쓰인다." },
   ].forEach(({ g, usd, ...o }) => window.BULK.add({ cat: "wine", country: "이탈리아", ...o,
     ingredients: g.split("/").map((name) => ({ name })), price: { usd, note: "미국 소매 근사치" } }));
+  // 사용자 요청 추가 (라벨 기준) — 부르고뉴·이탈리아·소노마
+  [
+    ["키슬러 소노마 코스트 피노 누아", "Kistler Sonoma Coast Pinot Noir", "미국", "캘리포니아 소노마 코스트", "Kistler Vineyards", "레드 · 피노 누아", "13.8%", "Pinot Noir", "pinot", [70, 100], "소노마 코스트의 서늘한 기후에서 자란 피노 누아. 키슬러 특유의 정교한 과실과 산도가 특징."],
+    ["뱅상 레구 부르고뉴 오트 코트 드 뉘", "Vincent Légou Bourgogne Hautes-Côtes de Nuits", "프랑스", "부르고뉴 오트 코트 드 뉘", "Domaine Vincent Légou", "레드 · 부르고뉴 오트 코트 드 뉘", "13%", "Pinot Noir", "pinot", [35, 55], "코트 드 뉘 고지대의 피노 누아. 붉은 과실과 신선한 산도가 살아 있는 모노폴 포도밭 와인."],
+    ["위들로 바이예 샹볼 뮈지니 비에이 비뉴", "Hudelot-Baillet Chambolle-Musigny Vieilles Vignes", "프랑스", "부르고뉴 샹볼 뮈지니", "Domaine Hudelot-Baillet", "레드 · 빌라주 (비에이 비뉴)", "13%", "Pinot Noir", "pinot", [80, 115], "샹볼 뮈지니 오래된 포도나무(비에이 비뉴)에서 얻는 섬세하고 우아한 피노 누아."],
+    ["장 부샤 샹볼 뮈지니", "Jean Bouchard Chambolle-Musigny", "프랑스", "부르고뉴 샹볼 뮈지니", "Jean Bouchard", "레드 · 빌라주", "13%", "Pinot Noir", "pinot", [65, 100], "섬세한 꽃향과 붉은 과실이 특징인 샹볼 뮈지니 빌라주 와인."],
+    ["아르샹보 본 로마네", "Archambaud Vosne-Romanée", "프랑스", "부르고뉴 본 로마네", "Domaine Archambaud", "레드 · 빌라주", "13%", "Pinot Noir", "pinot", [85, 125], "본 로마네 빌라주. 붉은 과실과 향신료, 실키한 질감의 피노 누아."],
+    ["프레데릭 마니앙 본 로마네 샹 페르드릭스", "Frédéric Magnien Vosne-Romanée Champs-Perdrix", "프랑스", "부르고뉴 본 로마네", "Frédéric Magnien", "레드 · 빌라주 (샹 페르드릭스)", "13%", "Pinot Noir", "pinot", [110, 160], "본 로마네의 샹 페르드릭스 구획에서 만든 피노 누아. 진한 과실과 향신료 풍미."],
+    ["S.C. 기야르 쥐브레 샹베르탱 프리미에 크뤼 레 코르보", "S.C. Guillard Gevrey-Chambertin 1er Cru Les Corbeaux", "프랑스", "부르고뉴 쥐브레 샹베르탱", "S.C. Guillard", "레드 · 1er Cru", "13%", "Pinot Noir", "pinot", [100, 150], "쥐브레 샹베르탱 프리미에 크뤼 레 코르보. 검붉은 과실과 단단한 구조가 어우러진 피노 누아."],
+    ["뱅상 프뤼니에 생토뱅 프리미에 크뤼 레 콩브", "Vincent Prunier Saint-Aubin 1er Cru Les Combes", "프랑스", "부르고뉴 생토뱅", "Domaine Vincent Prunier", "레드 · 1er Cru", "13%", "Pinot Noir", "pinot", [45, 70], "생토뱅 프리미에 크뤼 레 콩브. 부르고뉴 1er Cru를 합리적인 가격에 만날 수 있는 와인."],
+    ["푸아조 페르 에 피스 페르낭 베르줄레스 프리미에 크뤼 앙 카라되", "Poisot Père & Fils Pernand-Vergelesses 1er Cru En Caradeux", "프랑스", "부르고뉴 페르낭 베르줄레스", "Domaine Poisot Père & Fils", "화이트 · 1er Cru", "13%", "Chardonnay", "whiteCrisp", [55, 85], "코르통 샤를마뉴와 이웃한 페르낭 베르줄레스 1er Cru. 광물감과 단단한 산도가 특징."],
+    ["달 포르노 로마노 발폴리첼라 수페리오레 몬테 로돌레타", "Dal Forno Romano Valpolicella Superiore Monte Lodoletta", "이탈리아", "베네토 발폴리첼라", "Dal Forno Romano", "레드 · 발폴리첼라 수페리오레", "", "Corvina/Corvinone/Rondinella", "italian", [150, 230], "아마로네로 유명한 달 포르노 로마노의 발폴리첼라 수페리오레. 농축된 과실과 깊이 있는 구조."],
+    ["프로두토리 델 바르바레스코 바르바레스코 리제르바 아실리", "Produttori del Barbaresco Barbaresco Riserva Asili", "이탈리아", "피에몬테 바르바레스코", "Produttori del Barbaresco", "레드 · 바르바레스코 리제르바 (단일 포도밭 아실리)", "14.5%", "Nebbiolo", "italian", [60, 90], "바르바레스코 협동조합이 단일 포도밭 아실리에서 만드는 리제르바. 네비올로의 장미·타르 향과 견고한 탄닌."],
+    ["알렉스 감발 본 로마네", "Alex Gambal Vosne-Romanée", "프랑스", "부르고뉴 본 로마네", "Alex Gambal", "레드 · 빌라주", "13%", "Pinot Noir", "pinot", [85, 120], "미국인 네고시앙 알렉스 감발이 만드는 본 로마네 빌라주. 우아한 붉은 과실과 부드러운 탄닌."],
+  ].forEach(([ko, en, country, region, producer, style, abv, g, p, usd, desc]) => window.BULK.add({ cat: "wine", ko, en, country, region, producer, style, abv, p, desc,
+    ingredients: g.split("/").map((name) => ({ name })), price: { usd, note: "미국 소매 근사치" } }));
   // 폰토디 플라치아넬로 델라 피에베 — 라벨 기준 정보 보강 (사용자 요청)
   const fl = window.LIQUORS.find((x) => x.en === "Fontodi Flaccianello della Pieve");
   if (fl) Object.assign(fl, {
