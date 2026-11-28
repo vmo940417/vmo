@@ -419,3 +419,8 @@ main { padding: 14px 16px 28px; max-width: 720px; margin: 0 auto; animation: fad
 .dgrp + .dgrp { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
 .dgh { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 2px; font-size: 14px; }
 .dgh span { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.lgroup .lglab { flex: none; align-self: center; font-size: 12px; color: var(--muted); margin-right: 2px; }
+.lgh { display: flex; justify-content: space-between; align-items: baseline; margin: 16px 4px 6px; font-size: 14.5px; }
+.lgh b { font-family: var(--serif); }
+.lgh span { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+#clist .list + .lgh { margin-top: 18px; }

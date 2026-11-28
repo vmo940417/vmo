@@ -347,9 +347,33 @@ export function setupCellar(ctx) {
     const krwOf = (usd) => "≈ " + won(usd * krw);
     const cnt = (k) => A.filter((b) => statusOf(b).c === k).reduce((s, b) => s + b.qty, 0);
     const filt = store.get("cellar.f", "all"), sort = store.get("cellar.s", "window");
-    const fl = A.filter((b) => filt === "all" || statusOf(b).c === filt);
+    // 목록 세분화: 술 종류(lc) → 와인 종류(lt) → 묶어 보기(lg)
+    const qOf = (L) => L.reduce((s, b) => s + b.qty, 0);
+    const catQ = new Map(CAT_ORDER.map((c) => [c, qOf(A.filter((b) => catOf(b) === c))]).filter(([, q]) => q));
+    let lc = store.get("cellar.c", "all"); if (lc !== "all" && !catQ.has(lc)) lc = "all";
+    const WA = A.filter((b) => catOf(b) === "wine");
+    const typeQ = new Map(WINE_TYPES.map((t) => [t, qOf(WA.filter((b) => wineType(b) === t))]).filter(([, q]) => q));
+    let lt = store.get("cellar.t", "all"); if (lc !== "wine" || (lt !== "all" && !typeQ.has(lt))) lt = "all";
+    const GROUPS = {
+      all: [["none", "묶지 않기"], ["cat", "술 종류"], ["country", "국가"]],
+      wine: [["none", "묶지 않기"], ["country", "국가"], ["region", "산지"], ["grape", "품종"], ...(lt === "all" ? [["type", "와인 종류"]] : []), ["vintage", "빈티지"]],
+      sake: [["none", "묶지 않기"], ["region", "현"], ["grade", "등급"]],
+    }[lc] || [["none", "묶지 않기"], ["country", "국가"], ["grade", "스타일"]];
+    let lg = store.get("cellar.g." + lc, lc === "wine" ? "country" : "none"); if (!GROUPS.some(([k]) => k === lg)) lg = "none";
+    const GFN = { cat: (b) => CATS[catOf(b)]?.ko || "기타", country: countryOf, grape: grapeOf, type: wineType, grade: gradeOf, vintage: (b) => b.vintage || "NV",
+      region: (b) => (lc === "wine" ? `${countryOf(b)} · ${regionOf(b)}` : regionOf(b)) };
+    const base = A.filter((b) => (lc === "all" || catOf(b) === lc) && (lt === "all" || wineType(b) === lt));
+    const fl = base.filter((b) => filt === "all" || statusOf(b).c === filt);
     const key = { window: (b) => [statusOf(b).rank, windowOf(b).to || 9999], buy: (b) => [-(Date.parse(b.buyDate) || 0)], price: (b) => [-(wsVal(b) || (itemOf(b) && usdOf(itemOf(b))) || 0)], name: (b) => [nameOf(b)] }[sort] || ((b) => [0]);
     fl.sort((a, b) => { const x = key(a), y = key(b); for (let i = 0; i < x.length; i++) if (x[i] !== y[i]) return x[i] < y[i] ? -1 : 1; return 0; });
+    function listHTML() {
+      if (!fl.length) return `<div class="empty">해당하는 병이 없어요</div>`;
+      if (lg === "none") return `<div class="list">${fl.map((b) => bottleRow(b)).join("")}</div>`;
+      const m = new Map(); for (const b of fl) { const k = GFN[lg](b); (m.get(k) || m.set(k, []).get(k)).push(b); }
+      const es = [...m.entries()].sort(lg === "vintage" ? (a, b) => (a[0] === "NV") - (b[0] === "NV") || String(b[0]).localeCompare(String(a[0]))
+        : lg === "type" ? (a, b) => WINE_TYPES.indexOf(a[0]) - WINE_TYPES.indexOf(b[0]) : (a, b) => qOf(b[1]) - qOf(a[1]) || String(a[0]).localeCompare(String(b[0]), "ko"));
+      return es.map(([k, L]) => `<div class="lgh"><b>${esc(k)}</b><span>${L.length}종 · ${qOf(L)}병</span></div><div class="list">${L.map((b) => bottleRow(b)).join("")}</div>`).join("");
+    }
     view.innerHTML = `
       <section class="hero cat-wine cellar-hero"><span class="glyph">${bottle("wine")}</span>
         <span class="kind">My Cellar</span><h2>${n ? `${n}병 <small>${A.length}종</small>` : "셀러가 비어 있어요"}</h2>
@@ -367,10 +391,13 @@ export function setupCellar(ctx) {
       <div class="panel"><h3>오늘 뭘 열까?</h3><p class="hint" style="margin:0 0 8px">음식을 고르면 보유 와인 중 어울리는 병을 시음 적기가 급한 순으로 추천해요</p>
         <div class="chips" id="foodChips" style="margin:0 -16px;padding-bottom:6px">${FOODS.map(([f], i) => `<button class="chip" data-i="${i}">${esc(f)}</button>`).join("")}</div>
         <div id="pick"></div></div>
-      <div class="section-title">보유 와인 <small>${fl.length}종</small></div>
+      <div class="section-title">보유 목록 <small>${fl.length}종 · ${qOf(fl)}병</small></div>
+      <div class="chips dchips" id="lcChips"><button class="chip ${lc === "all" ? "active" : ""}" data-lc="all">전체 <small>${n}</small></button>${[...catQ].map(([c, q]) => `<button class="chip ${lc === c ? "active" : ""}" data-lc="${c}">${CATS[c]?.emoji || ""} ${esc(CATS[c]?.ko || c)} <small>${q}</small></button>`).join("")}</div>
+      ${lc === "wine" ? `<div class="chips dchips sub" id="ltChips"><button class="chip ${lt === "all" ? "active" : ""}" data-lt="all">와인 전체 <small>${qOf(WA)}</small></button>${[...typeQ].map(([t, q]) => `<button class="chip ${lt === t ? "active" : ""}" data-lt="${t}">${t} <small>${q}</small></button>`).join("")}</div>` : ""}
+      <div class="chips dchips sub lgroup" id="lgChips"><span class="lglab">묶어 보기</span>${GROUPS.map(([k, v]) => `<button class="chip ${lg === k ? "active" : ""}" data-lg="${k}">${v}</button>`).join("")}</div>
       <div class="chips" id="cf">${[["all", "전체"], ["late", "서둘러요"], ["ready", "적기"], ["aging", "숙성 중"], ["past", "지남"], ["any", "언제든"]].map(([k, v]) => `<button class="chip ${k === filt ? "active" : ""}" data-f="${k}">${v}</button>`).join("")}
         <span style="flex:none;width:8px"></span>${[["window", "적기순"], ["buy", "최근 구매"], ["price", "시세"], ["name", "이름"]].map(([k, v]) => `<button class="chip ${k === sort ? "active" : ""}" data-s="${k}">${v}</button>`).join("")}</div>
-      <div class="list" id="clist">${fl.map((b) => bottleRow(b)).join("") || `<div class="empty">해당하는 병이 없어요</div>`}</div>` : ""}
+      <div id="clist">${listHTML()}</div>` : ""}
       ${C.log.length ? `<div class="section-title">시음 기록 <small>${C.log.length}회</small></div>
       <div class="list">${C.log.slice().sort((a, b) => (b.date || "").localeCompare(a.date || "")).slice(0, 15).map(logRow).join("")}</div>` : ""}
       <div class="panel"><h3>백업</h3><p class="hint" style="margin-top:0">셀러 기록은 이 휴대폰에만 저장돼요. 폰을 바꾸거나 앱 데이터를 지우기 전에 백업 파일을 저장해 두세요.</p>
@@ -392,6 +419,10 @@ export function setupCellar(ctx) {
     view.querySelectorAll("[data-log]").forEach((el) => (el.onclick = () => openDrinkSheet(C.bottles.find((b) => b.id === el.dataset.bid), C.log.find((l) => l.id === el.dataset.log))));
     view.querySelectorAll(".alerts [data-f], #cf [data-f]").forEach((el) => (el.onclick = () => { store.set("cellar.f", el.dataset.f === filt && el.closest(".alerts") ? "all" : el.dataset.f); renderCellar(); }));
     view.querySelectorAll("#cf [data-s]").forEach((el) => (el.onclick = () => { store.set("cellar.s", el.dataset.s); renderCellar(); }));
+    const keepY = (fn) => { const y0 = $("#lcChips").getBoundingClientRect().top; fn(); renderCellar(); const y1 = $("#lcChips")?.getBoundingClientRect().top; if (y1 != null) window.scrollBy(0, y1 - y0); };
+    view.querySelectorAll("[data-lc]").forEach((el) => (el.onclick = () => keepY(() => { store.set("cellar.c", el.dataset.lc); store.set("cellar.t", "all"); })));
+    view.querySelectorAll("[data-lt]").forEach((el) => (el.onclick = () => keepY(() => store.set("cellar.t", el.dataset.lt))));
+    view.querySelectorAll("[data-lg]").forEach((el) => (el.onclick = () => keepY(() => store.set("cellar.g." + lc, el.dataset.lg))));
     const fc = $("#foodChips");
     if (fc) fc.onclick = (e) => {
       const ch = e.target.closest("[data-i]"); if (!ch) return;
