@@ -1154,7 +1154,7 @@ function renderSettings() {
 // 페어링 모듈(pairing.js)이 쓰는 공통 함수
 window.SulApp = { $, view, esc, enc, go, store, setChrome, pagedList, itemRow, bindItems };
 $("#setBtn").onclick = () => go("#/settings");
-const APP_VERSION = "2026.11-v47";
+const APP_VERSION = "2026.11-v49";
 var CELLAR; window.SulApp.cellar = () => CELLAR;
 CELLAR = setupCellar({ store, $, view, esc, enc, toast, go, setChrome, bottle: window.bottle, CATS, findById, search, usdOf, fmtUSDv, fxRate, shrink, cse, cseOn, inferFromName, render: () => render() });
 loadFX().then(() => { if (/#\/(item|browse|ranking)/.test(location.hash)) render(); });

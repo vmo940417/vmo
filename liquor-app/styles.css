@@ -403,3 +403,19 @@ main { padding: 14px 16px 28px; max-width: 720px; margin: 0 auto; animation: fad
 .dstats { display: grid; gap: 8px; }
 .dstats .stat { background: var(--chip); color: var(--ink); border-radius: 12px; padding: 10px 8px; text-align: center; }
 .dstats .stat small { display: block; color: var(--muted); font-size: 11.5px; } .dstats .stat b { display: block; font-family: var(--serif); font-size: 18px; margin-top: 2px; }
+.dchips { margin-bottom: 2px; }
+.dchips .chip small { opacity: .65; margin-left: 2px; font-variant-numeric: tabular-nums; }
+.dchips.sub { padding-top: 0; }
+.dchips.sub .chip { padding: 5px 12px; font-size: 12.5px; }
+.dmx { overflow-x: auto; margin: 0 -4px; }
+.dmx table { border-collapse: separate; border-spacing: 3px; width: 100%; font-size: 13px; font-variant-numeric: tabular-nums; }
+.dmx th { font-weight: 600; color: var(--ink-2); text-align: left; white-space: nowrap; padding: 4px 6px 4px 0; }
+.dmx thead th { text-align: center; font-size: 12px; color: var(--muted); font-weight: 500; }
+.dmx td { text-align: center; }
+.dmx td button { width: 100%; min-width: 34px; border: 0; border-radius: 6px; padding: 7px 0; font: inherit; font-weight: 700; color: var(--ink); }
+.dmx td span { color: var(--muted); }
+.dmx td.tot { font-weight: 700; color: var(--ink); }
+.dmx tr.sum td, .dmx tr.sum th { border-top: 1px solid var(--line); color: var(--muted); padding-top: 6px; }
+.dgrp + .dgrp { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+.dgh { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 2px; font-size: 14px; }
+.dgh span { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
