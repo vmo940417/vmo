@@ -478,6 +478,7 @@ export function setupCellar(ctx) {
       };
       pfQ.oninput = () => {
         const q = pfQ.value.trim(), m = q && P?.engine ? P.engine.searchFoods(q).slice(0, 6) : [];
+        if (!q) { $("#pick").innerHTML = ""; store.set("cellar.pq", ""); }   // 검색어를 지우면 결과도 지운다
         sug.classList.toggle("hidden", !m.length);
         sug.innerHTML = m.map((f) => `<div class="sug-row"><a href="#" data-f="${esc(f.name_ko)}"><span>${esc(f.name_ko)}</span><small>${esc(f.cuisine)}</small></a></div>`).join("");
         sug.querySelectorAll("[data-f]").forEach((x) => (x.onclick = (e) => { e.preventDefault(); pfQ.value = x.dataset.f; pfQ.blur(); run(x.dataset.f); }));
