@@ -465,6 +465,18 @@
       desc: "바소 라인의 소비뇽 블랑. 상큼한 시트러스와 열대 과일 향의 데일리 나파 화이트." },
   ].forEach(({ g, usd, ...o }) => window.BULK.add({ cat: "wine", country: "미국", producer: "Dana Estates (다나 에스테이트)", ...o,
     abv: g === "SB" ? "13.8%" : "14.8%", ingredients: [{ name: g === "SB" ? "Sauvignon Blanc" : "Cabernet Sauvignon" }], price: { usd, note: "미국 소매 근사치" } }));
+  // 폰토디 플라치아넬로 델라 피에베 — 라벨 기준 정보 보강 (사용자 요청)
+  const fl = window.LIQUORS.find((x) => x.en === "Fontodi Flaccianello della Pieve");
+  if (fl) Object.assign(fl, {
+    ko: "폰토디 플라치아넬로 델라 피에베", ja: fl.ja || "",
+    aliases: ["플라차넬로", "플라키아넬로", "플라치아넬로", "플라치아넬로 델라 피에베", "폰토디", "flaccianello", "fontodi", "della pieve"],
+    producer: "Azienda Agricola Fontodi (Manetti 가문)", country: "이탈리아", region: "토스카나 판차노 인 키안티(그레베) · IGT 콜리 토스카나 센트랄레",
+    style: "레드 · 슈퍼 투스칸 (100% 산지오베제)", abv: "14.5%",
+    price: { usd: [100, 130], note: "미국 소매 근사치" },
+    ingredients: [{ name: "Sangiovese", pct: 100, note: "산지오베제 100% · 프랑스산 바리크 숙성" }],
+    desc: "키안티 클라시코 중심지 판차노의 폰토디가 만드는 대표 와인. 키안티 클라시코 DOCG 규정 밖(IGT)에서 산지오베제 100%로 빚는 '슈퍼 투스칸' 계열로, 단일 포도밭의 농축된 과실, 단단한 구조와 긴 숙성력으로 이탈리아 최상급 산지오베제로 꼽힌다.",
+    tasting: { nose: "블랙체리·자두, 제비꽃, 토스트·삼나무", palate: "농축된 붉은·검은 과실, 짜임새 있는 탄닌과 산도", finish: "길고 견고한 여운" },
+  });
   // 국가 칸이 '기타'인 항목은 산지 첫 단어를 국가로
   window.LIQUORS.forEach((x) => { if (x.bulk && x.country === "기타" && x.region) { const [c, ...r] = x.region.split(" "); x.country = c; x.region = r.join(" "); } });
 })();

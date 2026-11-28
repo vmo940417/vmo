@@ -445,6 +445,7 @@ function setChrome(tab, title, back = false) {
 }
 function render() {
   const [, route = "pair", a, b] = location.hash.split(/[\/?]/).map(decodeURIComponent);
+  const qs = location.hash.split("?")[1] || "";
   applyTheme();
   $("#editSheet")?.remove();
   if (route === "item") return renderDetail(a, b || "overview");
@@ -452,7 +453,7 @@ function render() {
   if (route === "browse") return renderBrowse(a);
   if (route === "ranking") return renderRanking(a || "sake");
   if (route === "settings") return renderSettings();
-  if (route === "cellar") return CELLAR.renderCellar(a);
+  if (route === "cellar") return CELLAR.renderCellar(a, b, qs);
   if (route === "pair") return window.Pairing.renderPair();
   if (route === "style") return window.Pairing.renderStyle(a);
   return renderSearch(new URLSearchParams(location.hash.split("?")[1] || "").get("q") || "");
@@ -1153,7 +1154,7 @@ function renderSettings() {
 // 페어링 모듈(pairing.js)이 쓰는 공통 함수
 window.SulApp = { $, view, esc, enc, go, store, setChrome, pagedList, itemRow, bindItems };
 $("#setBtn").onclick = () => go("#/settings");
-const APP_VERSION = "2026.11-v33";
+const APP_VERSION = "2026.11-v34";
 var CELLAR; window.SulApp.cellar = () => CELLAR;
 CELLAR = setupCellar({ store, $, view, esc, enc, toast, go, setChrome, bottle: window.bottle, CATS, findById, search, usdOf, fmtUSDv, fxRate, shrink, cse, cseOn, inferFromName, render: () => render() });
 loadFX().then(() => { if (/#\/(item|browse|ranking)/.test(location.hash)) render(); });

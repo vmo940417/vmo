@@ -54,7 +54,7 @@ export function setupCellar(ctx) {
     rose: /로제|rosé|\brose\b|rosado|rosato/i,
     nouveau: /nouveau|누보/i,
     white: /화이트|white|blanc\b|bianco|blanco|riesling|리슬링|chardonnay|샤르도네|sauvignon blanc|소비뇽 블랑|chablis|샤블리|sancerre|상세르|pouilly|meursault|뫼르소|montrachet|몽라셰|gewurz|게뷔르츠|moscato|모스카토|pinot gri|피노 그리|albariño|알바리뇨|grüner|vermentino|viognier|비오니에|chenin|슈냉|semillon|세미용/i,
-    long: /barolo|바롤로|barbaresco|바르바레스코|brunello|브루넬로|hermitage|에르미타주|grand cru|그랑 ?크뤼|grange|그랜지|vega sicilia|베가 시실리아|unico|côte[- ]r[oô]tie|코트 로티|amarone|아마로네|pauillac|포이악|margaux|마고|saint[- ]julien|생 ?쥘리앙|saint[- ]est[eè]phe|pomerol|포므롤|petrus|페트뤼스|ch[aâ]teauneuf|샤토뇌프|romanée|로마네|musigny|chambertin|샹베르탱|sassicaia|사시카이아|ornellaia|오르넬라이아|opus one|오퍼스 원|screaming eagle|harlan|할란|penfolds|펜폴즈/i,
+    long: /flaccianello|플라치아넬로|플라차넬로|fontodi|폰토디|tignanello|티냐넬로|solaia|솔라이아|masseto|마세토|barolo|바롤로|barbaresco|바르바레스코|brunello|브루넬로|hermitage|에르미타주|grand cru|그랑 ?크뤼|grange|그랜지|vega sicilia|베가 시실리아|unico|côte[- ]r[oô]tie|코트 로티|amarone|아마로네|pauillac|포이악|margaux|마고|saint[- ]julien|생 ?쥘리앙|saint[- ]est[eè]phe|pomerol|포므롤|petrus|페트뤼스|ch[aâ]teauneuf|샤토뇌프|romanée|로마네|musigny|chambertin|샹베르탱|sassicaia|사시카이아|ornellaia|오르넬라이아|opus one|오퍼스 원|screaming eagle|harlan|할란|penfolds|펜폴즈/i,
   };
   // [시작, 끝] = 빈티지 + 년수. 근거: 가격대(품질 등급 대용) × 와인 유형 × 장기 숙성형 산지·생산자
   function estimateWindow(b) {
@@ -144,7 +144,16 @@ export function setupCellar(ctx) {
   const bindRows = (root) => root.querySelectorAll("[data-b]").forEach((el) => (el.onclick = () => go("#/cellar/" + enc(el.dataset.b))));
 
   /* ───────── 셀러 메인 ───────── */
-  function renderCellar(bid) {
+  // #/cellar/add/<술id>?v=2020&q=1 → 미리 채운 '셀러에 추가' 화면
+  function quickAdd(id, qs) {
+    const it = findById(id), p = new URLSearchParams(qs || "");
+    history.replaceState(null, "", "#/cellar");
+    renderCellar();
+    if (!it) return toast("해당 술을 찾을 수 없어요");
+    openBottleSheet(null, it, { vintage: (p.get("v") || "").replace(/\D/g, "").slice(0, 4), qty: Math.max(1, parseInt(p.get("q")) || 1), loc: p.get("loc") || "", note: p.get("note") || "" });
+  }
+  function renderCellar(bid, arg, qs) {
+    if (bid === "add") return quickAdd(arg, qs);
     if (bid) return renderBottle(bid);
     setChrome("cellar", "나의 와인셀러");
     C = load();
@@ -294,9 +303,9 @@ export function setupCellar(ctx) {
     el.querySelector("[data-close]")?.addEventListener("click", close);
     return { el, form: el.querySelector("form"), close };
   }
-  function openBottleSheet(b0, preItem) {
+  function openBottleSheet(b0, preItem, pre) {
     const edit = !!b0;
-    const b = b0 ? { ...b0 } : { id: uid(), itemId: preItem?.id || "", name: "", vintage: "", size: 750, qty: 1, buyDate: today(), loc: "", note: "", photo: "" };
+    const b = b0 ? { ...b0 } : { id: uid(), itemId: preItem?.id || "", name: "", vintage: "", size: 750, qty: 1, buyDate: today(), loc: "", note: "", photo: "", ...(pre || {}) };
     const { el, form, close } = sheet(`
       <h3 class="sheet-h">${edit ? "보유 와인 수정" : "셀러에 추가"}</h3>
       <div class="field"><label>와인</label><input id="bq" autocomplete="off" placeholder="이름·초성으로 검색 (예: 딸보, ㅇㅍㅅㅇ)" value="${esc(itemOf(b)?.ko || b.name)}" />
