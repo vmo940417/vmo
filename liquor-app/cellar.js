@@ -62,7 +62,8 @@ export function setupCellar(ctx) {
     const buyY = +(b.buyDate || today()).slice(0, 4);
     const t = `${it?.en || ""} ${it?.ko || ""} ${it?.style || ""} ${it?.region || ""} ${b.name || ""}`;
     if (cat === "sake" && /숙성주|熟成|古酒|고슈/.test(t)) return { from: buyY, to: buyY + 5, why: "숙성주(古酒) — 병 숙성이 완만해 구매 후 5년 내 권장" };
-    if (cat === "sake" || cat === "beer" || cat === "makgeolli") return { from: buyY, to: buyY + 1, why: "신선할 때 마시는 술 — 구매 후 1년 이내" };
+    if (cat === "sake") return { from: buyY, to: buyY + 2, why: "사케는 신선할 때 — 냉장 보관 기준 구매 후 1~2년 이내" };
+    if (cat === "beer" || cat === "makgeolli") return { from: buyY, to: buyY + 1, why: "신선할 때 마시는 술 — 구매 후 1년 이내" };
     if (cat !== "wine") return { from: null, to: null, why: "증류주는 병 숙성이 거의 없어 언제든 (개봉 후 1~2년 내 권장)" };
     if (RE.nouveau.test(t)) return { from: buyY, to: buyY + 1, why: "누보 — 출시 직후" };
     const usd = wsVal(b) || (it && usdOf(it)) || 30;

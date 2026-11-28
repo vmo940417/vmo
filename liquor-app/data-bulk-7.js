@@ -520,6 +520,19 @@
   ].forEach(([cat, ko, en, country, region, producer, style, abv, g, p, usd, desc]) => { const [e, orig] = en.split("|");
     window.BULK.add({ cat, ko, en: e, ...(orig ? { ja: orig } : {}), country, region, producer, style, abv, p, desc,
       ingredients: g ? g.split("/").map((name) => ({ name })) : [], price: { usd, note: "근사치" } }); });
+  // 사용자 요청 추가 (라벨 기준) — 스파클링·화이트·사케
+  [
+    ["wine", "비에티 모스카토 다스티", "Vietti Moscato d'Asti", "이탈리아", "피에몬테 아스티", "Vietti", "스위트 · 모스카토 다스티 (약발포)", "5%", "Moscato", "sweet", [15, 28], "피에몬테 명가 비에티의 모스카토 다스티. 복숭아·아카시아 향의 가볍고 달콤한 약발포 와인으로 도수가 낮다."],
+    ["wine", "로제르 굴라르트 로제 밀레짐 브뤼 까바", "Roger Goulart Rosé Millésimé Brut Cava", "스페인", "카탈루냐 페네데스", "Roger Goulart", "스파클링 · 까바 로제 (밀레짐)", "", "", "bubbly", [18, 32], "카탈루냐 페네데스의 로제 까바(빈티지). 붉은 베리 향과 섬세한 기포가 특징이다."],
+    ["wine", "토마시 팔랑카 콜롬비나 비앙코", "Tommasi Palanca Colombina Bianco", "이탈리아", "베네토", "Tommasi", "화이트 · 이탈리아 화이트", "", "", "whiteCrisp", [10, 18], "베네토의 명가 토마시가 만드는 가벼운 화이트. 신선한 과일 향의 데일리 와인."],
+    ["wine", "포르타 6 스파클링 브뤼", "Porta 6 Sparkling Brut", "포르투갈", "리스본", "Porta 6", "스파클링 · 브뤼", "", "", "bubbly", [10, 18], "리스본 트램 그림 라벨로 유명한 포르타 6의 스파클링. 가볍고 상큼한 데일리 버블."],
+    ["wine", "그랑 둘세 리미티드 에디션", "Grand Dulce Limited Edition", "스페인", "스페인", "Bodegas Milenium", "스위트 · 스페인 화이트", "", "", "sweet", [8, 16], "보데가스 밀레니움의 스페인 화이트 리미티드 에디션. 이름 그대로 부드럽고 달콤한 스타일로 보인다."],
+    ["wine", "MVSA 까바 브뤼", "MVSA Cava Brut", "스페인", "카탈루냐 페네데스", "MVSA", "스파클링 · 까바 브뤼 (전통 방식)", "", "", "bubbly", [10, 18], "전통 방식(메토도 트라디시오날)으로 만든 까바 브뤼. 깔끔한 산도와 가벼운 바디."],
+    ["wine", "포지오 레 볼피 로마 비앙코", "Poggio Le Volpi Roma Bianco DOC", "이탈리아", "라치오 로마", "Poggio Le Volpi", "화이트 · 로마 DOC 비앙코", "12.5%", "Malvasia Puntinata", "whiteCrisp", [14, 22], "로마 인근 DOC 화이트. 토착 말바시아 계열 품종의 향긋하고 산뜻한 맛."],
+    ["sake", "구로마쓰 하쿠시카 센넨주 준마이 다이긴죠", "Kuromatsu Hakushika Sennenju Junmai Daiginjo|黒松白鹿 千年壽 純米大吟醸", "일본", "효고 니시노미야", "辰馬本家酒造", "준마이 다이긴죠", "", "", "sakeGinjo", [30, 50], "효고 니시노미야 다쓰우마 혼케(하쿠시카)의 준마이 다이긴조 '센넨주'. 화려한 향과 깔끔한 끝맛의 고급 사케."],
+  ].forEach(([cat, ko, en, country, region, producer, style, abv, g, p, usd, desc]) => { const [e, orig] = en.split("|");
+    window.BULK.add({ cat, ko, en: e, ...(orig ? { ja: orig } : {}), country, region, producer, style, abv, p, desc,
+      ingredients: g ? g.split("/").map((name) => ({ name })) : [], price: { usd, note: "근사치" } }); });
   // 폰토디 플라치아넬로 델라 피에베 — 라벨 기준 정보 보강 (사용자 요청)
   const fl = window.LIQUORS.find((x) => x.en === "Fontodi Flaccianello della Pieve");
   if (fl) Object.assign(fl, {
