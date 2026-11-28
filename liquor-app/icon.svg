@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024"><defs><radialGradient id="g" cx="35%" cy="25%" r="90%"><stop offset="0" stop-color="#3A63C4"/><stop offset="0.6" stop-color="#1F3F94"/><stop offset="1" stop-color="#0E1E52"/></radialGradient></defs><rect width="1024" height="1024" fill="url(#g)"/><g transform="translate(512 500) scale(1.08) translate(-532 -540)">  <!-- 와인잔 -->
+  <g>
+    <path d="M318 250 H520 C528 330 524 400 492 446 C466 484 444 500 419 504 C394 500 372 484 346 446 C314 400 310 330 318 250 Z" fill="#F7EBDD"/>
+    <path d="M326 352 C380 372 458 372 514 352 C512 398 500 430 484 452 C462 482 442 496 419 500 C396 496 376 482 354 452 C338 430 328 398 326 352 Z" fill="#B8325E"/>
+    <rect x="410" y="500" width="18" height="190" rx="9" fill="#F7EBDD"/>
+    <path d="M336 712 C356 690 482 690 502 712 Z" fill="#F7EBDD"/>
+    <rect x="334" y="700" width="170" height="20" rx="10" fill="#F7EBDD"/>
+  </g>
+  <!-- 사케 잔 (오초코) -->
+  <g>
+    <path d="M556 560 H748 L730 690 C726 712 708 724 686 724 H618 C596 724 578 712 574 690 Z" fill="#F7EBDD"/>
+    <ellipse cx="652" cy="560" rx="96" ry="22" fill="#F7EBDD"/>
+    <ellipse cx="652" cy="562" rx="80" ry="15" fill="#D9B44A"/>
+    <path d="M572 620 C620 632 684 632 732 620" stroke="#D9B44A" stroke-width="10" fill="none" stroke-linecap="round"/>
+  </g>
+
+  <!-- 소반(술상): 상판과 다리 -->
+  <rect x="246" y="722" width="572" height="30" rx="15" fill="#F7EBDD"/>
+  <path d="M300 752 v62 M764 752 v62" stroke="#F7EBDD" stroke-width="22" stroke-linecap="round"/>
+  <path d="M286 782 h492" stroke="#D9B44A" stroke-width="8" stroke-linecap="round" opacity=".9"/></g></svg>
