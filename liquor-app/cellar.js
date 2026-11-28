@@ -54,7 +54,7 @@ export function setupCellar(ctx) {
     rose: /로제|rosé|\brose\b|rosado|rosato/i,
     nouveau: /nouveau|누보/i,
     white: /화이트|white|blanc\b|bianco|blanco|riesling|리슬링|chardonnay|샤르도네|sauvignon blanc|소비뇽 블랑|chablis|샤블리|sancerre|상세르|pouilly|meursault|뫼르소|montrachet|몽라셰|gewurz|게뷔르츠|moscato|모스카토|pinot gri|피노 그리|albariño|알바리뇨|grüner|vermentino|viognier|비오니에|chenin|슈냉|semillon|세미용/i,
-    long: /1er cru|premier cru|프리미에 크뤼|프르미에 크뤼|flaccianello|플라치아넬로|플라차넬로|fontodi|폰토디|tignanello|티냐넬로|solaia|솔라이아|masseto|마세토|barolo|바롤로|barbaresco|바르바레스코|brunello|브루넬로|hermitage|에르미타주|grand cru|그랑 ?크뤼|grange|그랜지|vega sicilia|베가 시실리아|unico|côte[- ]r[oô]tie|코트 로티|amarone|아마로네|pauillac|포이악|margaux|마고|saint[- ]julien|생 ?쥘리앙|saint[- ]est[eè]phe|pomerol|포므롤|petrus|페트뤼스|ch[aâ]teauneuf|샤토뇌프|romanée|로마네|musigny|chambertin|샹베르탱|sassicaia|사시카이아|ornellaia|오르넬라이아|opus one|오퍼스 원|screaming eagle|harlan|할란|penfolds|펜폴즈/i,
+    long: /크뤼 클라세|cru class[eé]|pessac|페삭|1er cru|premier cru|프리미에 크뤼|프르미에 크뤼|flaccianello|플라치아넬로|플라차넬로|fontodi|폰토디|tignanello|티냐넬로|solaia|솔라이아|masseto|마세토|barolo|바롤로|barbaresco|바르바레스코|brunello|브루넬로|hermitage|에르미타주|grand cru|그랑 ?크뤼|grange|그랜지|vega sicilia|베가 시실리아|unico|côte[- ]r[oô]tie|코트 로티|amarone|아마로네|pauillac|포이악|margaux|마고|saint[- ]julien|생 ?쥘리앙|saint[- ]est[eè]phe|pomerol|포므롤|petrus|페트뤼스|ch[aâ]teauneuf|샤토뇌프|romanée|로마네|musigny|chambertin|샹베르탱|sassicaia|사시카이아|ornellaia|오르넬라이아|opus one|오퍼스 원|screaming eagle|harlan|할란|penfolds|펜폴즈/i,
   };
   // [시작, 끝] = 빈티지 + 년수. 근거: 가격대(품질 등급 대용) × 와인 유형 × 장기 숙성형 산지·생산자
   function estimateWindow(b) {
@@ -270,15 +270,15 @@ export function setupCellar(ctx) {
   // #/cellar/addmany?items=id:빈티지[:병수],id:빈티지 → 확인 후 여러 병을 한 번에 추가 (같은 와인+빈티지는 병 수만 더함)
   function addMany(qs) {
     const list = (new URLSearchParams(qs || "").get("items") || "").split(",").map((x) => x.split(":")).filter(([id]) => findById(id))
-      .map(([id, v, q]) => ({ it: findById(id), v: (v || "").replace(/\D/g, "").slice(0, 4), q: Math.max(1, parseInt(q) || 1) }));
+      .map(([id, v, q, sz]) => ({ it: findById(id), v: (v || "").replace(/\D/g, "").slice(0, 4), q: Math.max(1, parseInt(q) || 1), sz: +sz || 750 }));
     history.replaceState(null, "", "#/cellar");
     if (!list.length) { renderCellar(); return toast("추가할 와인을 찾을 수 없어요"); }
     renderCellar();
-    if (!confirm(`셀러에 ${list.length}종을 추가할까요?\n\n` + list.map(({ it, v, q }) => `· ${it.ko} ${v} × ${q}병`).join("\n"))) return;
+    if (!confirm(`셀러에 ${list.length}종을 추가할까요?\n\n` + list.map(({ it, v, q, sz }) => `· ${it.ko} ${v}${sz !== 750 ? ` (${sz}ml)` : ""} × ${q}병`).join("\n"))) return;
     C = load();
-    for (const { it, v, q } of list) {
-      const same = C.bottles.find((b) => b.itemId === it.id && String(b.vintage || "") === v);
-      if (same) same.qty += q; else C.bottles.push({ id: uid(), itemId: it.id, name: "", vintage: v, size: 750, qty: q, buyDate: today(), loc: "", note: "", photo: "", added: today() });
+    for (const { it, v, q, sz } of list) {
+      const same = C.bottles.find((b) => b.itemId === it.id && String(b.vintage || "") === v && +b.size === sz);
+      if (same) same.qty += q; else C.bottles.push({ id: uid(), itemId: it.id, name: "", vintage: v, size: sz, qty: q, buyDate: today(), loc: "", note: "", photo: "", added: today() });
     }
     if (!save()) return;
     toast(`${list.length}종을 셀러에 추가했어요 🍷`); renderCellar();

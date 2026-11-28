@@ -497,6 +497,16 @@
     ["알렉스 감발 본 로마네", "Alex Gambal Vosne-Romanée", "프랑스", "부르고뉴 본 로마네", "Alex Gambal", "레드 · 빌라주", "13%", "Pinot Noir", "pinot", [85, 120], "미국인 네고시앙 알렉스 감발이 만드는 본 로마네 빌라주. 우아한 붉은 과실과 부드러운 탄닌."],
   ].forEach(([ko, en, country, region, producer, style, abv, g, p, usd, desc]) => window.BULK.add({ cat: "wine", ko, en, country, region, producer, style, abv, p, desc,
     ingredients: g.split("/").map((name) => ({ name })), price: { usd, note: "미국 소매 근사치" } }));
+  // 사용자 요청 추가 (라벨 기준) — 샤르도네·소테른·오렌지
+  [
+    ["오베르 러시안 리버 밸리 샤르도네", "Aubert Russian River Valley Chardonnay", "미국", "캘리포니아 소노마 러시안 리버 밸리", "Aubert Wines", "화이트 · 샤르도네", "14%", "Chardonnay", "whiteCrisp", [100, 150], "소노마 샤르도네의 대표 생산자 오베르가 러시안 리버 밸리 포도로 만든 샤르도네. 풍성한 질감과 긴 여운."],
+    ["오베르 소노마 코스트 샤르도네", "Aubert Sonoma Coast Chardonnay", "미국", "캘리포니아 소노마 코스트", "Aubert Wines", "화이트 · 샤르도네", "14%", "Chardonnay", "whiteCrisp", [90, 130], "서늘한 소노마 코스트 포도로 빚은 오베르의 샤르도네. 또렷한 산도와 농축된 과실."],
+    ["콩스가드 샤르도네", "Kongsgaard Chardonnay", "미국", "캘리포니아 나파 밸리", "Kongsgaard Wine", "화이트 · 샤르도네", "14%", "Chardonnay", "whiteCrisp", [110, 160], "나파의 컬트 화이트로 꼽히는 콩스가드 샤르도네. 자연 효모 발효와 오크 숙성으로 깊고 풍부한 스타일."],
+    ["올리비에 르플레브 퓔리니 몽라셰", "Olivier Leflaive Puligny-Montrachet", "프랑스", "부르고뉴 퓔리니 몽라셰", "Olivier Leflaive", "화이트 · 빌라주", "13%", "Chardonnay", "whiteCrisp", [70, 105], "퓔리니 몽라셰 빌라주. 레몬·흰 꽃의 향과 광물감, 단단한 산도의 샤르도네."],
+    ["무통 카데 레제르브 소테른", "Mouton Cadet Réserve Sauternes", "프랑스", "보르도 소테른", "Baron Philippe de Rothschild", "스위트 · 소테른", "13.5%", "Sémillon/Sauvignon Blanc", "sweet", [18, 30], "바롱 필립 드 로칠드의 소테른. 꿀·살구·귤 껍질 향의 달콤한 귀부 와인. 하프 보틀(375ml)로 많이 유통된다."],
+    ["초타르 비토브스카", "Čotar Vitovska", "슬로베니아", "슬로베니아 카르스트", "Čotar", "화이트 · 오렌지 (스킨 컨택트)", "", "Vitovska", "whiteCrisp", [40, 65], "카르스트 지방 토착 품종 비토브스카로 빚는 오렌지(스킨 컨택트) 화이트. 단단한 미네랄감과 은은한 탄닌."],
+  ].forEach(([ko, en, country, region, producer, style, abv, g, p, usd, desc]) => window.BULK.add({ cat: "wine", ko, en, country, region, producer, style, abv, p, desc,
+    ingredients: g.split("/").map((name) => ({ name })), price: { usd, note: "미국 소매 근사치" } }));
   // 폰토디 플라치아넬로 델라 피에베 — 라벨 기준 정보 보강 (사용자 요청)
   const fl = window.LIQUORS.find((x) => x.en === "Fontodi Flaccianello della Pieve");
   if (fl) Object.assign(fl, {
