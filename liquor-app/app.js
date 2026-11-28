@@ -1104,6 +1104,7 @@ function renderRanking(cat) {
 
 /* ───────── 설정 ───────── */
 function applyTheme() {
+  document.documentElement.style.setProperty("--fs", String(store.get("fs", 1.12)));
   const t = store.get("theme", "system");
   if (t === "system") document.documentElement.removeAttribute("data-theme");
   else document.documentElement.setAttribute("data-theme", t);
@@ -1127,6 +1128,10 @@ function renderSettings() {
       <div class="chips" id="theme" style="margin:0;padding:0">${[["system", "시스템"], ["light", "라이트"], ["dark", "다크"]].map(([k, v]) => `<button class="chip ${store.get("theme", "system") === k ? "active" : ""}" data-t="${k}">${v}</button>`).join("")}</div>
     </div>
     <div class="panel">
+      <h3>글자 크기</h3>
+      <div class="chips" id="fsize" style="margin:0;padding:0">${[[1, "보통"], [1.12, "크게"], [1.25, "아주 크게"]].map(([k, v]) => `<button class="chip ${store.get("fs", 1.12) === k ? "active" : ""}" data-fs="${k}">${v}</button>`).join("")}</div>
+    </div>
+    <div class="panel">
       <h3>데이터</h3>
       <p class="hint" style="margin-top:0">앱 버전 ${APP_VERSION} · 수록 ${DB.length.toLocaleString()}종 · 내가 수정한 술 ${nEdit}건 · 내가 저장한 술 ${nUser}건</p>
       <button class="btn ghost block" id="clear">최근 본 기록 지우기</button>
@@ -1146,6 +1151,7 @@ function renderSettings() {
     catch (err) { toast("연결 실패 (" + err.message + ") — 키·ID·API 사용 설정을 확인하세요"); }
     finally { e.target.disabled = false; e.target.textContent = "연결 테스트"; }
   };
+  $("#fsize").onclick = (e) => { const b = e.target.closest("[data-fs]"); if (b) { store.set("fs", +b.dataset.fs); applyTheme(); renderSettings(); } };
   $("#theme").onclick = (e) => { const b = e.target.closest("[data-t]"); if (b) { store.set("theme", b.dataset.t); renderSettings(); applyTheme(); } };
   $("#clear").onclick = () => { store.del("recent"); toast("최근 본 기록을 지웠습니다"); };
   $("#clearCache").onclick = () => { Object.keys(localStorage).filter((k) => /^sulsajeon\.(web2?|img)\./.test(k)).forEach((k) => localStorage.removeItem(k)); toast("캐시를 지웠습니다"); };
@@ -1156,7 +1162,7 @@ function renderSettings() {
 // 페어링 모듈(pairing.js)이 쓰는 공통 함수
 window.SulApp = { $, view, esc, enc, go, store, setChrome, pagedList, itemRow, bindItems };
 $("#setBtn").onclick = () => go("#/settings");
-const APP_VERSION = "2026.11-v56";
+const APP_VERSION = "2026.11-v57";
 var CELLAR; window.SulApp.cellar = () => CELLAR;
 CELLAR = setupCellar({ store, $, view, esc, enc, toast, go, setChrome, bottle: window.bottle, CATS, findById, search, usdOf, fmtUSDv, fxRate, shrink, cse, cseOn, inferFromName, render: () => render() });
 loadFX().then(() => { if (/#\/(item|browse|ranking)/.test(location.hash)) render(); });

@@ -17,32 +17,32 @@
 .pair-hero { background: var(--g-lapis); }
 .pair-hero .sug { position: relative; z-index: 2; margin-top: 8px; color: var(--ink); }
 .pair-hero .sug-row a { justify-content: space-between; }
-.pair-hero .sug-row small { color: var(--muted); font-size: 12px; }
+.pair-hero .sug-row small { color: var(--muted); font-size: calc(12px * var(--fs)); }
 
 /* 스타일 순위 행 (a.item) */
 a.item { text-decoration: none; }
 .p-row .name { display: flex; align-items: baseline; gap: 6px; }
-.p-rank { font-family: var(--serif); color: var(--muted); font-size: 13px; min-width: 16px; font-variant-numeric: tabular-nums; }
+.p-rank { font-family: var(--serif); color: var(--muted); font-size: calc(13px * var(--fs)); min-width: 16px; font-variant-numeric: tabular-nums; }
 .p-row .p-why { white-space: normal; overflow: visible; margin-top: 2px; color: var(--ink-2); }
 .p-why.plus::first-letter { color: var(--s-great); }
 .p-score { flex: none; display: grid; place-items: center; align-content: center; width: 50px; height: 50px; border-radius: 50%;
-  border: 2.5px solid currentColor; font-size: 10px; line-height: 1.05; font-variant-numeric: tabular-nums; }
-.p-score b { font-family: var(--serif); font-size: 18px; }
+  border: 2.5px solid currentColor; font-size: calc(10px * var(--fs)); line-height: 1.05; font-variant-numeric: tabular-nums; }
+.p-score b { font-family: var(--serif); font-size: calc(18px * var(--fs)); }
 .p-score.inline { display: inline-grid; width: 42px; height: 42px; margin-left: 8px; vertical-align: middle; }
-.p-score.inline b { font-size: 15px; }
+.p-score.inline b { font-size: calc(15px * var(--fs)); }
 .s-great { color: var(--s-great); } .s-good { color: var(--s-good); } .s-ok { color: var(--s-ok); } .s-bad { color: var(--s-bad); }
 
 /* 궁합 이유 */
-.p-reasons { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 14px; color: var(--ink-2); }
+.p-reasons { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: calc(14px * var(--fs)); color: var(--ink-2); }
 .p-reasons li { display: flex; gap: 8px; }
 .p-reasons b { flex: none; }
 .p-reasons .plus b { color: var(--s-great); }
 .p-reasons .minus b { color: var(--s-bad); }
-.p-muted { color: var(--muted); font-weight: 500; font-family: var(--sans); font-size: 12px; }
+.p-muted { color: var(--muted); font-weight: 500; font-family: var(--sans); font-size: calc(12px * var(--fs)); }
 
 /* 맛 프로파일 막대 */
 .p-bars { display: flex; flex-direction: column; gap: 8px; }
-.p-bar { display: grid; grid-template-columns: 52px 1fr 30px; gap: 10px; align-items: center; font-size: 13px; }
+.p-bar { display: grid; grid-template-columns: 52px 1fr 30px; gap: 10px; align-items: center; font-size: calc(13px * var(--fs)); }
 .p-bar span:first-child { color: var(--muted); }
 .p-bar span:last-child { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
 .p-bar i { height: 8px; border-radius: 4px; background: var(--chip); overflow: hidden; }
@@ -55,15 +55,15 @@ a.item { text-decoration: none; }
 .p-food { display: flex; gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); color: var(--ink); text-decoration: none; }
 .p-food:last-child { border-bottom: 0; }
 .p-food .meta { min-width: 0; display: flex; flex-direction: column; }
-.p-food .meta small { color: var(--muted); font-size: 12px; }
+.p-food .meta small { color: var(--muted); font-size: calc(12px * var(--fs)); }
 .p-food .p-score { width: 44px; height: 44px; }
-.p-food .p-score b { font-size: 15px; }
+.p-food .p-score b { font-size: calc(15px * var(--fs)); }
 .panel h3 .p-muted { margin-left: 6px; }
 
 
 /* 페어링: 분류로 고르기 */
 .chips.p-cats { flex-wrap: wrap; overflow: visible; margin: 0; padding: 4px 0 10px; }   /* 분류 6개가 모두 보이게 */
-.p-cats .chip small { font-size: 11px; opacity: .65; margin-left: 2px; }
+.p-cats .chip small { font-size: calc(11px * var(--fs)); opacity: .65; margin-left: 2px; }
 .p-foodgrid { display: flex; flex-wrap: wrap; gap: 7px; margin: 2px 0 8px; }
 .p-foodgrid .chip { flex: none; }
 
@@ -71,11 +71,11 @@ a.item { text-decoration: none; }
 .buy-main { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 16px; text-decoration: none; color: var(--ink);
   background: color-mix(in srgb, var(--accent) 9%, var(--paper)); border: 1.5px solid color-mix(in srgb, var(--accent) 35%, var(--line)); }
 .buy-main span { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.buy-main b { font-size: 15px; overflow-wrap: anywhere; }
-.buy-main small { color: var(--muted); font-size: 12.5px; }
+.buy-main b { font-size: calc(15px * var(--fs)); overflow-wrap: anywhere; }
+.buy-main small { color: var(--muted); font-size: calc(12.5px * var(--fs)); }
 .buy-main i { font-style: normal; color: var(--muted); }
 .buy .linkbtns a { word-break: keep-all; display: flex; flex-direction: column; gap: 2px; }
-.buy .linkbtns small { font-weight: 500; color: var(--muted); font-size: 12px; }
+.buy .linkbtns small { font-weight: 500; color: var(--muted); font-size: calc(12px * var(--fs)); }
 
 /* 술검색: 카메라 → 구글 렌즈 */
 .searchbox input#q { padding-right: 58px; }
@@ -84,11 +84,11 @@ a.item { text-decoration: none; }
 .cam-btn svg { width: 22px; height: 22px; stroke: #fff; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .cam-btn:active { transform: translateY(-50%) scale(.94); }
 .sheet .shot { display: block; max-width: 100%; max-height: 34vh; margin: 0 auto 12px; border-radius: 14px; box-shadow: var(--shadow); }
-.lens-steps { margin: 4px 0 12px; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; color: var(--ink-2); }
+.lens-steps { margin: 4px 0 12px; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; font-size: calc(14px * var(--fs)); color: var(--ink-2); }
 .lens-name { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
-.lens-name label { font-size: 13px; color: var(--muted); }
+.lens-name label { font-size: calc(13px * var(--fs)); color: var(--muted); }
 .lens-name-row { display: flex; gap: 8px; }
-.lens-name-row input { flex: 1; min-width: 0; font-size: 16px; padding: 11px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); }
+.lens-name-row input { flex: 1; min-width: 0; font-size: calc(16px * var(--fs)); padding: 11px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); }
 .lens-name-row input:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 22%, transparent); }
 .lens-name-row .btn { padding: 0 18px; }
 
@@ -97,12 +97,12 @@ a.item { text-decoration: none; }
 .shot-thumb { width: 64px; height: 84px; object-fit: cover; border-radius: 10px; box-shadow: var(--shadow); flex: none; }
 .ocr-box { margin: 0 0 6px; display: flex; flex-direction: column; gap: 8px; }
 .ocr-note { text-align: center; margin: 0; }
-.ocr-status { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 14px; border-radius: 14px; background: var(--chip); color: var(--ink-2); font-size: 14px; }
+.ocr-status { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 14px; border-radius: 14px; background: var(--chip); color: var(--ink-2); font-size: calc(14px * var(--fs)); }
 .ocr-spin { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--accent); animation: ocrspin .8s linear infinite; }
 @keyframes ocrspin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .ocr-spin { animation: none; } }
-.ocr-h { font-family: var(--serif); font-weight: 700; font-size: 16px; }
-.ocr-h small { font-family: var(--sans); font-weight: 500; color: var(--muted); font-size: 12px; margin-left: 4px; }
+.ocr-h { font-family: var(--serif); font-weight: 700; font-size: calc(16px * var(--fs)); }
+.ocr-h small { font-family: var(--sans); font-weight: 500; color: var(--muted); font-size: calc(12px * var(--fs)); margin-left: 4px; }
 .ocr-list { max-height: 44vh; overflow-y: auto; }
-.p-cellar-empty { display: block; margin: 12px 0 0; padding: 12px 14px; border-radius: 14px; background: var(--paper); box-shadow: var(--shadow); color: var(--ink-2); font-size: 13.5px; text-decoration: none; }
+.p-cellar-empty { display: block; margin: 12px 0 0; padding: 12px 14px; border-radius: 14px; background: var(--paper); box-shadow: var(--shadow); color: var(--ink-2); font-size: calc(13.5px * var(--fs)); text-decoration: none; }
 #pcellar .list { margin-bottom: 4px; }
