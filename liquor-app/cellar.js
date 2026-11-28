@@ -144,6 +144,121 @@ export function setupCellar(ctx) {
   const bindRows = (root) => root.querySelectorAll("[data-b]").forEach((el) => (el.onclick = () => go("#/cellar/" + enc(el.dataset.b))));
 
   /* ───────── 셀러 메인 ───────── */
+  /* ───────── 대시보드 ───────── */
+  const GRAPE_KO = { "cabernet sauvignon": "까베르네 소비뇽", merlot: "메를로", "pinot noir": "피노 누아", chardonnay: "샤르도네", "sauvignon blanc": "소비뇽 블랑", sangiovese: "산지오베제", nebbiolo: "네비올로",
+    syrah: "시라", shiraz: "쉬라즈", tempranillo: "템프라니요", riesling: "리슬링", "nero d'avola": "네로 다볼라", corvina: "코르비나", malbec: "말벡", grenache: "그르나슈", zinfandel: "진판델",
+    "cabernet franc": "까베르네 프랑", gamay: "가메", carmenère: "까르메네르", "pinot grigio": "피노 그리지오", viognier: "비오니에", "chenin blanc": "슈냉 블랑", barbera: "바르베라", glera: "글레라" };
+  const typeOf = (b) => {
+    const it = itemOf(b), cat = catOf(b);
+    if (cat !== "wine") return CATS[cat]?.ko || "기타";
+    const t = `${it?.en || ""} ${it?.ko || ""} ${it?.style || ""} ${it?.region || ""} ${b.name || ""}`;
+    if (RE.spark.test(t)) return "스파클링";
+    if (RE.port.test(t)) return "주정강화";
+    if (RE.sweet.test(t)) return "스위트";
+    if (RE.rose.test(t)) return "로제";
+    if (/레드|red/i.test(t) && !/화이트|white/i.test(t)) return "레드";
+    if (RE.white.test(t) && !/레드/.test(t)) return "화이트";
+    const g = (it?.ingredients?.[0]?.name || ctx.inferFromName?.(b.name)?.grapes?.[0]?.name || "").toLowerCase();
+    return /chardonnay|sauvignon blanc|riesling|pinot gri|viognier|chenin|glera|moscato|gewürz|albari|vermentino|grüner/.test(g) ? "화이트" : "레드";
+  };
+  const grapeOf = (b) => {
+    const it = itemOf(b);
+    const n = it?.ingredients?.[0]?.name || ctx.inferFromName?.(b.name)?.grapes?.[0]?.name || "";
+    if (!n) return "기타·미상";
+    const k = n.toLowerCase().replace(/\s*\(.*$/, "");
+    return GRAPE_KO[k] || n;
+  };
+  const priceTier = (b) => {
+    const v = wsVal(b) || (itemOf(b) && usdOf(itemOf(b))) || 0;
+    return v >= 200 ? "$200 이상" : v >= 100 ? "$100–200" : v >= 60 ? "$60–100" : v >= 30 ? "$30–60" : v > 0 ? "$30 미만" : "가격 미상";
+  };
+  const TIER_ORDER = ["$30 미만", "$30–60", "$60–100", "$100–200", "$200 이상", "가격 미상"];
+  const TYPE_ORDER = ["레드", "화이트", "로제", "스파클링", "스위트", "주정강화"];
+  const valUSD = (b) => wsVal(b) || (itemOf(b) && usdOf(itemOf(b))) || 0;
+
+  function renderDash() {
+    setChrome("cellar", "셀러 대시보드", true);
+    C = load();
+    const A = active(), n = A.reduce((s, b) => s + b.qty, 0);
+    if (!n) { view.innerHTML = `<div class="empty">셀러에 와인을 추가하면 대시보드가 채워져요<br><br><a class="btn gold" href="#/cellar" style="display:inline-block;text-decoration:none">셀러로 가기</a></div>`; return; }
+    const y = YEAR(), krw = fxRate("KRW") || 1400;
+    const names = (L) => L.slice(0, 5).map((b) => `${nameOf(b)}${b.vintage ? " " + b.vintage : ""}`).join(", ") + (L.length > 5 ? ` 외 ${L.length - 5}종` : "");
+    const total = A.reduce((s, b) => s + valUSD(b) * b.qty, 0), known = A.filter((b) => valUSD(b)).length, wsN = A.filter(wsVal).length;
+    const pct = (v) => Math.round((v / n) * 100);
+    // 묶어서 세기: { label → [bottles] }
+    const groupBy = (fn) => { const m = new Map(); for (const b of A) { const k = fn(b); (m.get(k) || m.set(k, []).get(k)).push(b); } return m; };
+    const qtyOf = (L) => L.reduce((s, b) => s + b.qty, 0);
+    const bars = (m, { order, top = 7, unit = "병" } = {}) => {
+      let e = [...m.entries()];
+      e = order ? e.sort((a, b) => order.indexOf(a[0]) - order.indexOf(b[0])) : e.sort((a, b) => qtyOf(b[1]) - qtyOf(a[1]));
+      if (!order && e.length > top) { const rest = e.slice(top - 1), L = rest.flatMap(([, v]) => v); e = [...e.slice(0, top - 1), [`기타 ${rest.length}개`, L]]; }
+      const max = Math.max(...e.map(([, L]) => qtyOf(L)));
+      return `<div class="dbars">${e.map(([k, L]) => `<button class="drow" data-tip="${esc(k + " " + qtyOf(L) + "병 — " + names(L))}"><span class="dl">${esc(k)}</span>
+        <span class="dtrack"><i style="width:${Math.max(3, (qtyOf(L) / max) * 100)}%"></i></span><span class="dv">${qtyOf(L)}${unit}<small>${pct(qtyOf(L))}%</small></span></button>`).join("")}</div>`;
+    };
+    const cols = (arr, hi) => { const max = Math.max(1, ...arr.map((c) => c.n)); return `<div class="dcols">${arr.map((c) => `<button class="dcol ${c.k === hi ? "now" : ""}" data-tip="${esc(c.tip)}">
+        <b>${c.n || ""}</b><span class="dbar"><i style="height:${c.n ? Math.max(4, Math.round((c.n / max) * 92)) : 0}px"></i></span><em>${esc(c.l)}</em></button>`).join("")}</div>`; };
+
+    // 상태 분포
+    const stM = groupBy((b) => statusOf(b).c), STN = { late: "서둘러요", ready: "시음 적기", aging: "숙성 중", past: "정점 지남", any: "언제든" };
+    const stSeg = ["late", "ready", "aging", "past", "any"].filter((k) => stM.has(k)).map((k) => ({ k, L: stM.get(k), q: qtyOf(stM.get(k)) }));
+    // 연도별 마실 수 있는 병 (시음 적기 사다리)
+    const ladder = Array.from({ length: 15 }, (_, i) => {
+      const Y = y + i, L = A.filter((b) => { const w = windowOf(b); return (w.from || w.to) && (!w.from || w.from <= Y) && (!w.to || w.to >= Y); });
+      return { k: Y, n: qtyOf(L), l: i % 2 === 0 || i === 14 ? String(Y).slice(2) : "", tip: `${Y}년에 마실 수 있는 병 ${qtyOf(L)}병${L.length ? " — " + names(L) : ""}` };
+    });
+    const enter = A.filter((b) => statusOf(b).c === "aging").map((b) => ({ b, from: windowOf(b).from })).sort((a, c) => a.from - c.from);
+    const urgent = A.filter((b) => statusOf(b).c === "late"), past = A.filter((b) => statusOf(b).c === "past");
+    // 빈티지 분포
+    const vint = groupBy((b) => b.vintage || "NV");
+    const vys = [...vint.keys()].filter((k) => k !== "NV").map(Number).sort((a, b) => a - b);
+    const vcols = vys.length ? Array.from({ length: Math.min(30, vys[vys.length - 1] - vys[0] + 1) }, (_, i) => { const Y = vys[vys.length - 1] - Math.min(30, vys[vys.length - 1] - vys[0] + 1) + 1 + i, L = vint.get(String(Y)) || [];
+      return { k: Y, n: qtyOf(L), l: i % 2 === 0 ? String(Y).slice(2) : "", tip: `${Y} 빈티지 ${qtyOf(L)}병${L.length ? " — " + names(L) : ""}` }; }) : [];
+    // 소비 기록
+    const cut = Date.now() - 365 * 864e5, recent = C.log.filter((l) => Date.parse(l.date) >= cut), drank = recent.reduce((s, l) => s + (l.n || 1), 0);
+    const scores = C.log.map((l) => +l.score).filter((v) => v > 0), avg = scores.length ? Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 10) / 10 : null;
+    const stockYrs = drank ? Math.round((n / drank) * 10) / 10 : null;
+    // 제안
+    const tipsL = [], types = groupBy(typeOf), ctry = groupBy((b) => itemOf(b)?.country || "기타·미상");
+    const lightQ = qtyOf(types.get("화이트") || []) + qtyOf(types.get("스파클링") || []);
+    if (n >= 5 && pct(lightQ) < 15) tipsL.push(`화이트·스파클링 비중이 ${pct(lightQ)}%예요. 식전주·해산물용으로 보강을 고려해 보세요.`);
+    const [topC, topCL] = [...ctry.entries()].sort((a, b) => qtyOf(b[1]) - qtyOf(a[1]))[0];
+    if (n >= 5 && topC !== "기타·미상" && pct(qtyOf(topCL)) >= 50) tipsL.push(`${topC} 와인이 ${pct(qtyOf(topCL))}%로 쏠려 있어요. 다른 산지를 곁들이면 페어링 폭이 넓어져요.`);
+    if (n >= 5 && pct(qtyOf(stM.get("ready") || []) + qtyOf(stM.get("late") || [])) < 15) tipsL.push(`지금 마시기 좋은 병이 ${pct(qtyOf(stM.get("ready") || []) + qtyOf(stM.get("late") || []))}%뿐이에요. 바로 열 수 있는 데일리 와인을 보강해 보세요.`);
+    if (urgent.length) tipsL.push(`서둘러 마실 병 ${qtyOf(urgent)}병: ${names(urgent)}`);
+    if (past.length) tipsL.push(`정점이 지났을 수 있는 병 ${qtyOf(past)}병: ${names(past)} — 가능하면 빨리 열어 보세요.`);
+
+    view.innerHTML = `
+      <section class="hero cat-wine cellar-hero"><span class="glyph">${bottle("wine")}</span>
+        <span class="kind">Cellar Dashboard</span><h2>${n}병 <small>${A.length}종</small></h2>
+        <div class="stats" style="grid-template-columns:repeat(2,1fr)">
+          <div class="stat"><small>시세 합계</small><b>${total ? fmtUSDv(total) : "—"}</b>${total ? `<small>≈ ${won(total * krw)}</small>` : ""}</div>
+          <div class="stat"><small>병당 평균</small><b>${total ? fmtUSDv(total / n) : "—"}</b>${total ? `<small>≈ ${won((total / n) * krw)}</small>` : ""}</div></div></section>
+      <p class="hint" style="margin:8px 2px 0">${wsN ? `시세는 와인서쳐 평균가(${wsN}종)를 우선하고, 없는 병은 앱 내장 현지 참고가(${known - wsN}종)를 씁니다.` : "아직 와인서쳐 시세를 불러오지 않아 앱 내장 현지 참고가로 계산했어요. 셀러 화면의 ‘와인서쳐 시세 모두 불러오기’를 쓰면 더 정확해져요."}${known < A.length ? ` 가격 정보가 없는 ${A.length - known}종은 제외했어요.` : ""} 막대를 누르면 어떤 와인인지 보여요.</p>
+      ${tipsL.length ? `<div class="panel"><h3>살펴볼 점</h3><ul class="dtips">${tipsL.map((t) => `<li>${esc(t)}</li>`).join("")}</ul></div>` : ""}
+      <div class="panel"><h3>지금 상태</h3>
+        <div class="dstack" role="img" aria-label="상태 분포">${stSeg.map((x) => `<button class="seg ${x.k}" style="flex:${x.q}" data-tip="${esc(STN[x.k] + " " + x.q + "병 — " + names(x.L))}"></button>`).join("")}</div>
+        <div class="dleg">${stSeg.map((x) => `<span><i class="sw ${x.k}"></i>${STN[x.k]} <b>${x.q}</b></span>`).join("")}</div></div>
+      <div class="panel"><h3>연도별 마실 수 있는 병 <small class="prov">시음 적기 사다리</small></h3>
+        ${cols(ladder, y)}
+        <p class="hint" style="margin:6px 0 0">각 해에 시음 적기 안에 있는 병 수예요. 겹치는 해가 많으면 그 해에 마실 병이 몰립니다.</p>
+        ${enter.length ? `<h3 style="margin-top:14px">곧 적기에 들어오는 병</h3><div class="list">${enter.slice(0, 5).map(({ b, from }) => `<button class="item" data-b="${esc(b.id)}"><span class="dot cat-wine">${bottle("wine")}</span><span class="meta"><div class="name">${esc(nameOf(b))}${b.vintage ? ` <b class="vin">${esc(b.vintage)}</b>` : ""}</div><div class="sub">${from}년부터 · ${from - y}년 뒤</div></span><div class="score"><b>${b.qty}</b>병</div></button>`).join("")}</div>` : ""}</div>
+      <div class="panel"><h3>와인 종류</h3>${bars(types, { order: TYPE_ORDER })}</div>
+      <div class="panel"><h3>국가</h3>${bars(ctry)}</div>
+      <div class="panel"><h3>주요 품종</h3>${bars(groupBy(grapeOf))}</div>
+      <div class="panel"><h3>가격대 <small class="prov">병당 시세</small></h3>${bars(groupBy(priceTier), { order: TIER_ORDER })}</div>
+      ${vcols.length ? `<div class="panel"><h3>빈티지 분포</h3>${cols(vcols)}${vint.has("NV") ? `<p class="hint" style="margin:6px 0 0">빈티지 미입력·NV ${qtyOf(vint.get("NV"))}병은 제외했어요.</p>` : ""}</div>` : ""}
+      <div class="panel"><h3>마시는 속도</h3>
+        ${C.log.length ? `<div class="stats dstats" style="grid-template-columns:repeat(3,1fr)">
+          <div class="stat"><small>최근 12개월</small><b>${drank}병</b></div>
+          <div class="stat"><small>재고 소진</small><b>${stockYrs ? stockYrs + "년치" : "—"}</b></div>
+          <div class="stat"><small>내 평균 점수</small><b>${avg ?? "—"}</b></div></div>
+          <p class="hint" style="margin:8px 0 0">총 ${C.log.reduce((s, l) => s + (l.n || 1), 0)}병을 마셨어요. ${stockYrs ? `최근 12개월 속도라면 지금 재고는 약 ${stockYrs}년치예요.` : "최근 12개월 기록이 없어 소진 기간은 계산하지 못했어요."}</p>`
+          : `<p class="hint" style="margin:0">‘한 병 마셨어요’로 시음 기록을 남기면 마시는 속도와 재고 소진 기간, 내 평균 점수를 보여드려요.</p>`}</div>`;
+    view.querySelectorAll("[data-tip]").forEach((el) => (el.onclick = () => toast(el.dataset.tip)));
+    bindRows(view);
+  }
+
   // #/cellar/add/<술id>?v=2020&q=1 → 미리 채운 '셀러에 추가' 화면
   function quickAdd(id, qs) {
     const it = findById(id), p = new URLSearchParams(qs || "");
@@ -169,6 +284,7 @@ export function setupCellar(ctx) {
     toast(`${list.length}종을 셀러에 추가했어요 🍷`); renderCellar();
   }
   function renderCellar(bid, arg, qs) {
+    if (bid === "dash") return renderDash();
     if (bid === "addmany") return addMany(qs);
     if (bid === "add") return quickAdd(arg, qs);
     if (bid) return renderBottle(bid);
@@ -192,6 +308,7 @@ export function setupCellar(ctx) {
           <div class="stat"><small>현지 참고가 합계</small><b>${val ? fmtUSDv(val) : "—"}</b>${val ? `<small>${krwOf(val)}</small>` : ""}</div></div>` : `<div class="names">와인을 추가하면 시음 적기와 페어링을 관리해 드려요</div>`}
       </section>
       <button class="btn gold block" id="cAdd" style="margin-top:12px">＋ 와인 추가</button>
+      ${n ? `<button class="btn ghost block" id="cDash" style="margin-top:8px">📊 셀러 대시보드</button>` : ""}
       ${n && cseOn() ? `<button class="btn ghost block" id="cWsAll" style="margin-top:8px">와인서쳐 시세 모두 불러오기</button>` : ""}
       ${n ? `<div class="alerts">
         <button data-f="late" class="al late"><b>${cnt("late")}</b><span>서둘러요</span></button>
@@ -211,6 +328,7 @@ export function setupCellar(ctx) {
         <div class="linkbtns"><button class="btn ghost" id="cExp">백업 파일 저장</button><button class="btn ghost" id="cImp">백업 불러오기</button><button class="btn ghost" id="cCsv">엑셀(CSV) 저장</button></div>
         <input type="file" id="cImpFile" accept="application/json,.json" class="hidden" /></div>`;
     $("#cAdd").onclick = () => openBottleSheet();
+    $("#cDash")?.addEventListener("click", () => go("#/cellar/dash"));
     $("#cWsAll")?.addEventListener("click", async (e) => {
       const btn = e.target, todo = A.filter((b) => (itemOf(b)?.cat || b.cat) === "wine" && b.ws?.at !== today());
       if (!todo.length) return toast("오늘 이미 모두 불러왔어요");
