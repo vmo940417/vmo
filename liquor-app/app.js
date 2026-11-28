@@ -580,7 +580,7 @@ function catGrid() {
 /* ───────── 분류 ───────── */
 const priceVal = (x) => usdOf(x) || 0;
 function renderBrowse(cat) {
-  setChrome("browse", cat && CATS[cat] ? `${CATS[cat].ko} <small style="font-family:var(--sans);font-size:12px;color:var(--muted)">${CATS[cat].en}</small>` : "분류");
+  setChrome("search", cat && CATS[cat] ? `${CATS[cat].ko} <small style="font-family:var(--sans);font-size:12px;color:var(--muted)">${CATS[cat].en}</small>` : "분류", true);
   const sel = CATS[cat] ? cat : "all";
   const sorts = { name: "이름순", price: "가격 높은순", priceLow: "가격 낮은순" };
   const sort = store.get("sort", "name");
@@ -1156,7 +1156,7 @@ function renderSettings() {
 // 페어링 모듈(pairing.js)이 쓰는 공통 함수
 window.SulApp = { $, view, esc, enc, go, store, setChrome, pagedList, itemRow, bindItems };
 $("#setBtn").onclick = () => go("#/settings");
-const APP_VERSION = "2026.11-v54";
+const APP_VERSION = "2026.11-v55";
 var CELLAR; window.SulApp.cellar = () => CELLAR;
 CELLAR = setupCellar({ store, $, view, esc, enc, toast, go, setChrome, bottle: window.bottle, CATS, findById, search, usdOf, fmtUSDv, fxRate, shrink, cse, cseOn, inferFromName, render: () => render() });
 loadFX().then(() => { if (/#\/(item|browse|ranking)/.test(location.hash)) render(); });
