@@ -1103,8 +1103,22 @@ function renderRanking(cat) {
 }
 
 /* ───────── 설정 ───────── */
+const STYLES_UI = [["wine", "와인 레드", "linear-gradient(140deg,#4a0d22,#7a1f3d 55%,#a3385a)"], ["navy", "미드나잇 네이비", "linear-gradient(140deg,#0f2340,#1f3f6e 55%,#3f6aa3)"],
+  ["forest", "포레스트 그린", "linear-gradient(140deg,#0f2a1f,#24503b 55%,#4f8a68)"], ["champagne", "샴페인 골드", "linear-gradient(140deg,#4a3712,#8a6a2a 55%,#c9a35a)"],
+  ["mono", "모노 미니멀", "linear-gradient(140deg,#111,#2b2b2b 55%,#4a4a4a)"]];
+const FONTS_UI = [["pretendard", "Pretendard", "산뜻한 기본"], ["suit", "SUIT", "둥글고 경쾌하게"], ["serif", "명조 제목", "클래식 와인 노트"]];
+const FONT_CSS = { suit: "https://cdn.jsdelivr.net/gh/sun-typeface/SUIT@2/fonts/variable/woff2/SUIT-Variable.css",
+  serif: "https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@600;700;800&display=swap" };
+function loadFontCss(f) {
+  if (!FONT_CSS[f] || document.getElementById("font-" + f)) return;
+  const l = document.createElement("link"); l.rel = "stylesheet"; l.href = FONT_CSS[f]; l.id = "font-" + f; document.head.appendChild(l);
+}
 function applyTheme() {
-  document.documentElement.style.setProperty("--fs", String(store.get("fs", 1.12)));
+  const de = document.documentElement;
+  de.style.setProperty("--fs", String(store.get("fs", 1.12)));
+  const st = store.get("style", "wine"), fo = store.get("font", "pretendard");
+  if (st === "wine") de.removeAttribute("data-style"); else de.setAttribute("data-style", st);
+  if (fo === "pretendard") de.removeAttribute("data-font"); else { de.setAttribute("data-font", fo); loadFontCss(fo); }
   const t = store.get("theme", "system");
   if (t === "system") document.documentElement.removeAttribute("data-theme");
   else document.documentElement.setAttribute("data-theme", t);
@@ -1124,12 +1138,16 @@ function renderSettings() {
       <div class="notice">발급: Google Cloud 콘솔에서 ‘Custom Search API’ 사용 설정 → API 키 생성, programmablesearchengine.google.com 에서 ‘전체 웹 검색’ 엔진을 만들고 ID 복사. 키는 이 기기에만 저장되며 googleapis.com 으로만 전송됩니다. ※ Google이 이 API의 신규 가입을 제한하고 있어 새 키 발급이 안 될 수 있습니다.</div>
     </div>
     <div class="panel">
-      <h3>화면</h3>
-      <div class="chips" id="theme" style="margin:0;padding:0">${[["system", "시스템"], ["light", "라이트"], ["dark", "다크"]].map(([k, v]) => `<button class="chip ${store.get("theme", "system") === k ? "active" : ""}" data-t="${k}">${v}</button>`).join("")}</div>
-    </div>
-    <div class="panel">
-      <h3>글자 크기</h3>
+      <h3>화면 스타일</h3>
+      <div class="setlab">색 테마</div>
+      <div class="stylegrid" id="stylePick">${STYLES_UI.map(([k, v, g]) => `<button class="stylepick ${store.get("style", "wine") === k ? "active" : ""}" data-st="${k}"><i style="background:${g}"></i>${v}</button>`).join("")}</div>
+      <div class="setlab">글꼴</div>
+      <div class="fontpick" id="fontPick">${FONTS_UI.map(([k, v, d]) => `<button class="${store.get("font", "pretendard") === k ? "active" : ""}" data-fo="${k}" style="font-family:${k === "suit" ? "'SUIT Variable',SUIT" : k === "serif" ? "'Noto Serif KR',serif" : "'Pretendard Variable',Pretendard"},sans-serif"><b>가Aa</b>${v}<br><small style="color:var(--muted)">${d}</small></button>`).join("")}</div>
+      <div class="setlab">밝기</div>
+      <div class="chips" id="theme" style="margin:0;padding:0">${[["system", "시스템 따라"], ["light", "라이트"], ["dark", "다크"]].map(([k, v]) => `<button class="chip ${store.get("theme", "system") === k ? "active" : ""}" data-t="${k}">${v}</button>`).join("")}</div>
+      <div class="setlab">글자 크기</div>
       <div class="chips" id="fsize" style="margin:0;padding:0">${[[1, "보통"], [1.12, "크게"], [1.25, "아주 크게"]].map(([k, v]) => `<button class="chip ${store.get("fs", 1.12) === k ? "active" : ""}" data-fs="${k}">${v}</button>`).join("")}</div>
+      <p class="hint" style="margin:12px 0 0">고르는 즉시 앱 전체에 적용돼요. 와인·사케 등 술 종류별 색은 구분을 위해 그대로 둡니다.</p>
     </div>
     <div class="panel">
       <h3>데이터</h3>
@@ -1151,6 +1169,9 @@ function renderSettings() {
     catch (err) { toast("연결 실패 (" + err.message + ") — 키·ID·API 사용 설정을 확인하세요"); }
     finally { e.target.disabled = false; e.target.textContent = "연결 테스트"; }
   };
+  FONTS_UI.forEach(([k]) => loadFontCss(k));   // 글꼴 미리보기
+  $("#stylePick").onclick = (e) => { const b = e.target.closest("[data-st]"); if (b) { store.set("style", b.dataset.st); applyTheme(); renderSettings(); } };
+  $("#fontPick").onclick = (e) => { const b = e.target.closest("[data-fo]"); if (b) { store.set("font", b.dataset.fo); applyTheme(); renderSettings(); } };
   $("#fsize").onclick = (e) => { const b = e.target.closest("[data-fs]"); if (b) { store.set("fs", +b.dataset.fs); applyTheme(); renderSettings(); } };
   $("#theme").onclick = (e) => { const b = e.target.closest("[data-t]"); if (b) { store.set("theme", b.dataset.t); renderSettings(); applyTheme(); } };
   $("#clear").onclick = () => { store.del("recent"); toast("최근 본 기록을 지웠습니다"); };
@@ -1162,7 +1183,7 @@ function renderSettings() {
 // 페어링 모듈(pairing.js)이 쓰는 공통 함수
 window.SulApp = { $, view, esc, enc, go, store, setChrome, pagedList, itemRow, bindItems };
 $("#setBtn").onclick = () => go("#/settings");
-const APP_VERSION = "2026.11-v57";
+const APP_VERSION = "2026.11-v58";
 var CELLAR; window.SulApp.cellar = () => CELLAR;
 CELLAR = setupCellar({ store, $, view, esc, enc, toast, go, setChrome, bottle: window.bottle, CATS, findById, search, usdOf, fmtUSDv, fxRate, shrink, cse, cseOn, inferFromName, render: () => render() });
 loadFX().then(() => { if (/#\/(item|browse|ranking)/.test(location.hash)) render(); });

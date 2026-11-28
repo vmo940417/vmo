@@ -455,3 +455,36 @@ h1, h2, h3, .panel h3, .section-title, .hero h2, .sheet-h, .lgh b, .dgh b { lett
 .hero h2, .home-hero h2 { font-weight: 800; }
 .panel h3, .section-title { font-weight: 700; }
 .vin, .score b, .price-big, .al b, .dstats .stat b { font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+
+/* ── 화면 스타일(색 테마) — 설정에서 선택. 술 종류별 색(와인·사케…)은 그대로 둔다 ─────────────────────────── */
+:root[data-style="navy"] { --bg: #f3f5f8; --paper: #ffffff; --line: #dde3ea; --accent: #1f3a5f; --accent-2: #2f5a8a; --accent-soft: #e3ebf5; --gold: #a8823a; --gold-soft: #f1e8d4; --chip: #e8edf3; --g-hero: linear-gradient(140deg, #0f2340 0%, #1f3f6e 55%, #3f6aa3 100%); }
+@media (prefers-color-scheme: dark) { :root[data-style="navy"]:not([data-theme="light"]) { --bg: #0e131a; --paper: #161d26; --line: #28323e; --accent: #8fb4e6; --accent-2: #a9c6ee; --accent-soft: #1b2939; --gold: #d8b46a; --gold-soft: #332b1c; --chip: #1e2731; --on-accent: #111; } }
+:root[data-style="navy"][data-theme="dark"] { --bg: #0e131a; --paper: #161d26; --line: #28323e; --accent: #8fb4e6; --accent-2: #a9c6ee; --accent-soft: #1b2939; --gold: #d8b46a; --gold-soft: #332b1c; --chip: #1e2731; --on-accent: #111; }
+:root[data-style="forest"] { --bg: #f2f5f0; --paper: #fdfefb; --line: #dbe3d8; --accent: #24503b; --accent-2: #2f6b4f; --accent-soft: #e1eee6; --gold: #a8823a; --gold-soft: #f1e9d3; --chip: #e6ede4; --g-hero: linear-gradient(140deg, #0f2a1f 0%, #24503b 55%, #4f8a68 100%); }
+@media (prefers-color-scheme: dark) { :root[data-style="forest"]:not([data-theme="light"]) { --bg: #0e1411; --paper: #161f1a; --line: #29362f; --accent: #8fd1ab; --accent-2: #a9dec0; --accent-soft: #1a2c22; --gold: #d8b46a; --gold-soft: #33301c; --chip: #1d2923; --on-accent: #111; } }
+:root[data-style="forest"][data-theme="dark"] { --bg: #0e1411; --paper: #161f1a; --line: #29362f; --accent: #8fd1ab; --accent-2: #a9dec0; --accent-soft: #1a2c22; --gold: #d8b46a; --gold-soft: #33301c; --chip: #1d2923; --on-accent: #111; }
+:root[data-style="champagne"] { --bg: #faf6ee; --paper: #fffdf8; --line: #ebe1cc; --accent: #7d5f22; --accent-2: #9c7a35; --accent-soft: #f4ecda; --gold: #a8823a; --gold-soft: #f3e9d2; --chip: #f1e9d8; --g-hero: linear-gradient(140deg, #4a3712 0%, #8a6a2a 55%, #c9a35a 100%); }
+@media (prefers-color-scheme: dark) { :root[data-style="champagne"]:not([data-theme="light"]) { --bg: #15120c; --paper: #1e1a13; --line: #3a3122; --accent: #e2c27a; --accent-2: #ecd398; --accent-soft: #33291a; --gold: #e2c27a; --gold-soft: #3a2f1b; --chip: #2a241a; --on-accent: #111; } }
+:root[data-style="champagne"][data-theme="dark"] { --bg: #15120c; --paper: #1e1a13; --line: #3a3122; --accent: #e2c27a; --accent-2: #ecd398; --accent-soft: #33291a; --gold: #e2c27a; --gold-soft: #3a2f1b; --chip: #2a241a; --on-accent: #111; }
+:root[data-style="mono"] { --bg: #f4f4f4; --paper: #ffffff; --line: #e2e2e2; --accent: #1c1c1e; --accent-2: #3a3a3c; --accent-soft: #ececee; --gold: #7a6a4f; --gold-soft: #efebe3; --chip: #ebebeb; --g-hero: linear-gradient(140deg, #111111 0%, #2b2b2b 55%, #4a4a4a 100%); }
+@media (prefers-color-scheme: dark) { :root[data-style="mono"]:not([data-theme="light"]) { --bg: #0c0c0c; --paper: #171717; --line: #2d2d2d; --accent: #f0f0f0; --accent-2: #d0d0d0; --accent-soft: #262626; --gold: #cdb68a; --gold-soft: #2c271d; --chip: #222222; --on-accent: #111; } }
+:root[data-style="mono"][data-theme="dark"] { --bg: #0c0c0c; --paper: #171717; --line: #2d2d2d; --accent: #f0f0f0; --accent-2: #d0d0d0; --accent-soft: #262626; --gold: #cdb68a; --gold-soft: #2c271d; --chip: #222222; --on-accent: #111; }
+.home-hero { background: var(--g-hero, var(--g-wine)); }
+.pair-hero { background: var(--g-hero, var(--g-lapis)); }
+.cellar-hero.cat-wine { background: var(--g-hero, var(--g-wine)); }
+.btn:not(.ghost):not(.gold) { color: var(--on-accent, #fff); }
+/* 글꼴 선택 */
+:root[data-font="suit"] { --sans: "SUIT Variable", SUIT, -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; --serif: var(--sans); }
+:root[data-font="serif"] { --serif: "Noto Serif KR", "Nanum Myeongjo", serif; }
+/* 설정 — 화면 스타일 고르기 */
+.stylegrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; }
+.stylepick { border: 1.5px solid var(--line); background: var(--paper); color: var(--ink); border-radius: 14px; padding: 8px 8px 9px; text-align: left; font: inherit; font-size: calc(13px * var(--fs)); }
+.stylepick i { display: block; height: 34px; border-radius: 9px; margin-bottom: 6px; }
+.stylepick.active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); font-weight: 700; }
+.fontpick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.fontpick button { border: 1.5px solid var(--line); background: var(--paper); color: var(--ink); border-radius: 14px; padding: 10px 6px; font-size: calc(13px * var(--fs)); }
+.fontpick button b { display: block; font-size: calc(20px * var(--fs)); margin-bottom: 2px; }
+.fontpick button.active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.setlab { font-size: calc(13px * var(--fs)); color: var(--muted); margin: 14px 0 6px; font-weight: 600; }
+.setlab:first-of-type { margin-top: 2px; }
+:root[data-style] .pair-hero, :root[data-style] .home-hero, :root[data-style] .cellar-hero.cat-wine { background: var(--g-hero); }
