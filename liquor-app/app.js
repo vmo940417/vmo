@@ -1106,19 +1106,50 @@ function renderRanking(cat) {
 const STYLES_UI = [["wine", "와인 레드", "linear-gradient(140deg,#4a0d22,#7a1f3d 55%,#a3385a)"], ["navy", "미드나잇 네이비", "linear-gradient(140deg,#0f2340,#1f3f6e 55%,#3f6aa3)"],
   ["forest", "포레스트 그린", "linear-gradient(140deg,#0f2a1f,#24503b 55%,#4f8a68)"], ["champagne", "샴페인 골드", "linear-gradient(140deg,#4a3712,#8a6a2a 55%,#c9a35a)"],
   ["mono", "모노 미니멀", "linear-gradient(140deg,#111,#2b2b2b 55%,#4a4a4a)"]];
-const FONTS_UI = [["pretendard", "Pretendard", "산뜻한 기본"], ["suit", "SUIT", "둥글고 경쾌하게"], ["serif", "명조 제목", "클래식 와인 노트"]];
-const FONT_CSS = { suit: "https://cdn.jsdelivr.net/gh/sun-typeface/SUIT@2/fonts/variable/woff2/SUIT-Variable.css",
-  serif: "https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@600;700;800&display=swap" };
-function loadFontCss(f) {
-  if (!FONT_CSS[f] || document.getElementById("font-" + f)) return;
-  const l = document.createElement("link"); l.rel = "stylesheet"; l.href = FONT_CSS[f]; l.id = "font-" + f; document.head.appendChild(l);
+// 글꼴: body = 본문(--sans), head = 제목(--serif, 없으면 본문과 같게). gf = Google Fonts 패밀리 지정, css = 그 밖의 CSS 주소
+const FB = `-apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif`;
+const PRET = `"Pretendard Variable", Pretendard, ${FB}`;
+const FONTS = [
+  { k: "pretendard", g: "고딕", n: "Pretendard", d: "산뜻한 기본", body: PRET },
+  { k: "suit", g: "고딕", n: "SUIT", d: "둥글고 경쾌하게", body: `"SUIT Variable", SUIT, ${FB}`, css: "https://cdn.jsdelivr.net/gh/sun-typeface/SUIT@2/fonts/variable/woff2/SUIT-Variable.css" },
+  { k: "notosans", g: "고딕", n: "본고딕", d: "단정하고 반듯하게", body: `"Noto Sans KR", ${FB}`, gf: "Noto+Sans+KR:wght@400;500;700;800" },
+  { k: "plex", g: "고딕", n: "IBM Plex", d: "또렷한 테크 감성", body: `"IBM Plex Sans KR", ${FB}`, gf: "IBM+Plex+Sans+KR:wght@400;500;700" },
+  { k: "nanumgothic", g: "고딕", n: "나눔고딕", d: "친숙한 고딕", body: `"Nanum Gothic", ${FB}`, gf: "Nanum+Gothic:wght@400;700;800" },
+  { k: "gowundodum", g: "고딕", n: "고운돋움", d: "부드러운 손맛", body: `"Gowun Dodum", ${FB}`, gf: "Gowun+Dodum" },
+  { k: "serif", g: "명조", n: "명조 제목", d: "본문은 고딕", body: PRET, head: `"Noto Serif KR", serif`, gf: "Noto+Serif+KR:wght@600;700;800" },
+  { k: "hahmlet", g: "명조", n: "함렛", d: "모던 세리프", body: `"Hahmlet", serif`, gf: "Hahmlet:wght@400;500;700;800" },
+  { k: "gowunbatang", g: "명조", n: "고운바탕", d: "책처럼 차분하게", body: `"Gowun Batang", serif`, gf: "Gowun+Batang:wght@400;700" },
+  { k: "nanummyeongjo", g: "명조", n: "나눔명조", d: "클래식 와인 노트", body: `"Nanum Myeongjo", serif`, gf: "Nanum+Myeongjo:wght@400;700;800" },
+  { k: "dohyeon", g: "개성", n: "도현 제목", d: "굵은 간판체", body: PRET, head: `"Do Hyeon", ${FB}`, gf: "Do+Hyeon" },
+  { k: "blackhan", g: "개성", n: "검은고딕 제목", d: "강렬한 헤드라인", body: PRET, head: `"Black Han Sans", ${FB}`, gf: "Black+Han+Sans" },
+  { k: "jua", g: "개성", n: "주아 제목", d: "동글동글 귀엽게", body: PRET, head: `"Jua", ${FB}`, gf: "Jua" },
+  { k: "gaegu", g: "개성", n: "개구 손글씨", d: "손으로 쓴 시음 노트", body: `"Gaegu", ${FB}`, gf: "Gaegu:wght@400;700" },
+];
+const fontOf = (k) => FONTS.find((f) => f.k === k) || FONTS[0];
+function addCss(id, href) {
+  if (document.getElementById(id)) return;
+  const l = document.createElement("link"); l.rel = "stylesheet"; l.href = href; l.id = id; document.head.appendChild(l);
+}
+function loadFontCss(k) {
+  const f = fontOf(k);
+  if (f.css) addCss("font-" + f.k, f.css);
+  if (f.gf) addCss("font-" + f.k, `https://fonts.googleapis.com/css2?family=${f.gf}&display=swap`);
+}
+// 설정 화면 미리보기: 카드에 쓰는 글자('가나Aa')만 받아 가볍게
+function loadFontPreviews() {
+  const gfs = FONTS.filter((f) => f.gf).map((f) => "family=" + f.gf.split(":")[0]).join("&");
+  addCss("font-previews", `https://fonts.googleapis.com/css2?${gfs}&text=${encodeURIComponent("가나Aa")}&display=swap`);
+  FONTS.filter((f) => f.css).forEach((f) => addCss("font-" + f.k, f.css));
 }
 function applyTheme() {
   const de = document.documentElement;
   de.style.setProperty("--fs", String(store.get("fs", 1.12)));
   const st = store.get("style", "wine"), fo = store.get("font", "pretendard");
   if (st === "wine") de.removeAttribute("data-style"); else de.setAttribute("data-style", st);
-  if (fo === "pretendard") de.removeAttribute("data-font"); else { de.setAttribute("data-font", fo); loadFontCss(fo); }
+  const f = fontOf(fo);
+  de.removeAttribute("data-font");
+  if (f.k === "pretendard") { de.style.removeProperty("--sans"); de.style.removeProperty("--serif"); }
+  else { loadFontCss(f.k); de.style.setProperty("--sans", f.body); de.style.setProperty("--serif", f.head || f.body); }
   const t = store.get("theme", "system");
   if (t === "system") document.documentElement.removeAttribute("data-theme");
   else document.documentElement.setAttribute("data-theme", t);
@@ -1142,7 +1173,7 @@ function renderSettings() {
       <div class="setlab">색 테마</div>
       <div class="stylegrid" id="stylePick">${STYLES_UI.map(([k, v, g]) => `<button class="stylepick ${store.get("style", "wine") === k ? "active" : ""}" data-st="${k}"><i style="background:${g}"></i>${v}</button>`).join("")}</div>
       <div class="setlab">글꼴</div>
-      <div class="fontpick" id="fontPick">${FONTS_UI.map(([k, v, d]) => `<button class="${store.get("font", "pretendard") === k ? "active" : ""}" data-fo="${k}" style="font-family:${k === "suit" ? "'SUIT Variable',SUIT" : k === "serif" ? "'Noto Serif KR',serif" : "'Pretendard Variable',Pretendard"},sans-serif"><b>가Aa</b>${v}<br><small style="color:var(--muted)">${d}</small></button>`).join("")}</div>
+      ${["고딕", "명조", "개성"].map((g) => `<div class="fontgrp">${g === "개성" ? "개성 (제목·손글씨)" : g}</div><div class="fontpick" id="fontPick-${g}">${FONTS.filter((f) => f.g === g).map((f) => `<button class="${fontOf(store.get("font", "pretendard")).k === f.k ? "active" : ""}" data-fo="${f.k}"><b style="font-family:${esc(f.head || f.body)}">가나Aa</b>${esc(f.n)}<small>${esc(f.d)}</small></button>`).join("")}</div>`).join("")}
       <div class="setlab">밝기</div>
       <div class="chips" id="theme" style="margin:0;padding:0">${[["system", "시스템 따라"], ["light", "라이트"], ["dark", "다크"]].map(([k, v]) => `<button class="chip ${store.get("theme", "system") === k ? "active" : ""}" data-t="${k}">${v}</button>`).join("")}</div>
       <div class="setlab">글자 크기</div>
@@ -1169,9 +1200,9 @@ function renderSettings() {
     catch (err) { toast("연결 실패 (" + err.message + ") — 키·ID·API 사용 설정을 확인하세요"); }
     finally { e.target.disabled = false; e.target.textContent = "연결 테스트"; }
   };
-  FONTS_UI.forEach(([k]) => loadFontCss(k));   // 글꼴 미리보기
+  loadFontPreviews();
   $("#stylePick").onclick = (e) => { const b = e.target.closest("[data-st]"); if (b) { store.set("style", b.dataset.st); applyTheme(); renderSettings(); } };
-  $("#fontPick").onclick = (e) => { const b = e.target.closest("[data-fo]"); if (b) { store.set("font", b.dataset.fo); applyTheme(); renderSettings(); } };
+  view.querySelectorAll(".fontpick").forEach((el) => (el.onclick = (e) => { const b = e.target.closest("[data-fo]"); if (b) { store.set("font", b.dataset.fo); applyTheme(); renderSettings(); } }));
   $("#fsize").onclick = (e) => { const b = e.target.closest("[data-fs]"); if (b) { store.set("fs", +b.dataset.fs); applyTheme(); renderSettings(); } };
   $("#theme").onclick = (e) => { const b = e.target.closest("[data-t]"); if (b) { store.set("theme", b.dataset.t); renderSettings(); applyTheme(); } };
   $("#clear").onclick = () => { store.del("recent"); toast("최근 본 기록을 지웠습니다"); };
@@ -1183,7 +1214,7 @@ function renderSettings() {
 // 페어링 모듈(pairing.js)이 쓰는 공통 함수
 window.SulApp = { $, view, esc, enc, go, store, setChrome, pagedList, itemRow, bindItems };
 $("#setBtn").onclick = () => go("#/settings");
-const APP_VERSION = "2026.11-v58";
+const APP_VERSION = "2026.11-v59";
 var CELLAR; window.SulApp.cellar = () => CELLAR;
 CELLAR = setupCellar({ store, $, view, esc, enc, toast, go, setChrome, bottle: window.bottle, CATS, findById, search, usdOf, fmtUSDv, fxRate, shrink, cse, cseOn, inferFromName, render: () => render() });
 loadFX().then(() => { if (/#\/(item|browse|ranking)/.test(location.hash)) render(); });

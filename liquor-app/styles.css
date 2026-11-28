@@ -483,7 +483,10 @@ h1, h2, h3, .panel h3, .section-title, .hero h2, .sheet-h, .lgh b, .dgh b { lett
 .stylepick.active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); font-weight: 700; }
 .fontpick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .fontpick button { border: 1.5px solid var(--line); background: var(--paper); color: var(--ink); border-radius: 14px; padding: 10px 6px; font-size: calc(13px * var(--fs)); }
-.fontpick button b { display: block; font-size: calc(20px * var(--fs)); margin-bottom: 2px; }
+.fontpick button b { display: block; font-size: calc(22px * var(--fs)); margin-bottom: 4px; font-weight: 700; line-height: 1.2; }
+.fontpick button small { display: block; color: var(--muted); font-size: calc(11.5px * var(--fs)); margin-top: 1px; }
+.fontgrp { font-size: calc(12px * var(--fs)); color: var(--muted); margin: 10px 2px 6px; }
+.fontpick + .fontgrp { margin-top: 12px; }
 .fontpick button.active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
 .setlab { font-size: calc(13px * var(--fs)); color: var(--muted); margin: 14px 0 6px; font-weight: 600; }
 .setlab:first-of-type { margin-top: 2px; }
