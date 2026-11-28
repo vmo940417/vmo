@@ -465,6 +465,22 @@
       desc: "바소 라인의 소비뇽 블랑. 상큼한 시트러스와 열대 과일 향의 데일리 나파 화이트." },
   ].forEach(({ g, usd, ...o }) => window.BULK.add({ cat: "wine", country: "미국", producer: "Dana Estates (다나 에스테이트)", ...o,
     abv: g === "SB" ? "13.8%" : "14.8%", ingredients: [{ name: g === "SB" ? "Sauvignon Blanc" : "Cabernet Sauvignon" }], price: { usd, note: "미국 소매 근사치" } }));
+  // 사용자 요청 추가 (라벨 기준)
+  [
+    { ko: "바이라 바롤로 라가르비아나", en: "G.D. Vajra Barolo Lagarbiana", aliases: ["바이라", "라가르비아나", "vajra", "lagarbiana", "g.d. vajra"],
+      producer: "G.D. Vajra", region: "피에몬테 바롤로", style: "레드 · 바롤로 DOCG", abv: "14%", g: "Nebbiolo", p: "italian", usd: [60, 90],
+      desc: "피에몬테 바롤로의 명가 G.D. 바이라가 네비올로 100%로 빚는 바롤로. 장미·체리와 타르 향, 단단한 탄닌과 산도로 숙성 잠재력이 높다." },
+    { ko: "돈나푸가타 안젤리", en: "Donnafugata Angheli", aliases: ["안젤리", "앙헬리", "angheli", "돈나푸가타 앙겔리"],
+      producer: "Donnafugata", region: "시칠리아 DOC", style: "레드 · 시칠리아 블렌드", abv: "14%", g: "Nero d'Avola/Merlot/Cabernet Sauvignon", p: "italian", usd: [22, 32],
+      desc: "시칠리아 돈나푸가타의 데일리 레드. 토착 네로 다볼라에 메를로·까베르네를 섞어 과실이 풍성하고 부드럽다." },
+    { ko: "카스텔로 반피 브루넬로 디 몬탈치노", en: "Castello Banfi Brunello di Montalcino", aliases: ["반피 브루넬로", "banfi brunello"],
+      producer: "Castello Banfi", region: "토스카나 몬탈치노", style: "레드 · 브루넬로 디 몬탈치노 DOCG", abv: "14.5%", g: "Sangiovese", p: "italian", usd: [55, 80],
+      desc: "몬탈치노 최대 와이너리 카스텔로 반피의 표준 브루넬로. 산지오베제 100%, 붉은 체리·가죽·향신료 풍미와 견고한 구조." },
+    { ko: "카스텔로 로미토리오 브루넬로 디 몬탈치노", en: "Castello Romitorio Brunello di Montalcino", aliases: ["로미토리오", "romitorio", "산드로 키아"],
+      producer: "Castello Romitorio (Sandro Chia)", region: "토스카나 몬탈치노", style: "레드 · 브루넬로 디 몬탈치노 DOCG", abv: "14.5%", g: "Sangiovese", p: "italian", usd: [55, 80],
+      desc: "화가 산드로 키아가 소유한 몬탈치노의 와이너리 로미토리오의 브루넬로. 산지오베제 100%이며 라벨에 키아의 작품이 쓰인다." },
+  ].forEach(({ g, usd, ...o }) => window.BULK.add({ cat: "wine", country: "이탈리아", ...o,
+    ingredients: g.split("/").map((name) => ({ name })), price: { usd, note: "미국 소매 근사치" } }));
   // 폰토디 플라치아넬로 델라 피에베 — 라벨 기준 정보 보강 (사용자 요청)
   const fl = window.LIQUORS.find((x) => x.en === "Fontodi Flaccianello della Pieve");
   if (fl) Object.assign(fl, {

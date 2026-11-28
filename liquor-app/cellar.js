@@ -65,7 +65,7 @@ export function setupCellar(ctx) {
     if (cat !== "wine") return { from: null, to: null, why: "증류주는 병 숙성이 거의 없어 언제든 (개봉 후 1~2년 내 권장)" };
     if (RE.nouveau.test(t)) return { from: buyY, to: buyY + 1, why: "누보 — 출시 직후" };
     const usd = wsVal(b) || (it && usdOf(it)) || 30;
-    let [s, e] = usd >= 400 ? [8, 30] : usd >= 150 ? [6, 22] : usd >= 60 ? [4, 14] : usd >= 30 ? [2, 8] : usd >= 15 ? [1, 4] : [0, 3];
+    let [s, e] = usd >= 400 ? [8, 30] : usd >= 150 ? [6, 22] : usd >= 60 ? [4, 14] : usd >= 30 ? [2, 8] : usd >= 15 ? [1, 5] : [0, 3];
     let why = `가격대($${Math.round(usd)}) 기준`;
     if (RE.port.test(t)) { [s, e] = usd >= 50 ? [12, 45] : [2, 15]; why = "포트·마데이라 — 장기 숙성형"; }
     else if (RE.sweet.test(t)) { [s, e] = usd >= 50 ? [6, 40] : [2, 15]; why = "귀부·아이스 스위트 — 장기 숙성형"; }
