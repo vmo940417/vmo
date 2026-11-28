@@ -152,7 +152,24 @@ export function setupCellar(ctx) {
     if (!it) return toast("해당 술을 찾을 수 없어요");
     openBottleSheet(null, it, { vintage: (p.get("v") || "").replace(/\D/g, "").slice(0, 4), qty: Math.max(1, parseInt(p.get("q")) || 1), loc: p.get("loc") || "", note: p.get("note") || "" });
   }
+  // #/cellar/addmany?items=id:빈티지[:병수],id:빈티지 → 확인 후 여러 병을 한 번에 추가 (같은 와인+빈티지는 병 수만 더함)
+  function addMany(qs) {
+    const list = (new URLSearchParams(qs || "").get("items") || "").split(",").map((x) => x.split(":")).filter(([id]) => findById(id))
+      .map(([id, v, q]) => ({ it: findById(id), v: (v || "").replace(/\D/g, "").slice(0, 4), q: Math.max(1, parseInt(q) || 1) }));
+    history.replaceState(null, "", "#/cellar");
+    if (!list.length) { renderCellar(); return toast("추가할 와인을 찾을 수 없어요"); }
+    renderCellar();
+    if (!confirm(`셀러에 ${list.length}종을 추가할까요?\n\n` + list.map(({ it, v, q }) => `· ${it.ko} ${v} × ${q}병`).join("\n"))) return;
+    C = load();
+    for (const { it, v, q } of list) {
+      const same = C.bottles.find((b) => b.itemId === it.id && String(b.vintage || "") === v);
+      if (same) same.qty += q; else C.bottles.push({ id: uid(), itemId: it.id, name: "", vintage: v, size: 750, qty: q, buyDate: today(), loc: "", note: "", photo: "", added: today() });
+    }
+    if (!save()) return;
+    toast(`${list.length}종을 셀러에 추가했어요 🍷`); renderCellar();
+  }
   function renderCellar(bid, arg, qs) {
+    if (bid === "addmany") return addMany(qs);
     if (bid === "add") return quickAdd(arg, qs);
     if (bid) return renderBottle(bid);
     setChrome("cellar", "나의 와인셀러");
