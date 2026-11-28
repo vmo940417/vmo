@@ -67,7 +67,7 @@ button { font-family: inherit; cursor: pointer; }
 .ai-badge.on { background: var(--gold-soft); color: var(--gold); font-weight: 600; }
 .ai-badge.on::before { content: "●"; margin-right: 4px; font-size: calc(8px * var(--fs)); vertical-align: 1px; }
 
-main { padding: 14px 16px 28px; max-width: 720px; margin: 0 auto; animation: fade .25s ease; }
+main { padding: 14px 16px 28px; max-width: 720px; margin: 0 auto; }
 @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 
 /* ── Bottom tab bar ─────────────────────────── */
@@ -160,7 +160,7 @@ main { padding: 14px 16px 28px; max-width: 720px; margin: 0 auto; animation: fad
 .dtabs button.active { background: var(--ink); color: var(--paper); }
 
 .panel { background: var(--paper); border-radius: var(--radius); padding: 18px 16px; box-shadow: var(--shadow); margin-top: 10px;
-  border: 1px solid color-mix(in srgb, var(--line) 60%, transparent); animation: fade .2s ease; }
+  border: 1px solid color-mix(in srgb, var(--line) 60%, transparent); }
 .panel h3 { font-family: var(--serif); margin: 0 0 10px; font-size: calc(16px * var(--fs)); }
 .panel h3 + h3, .panel * + h3 { margin-top: 18px; }
 .panel p { margin: 0 0 10px; color: var(--ink-2); }
@@ -543,5 +543,5 @@ html, body { overflow-x: clip; }
 :root:is([data-style="portal"], [data-style="clean"]) .cam-btn { background: var(--accent); color: var(--on-accent); box-shadow: none; }
 :root:is([data-style="portal"], [data-style="clean"]) :is(.dtabs button.active, .seg3 button.active) { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 :root:is([data-style="portal"], [data-style="clean"]) .topbar h1 .seal { background: var(--accent); }
-/* 탭 이동 중에는 등장(페이드) 효과 끔 — 조명이 꺼졌다 켜지는 느낌 방지 */
-:root.tabnav main, :root.tabnav .panel, .swipe-ghost, .swipe-ghost * { animation: none !important; }
+/* 스와이프 중 복제 화면은 애니메이션 없이 */
+.swipe-ghost, .swipe-ghost * { animation: none !important; }

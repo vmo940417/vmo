@@ -448,11 +448,8 @@ window.addEventListener("hashchange", render);
 $("#backBtn").onclick = () => (history.length > 1 ? history.back() : go("#/search"));
 $("#tabbar").addEventListener("click", (e) => {
   const b = e.target.closest("button[data-tab]"); if (!b) return;
-  noFade(); go("#/" + b.dataset.tab);
+  go("#/" + b.dataset.tab);
 });
-/* 탭을 옮길 때는 카드가 깜빡이며(투명→불투명) 다시 나타나는 효과를 끈다 */
-let nfT = 0;
-function noFade() { document.documentElement.classList.add("tabnav"); clearTimeout(nfT); nfT = setTimeout(() => document.documentElement.classList.remove("tabnav"), 600); }
 /* 좌우로 밀어서 탭 이동 (페어링 ↔ 술검색 ↔ 셀러 ↔ 랭킹)
    손가락을 따라 화면이 움직이고, 놓으면 이전 화면은 밀려나고 다음 화면이 옆에서 들어온다 (빈 화면 없이 이어짐) */
 const TABS = ["pair", "search", "cellar", "ranking"];
@@ -498,7 +495,6 @@ const TABS = ["pair", "search", "cellar", "ranking"];
     busy = true;
     const dir = dx < 0 ? -1 : 1, r = view.getBoundingClientRect();
     // 지금 화면을 그대로 복제해 밀려나는 쪽에 띄워 둔다
-    noFade();
     const ghost = view.cloneNode(true); ghost.removeAttribute("id"); ghost.setAttribute("aria-hidden", "true"); ghost.classList.add("swipe-ghost");
     Object.assign(ghost.style, { position: "fixed", left: r.left + "px", top: r.top + "px", width: r.width + "px", height: (innerHeight - r.top) + "px",
       overflow: "hidden", margin: "0", animation: "none", zIndex: "5", pointerEvents: "none", transition: "none", transform: `translateX(${dx}px)`, background: "var(--bg)" });
@@ -1291,7 +1287,7 @@ function renderSettings() {
 // 페어링 모듈(pairing.js)이 쓰는 공통 함수
 window.SulApp = { $, view, esc, enc, go, store, setChrome, pagedList, itemRow, bindItems };
 $("#setBtn").onclick = () => go("#/settings");
-const APP_VERSION = "2026.11-v66";
+const APP_VERSION = "2026.11-v67";
 var CELLAR; window.SulApp.cellar = () => CELLAR;
 CELLAR = setupCellar({ store, $, view, esc, enc, toast, go, setChrome, bottle: window.bottle, CATS, findById, search, usdOf, fmtUSDv, fxRate, shrink, cse, cseOn, inferFromName, render: () => render() });
 loadFX().then(() => { if (/#\/(item|browse|ranking)/.test(location.hash)) render(); });
