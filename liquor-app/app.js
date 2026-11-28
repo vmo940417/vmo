@@ -19,7 +19,9 @@ const store = {
 };
 function toast(msg) {
   const t = $("#toast"); t.textContent = msg; t.classList.remove("hidden");
-  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.add("hidden"), 2600);
+  t.onclick = () => t.classList.add("hidden");   // 눌러서 닫기
+  // 긴 내용(대시보드 막대 설명 등)은 읽을 시간만큼 더 오래 보여 준다
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.add("hidden"), Math.min(9000, 2600 + String(msg).length * 45));
 }
 const googleUrl = (q) => `https://www.google.com/search?q=${enc(q)}`;
 
@@ -1154,7 +1156,7 @@ function renderSettings() {
 // 페어링 모듈(pairing.js)이 쓰는 공통 함수
 window.SulApp = { $, view, esc, enc, go, store, setChrome, pagedList, itemRow, bindItems };
 $("#setBtn").onclick = () => go("#/settings");
-const APP_VERSION = "2026.11-v51";
+const APP_VERSION = "2026.11-v52";
 var CELLAR; window.SulApp.cellar = () => CELLAR;
 CELLAR = setupCellar({ store, $, view, esc, enc, toast, go, setChrome, bottle: window.bottle, CATS, findById, search, usdOf, fmtUSDv, fxRate, shrink, cse, cseOn, inferFromName, render: () => render() });
 loadFX().then(() => { if (/#\/(item|browse|ranking)/.test(location.hash)) render(); });
