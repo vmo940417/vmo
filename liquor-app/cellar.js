@@ -467,5 +467,13 @@ export function setupCellar(ctx) {
     const ready = A.filter((b) => statusOf(b).c === "ready").reduce((s, b) => s + b.qty, 0);
     return { late, ready, total: A.reduce((s, b) => s + b.qty, 0) };
   }
-  return { renderCellar, itemCellarHTML, wireItemCellar, dueSummary, estimateWindow, statusOf };
+  // 페어링 탭용: 보유 중인 병 + 그 병(같은 와인)의 내 시음 기록
+  function pairingList() {
+    C = load();
+    return active().map((b) => ({
+      id: b.id, it: itemOf(b) || (() => { const g = ctx.inferFromName?.(b.name) || {}; return { cat: b.cat || "wine", ko: b.name, en: b.name, style: g.style || "", ingredients: g.grapes || [] }; })(), name: nameOf(b), vintage: b.vintage, qty: b.qty, loc: b.loc, st: statusOf(b), win: winText(windowOf(b)),
+      logs: C.log.filter((l) => l.bottleId === b.id || (b.itemId && l.itemId === b.itemId)),
+    }));
+  }
+  return { renderCellar, itemCellarHTML, wireItemCellar, dueSummary, estimateWindow, statusOf, pairingList };
 }

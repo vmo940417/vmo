@@ -134,6 +134,7 @@
         </form>
         <div class="sug hidden" id="psug"></div>
       </section>
+      <div id="pcellar"></div>
       <div id="pcats"></div>
       <div id="pchips"></div>
       <div id="presult"></div>`;
@@ -174,6 +175,7 @@
 
     recent.add(food);
     const res = engine.pair(food);
+    drawCellar(res.food);
     const rows = res.results.filter((r) => filter === "all" || r.beverage.type === filter);
     $("#presult").innerHTML = `
       <div class="section-title">${esc(res.food.name_ko)}에 어울리는 술 <small>${rows.length}종</small></div>
@@ -186,6 +188,44 @@
     };
     // 분류 목록에서 고른 경우 결과가 바로 보이도록 내려 준다
     if (cat) requestAnimationFrame(() => $("#presult").scrollIntoView({ block: "start", behavior: "smooth" }));
+  }
+  /* ── 내 셀러에서 고르기 ───────────────── */
+  function drawCellar(food) {
+    const { $, esc, enc, cellar } = A();
+    const box = $("#pcellar"), C = cellar?.();
+    if (!box || !C) return;
+    const list = C.pairingList();
+    if (!list.length) {
+      box.innerHTML = `<a class="p-cellar-empty" href="#/cellar">🍷 셀러에 와인을 넣어 두면 ‘${esc(food.name_ko)}’에 맞는 병을 내 셀러에서 골라 드려요 ›</a>`;
+      return;
+    }
+    const fn = food.name_ko;
+    const same = (l) => { const t = `${l.food || ""} ${(l.foods || []).join(" ")}`; return t && (t.includes(fn) || (l.food && fn.includes(l.food))); };
+    const rows = list.map((x) => {
+      const sid = (() => { try { return styleOf(x.it); } catch { return null; } })();
+      const st = sid && STYLES[sid];
+      if (!st) return null;
+      const pr = engine.scorePairing(st, food);
+      const mine = x.logs.filter((l) => l.pair && same(l));
+      const good = mine.some((l) => l.pair === "good"), bad = mine.some((l) => l.pair === "bad");
+      const score = Math.max(1, Math.min(99, pr.score + (good ? 8 : 0) - (bad ? 25 : 0)));
+      const why = bad ? "✗ 직접 마셔 보니 별로였던 조합" : good ? "✓ 내가 좋았던 조합" : pr.reasons[0] ? `${pr.reasons[0].impact >= 0 ? "✓" : "✗"} ${pr.reasons[0].text}` : "";
+      return { x, st, score, why, plus: !bad && (good || (pr.reasons[0]?.impact ?? 0) >= 0) };
+    }).filter(Boolean);
+    const urgency = { late: 0, ready: 1, past: 2, any: 3, aging: 9 };
+    const open = rows.filter((r) => r.x.st.c !== "aging").sort((a, b) => b.score - a.score || urgency[a.x.st.c] - urgency[b.x.st.c]);
+    const aging = rows.filter((r) => r.x.st.c === "aging" && r.score >= 70).length;
+    const top = open.filter((r) => r.score >= 55).slice(0, 5);
+    const show = top.length ? top : open.slice(0, 2);
+    box.innerHTML = `<div class="section-title">🍷 내 셀러에서 고르기 <small>보유 ${list.length}종 중</small></div>
+      ${show.length ? `<div class="list">${show.map((r) => `<a class="item p-row" href="#/cellar/${enc(r.x.id)}">
+        <span class="dot cat-${esc(r.x.it.cat || "wine")}">${window.bottle(r.x.it.cat || "wine")}</span>
+        <span class="meta"><div class="name">${esc(r.x.name)}${r.x.vintage ? ` <b class="vin">${esc(r.x.vintage)}</b>` : ""}</div>
+          <div class="sub"><span class="cst ${r.x.st.c}">${esc(r.x.st.t)}</span> ${esc(r.x.win)}${r.x.loc ? ` · ${esc(r.x.loc)}` : ""} · ${r.x.qty}병</div>
+          ${r.why ? `<div class="sub p-why ${r.plus ? "plus" : "minus"}">${esc(r.why)}</div>` : ""}</span>
+        <span class="p-score ${scoreClass(r.score)}"><b>${r.score}</b>점</span></a>`).join("")}</div>
+        ${top.length ? "" : `<p class="hint">셀러에 ${esc(fn)}와(과) 잘 맞는 병이 없어 그나마 나은 병을 보여 드려요.</p>`}` : `<p class="hint">지금 열 수 있는 병이 없어요.</p>`}
+      ${aging ? `<p class="hint">숙성 중인 병 ${aging}종도 잘 맞지만 아직 이르러 뺐어요.</p>` : ""}`;
   }
   function drawExample() {
     const { $ } = A();

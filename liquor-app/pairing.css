@@ -104,3 +104,5 @@ a.item { text-decoration: none; }
 .ocr-h { font-family: var(--serif); font-weight: 700; font-size: 16px; }
 .ocr-h small { font-family: var(--sans); font-weight: 500; color: var(--muted); font-size: 12px; margin-left: 4px; }
 .ocr-list { max-height: 44vh; overflow-y: auto; }
+.p-cellar-empty { display: block; margin: 12px 0 0; padding: 12px 14px; border-radius: 14px; background: var(--paper); box-shadow: var(--shadow); color: var(--ink-2); font-size: 13.5px; text-decoration: none; }
+#pcellar .list { margin-bottom: 4px; }
