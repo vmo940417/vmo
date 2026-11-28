@@ -450,6 +450,30 @@ $("#tabbar").addEventListener("click", (e) => {
   const b = e.target.closest("button[data-tab]"); if (!b) return;
   go("#/" + b.dataset.tab);
 });
+/* 좌우로 밀어서 탭 이동 (페어링 ↔ 술검색 ↔ 셀러 ↔ 랭킹) */
+const TABS = ["pair", "search", "cellar", "ranking"];
+(() => {
+  let sx = 0, sy = 0, st = 0, on = false;
+  const scrollsX = (el) => { for (; el && el !== document.body; el = el.parentElement) { if (el.scrollWidth > el.clientWidth + 2 && /(auto|scroll)/.test(getComputedStyle(el).overflowX)) return true; } return false; };
+  document.addEventListener("touchstart", (e) => {
+    on = false; if (e.touches.length !== 1) return;
+    const t = e.target;
+    if (!t.closest("#view") || t.closest("input, textarea, select, .cbub, [data-noswipe]") || scrollsX(t)) return;
+    const x = e.touches[0].clientX; if (x < 18 || x > innerWidth - 18) return;   // 화면 가장자리는 브라우저 뒤로가기 제스처에 양보
+    sx = x; sy = e.touches[0].clientY; st = Date.now(); on = true;
+  }, { passive: true });
+  document.addEventListener("touchend", (e) => {
+    if (!on) return; on = false;
+    const dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy;
+    if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.8 || Date.now() - st > 700) return;
+    const cur = document.querySelector("#tabbar button.active")?.dataset.tab, i = TABS.indexOf(cur);
+    const route = location.hash.split(/[\/?]/)[1] || "pair";
+    if (i < 0 || route !== cur) return;           // 상세 화면 등에서는 동작하지 않음 (탭 화면에서만)
+    const j = i + (dx < 0 ? 1 : -1); if (j < 0 || j >= TABS.length) return;
+    const v = $("#view"); v.classList.remove("swipe-l", "swipe-r"); void v.offsetWidth; v.classList.add(dx < 0 ? "swipe-l" : "swipe-r");
+    go("#/" + TABS[j]);
+  }, { passive: true });
+})();
 function setChrome(tab, title, back = false) {
   document.querySelectorAll("#tabbar button").forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
   $("#title").innerHTML = title ?? `<span class="seal">${bottle("wine")}</span>오늘술상`;
@@ -1116,7 +1140,8 @@ function renderRanking(cat) {
 /* ───────── 설정 ───────── */
 const STYLES_UI = [["wine", "와인 레드", "linear-gradient(140deg,#4a0d22,#7a1f3d 55%,#a3385a)"], ["navy", "미드나잇 네이비", "linear-gradient(140deg,#0f2340,#1f3f6e 55%,#3f6aa3)"],
   ["forest", "포레스트 그린", "linear-gradient(140deg,#0f2a1f,#24503b 55%,#4f8a68)"], ["champagne", "샴페인 골드", "linear-gradient(140deg,#4a3712,#8a6a2a 55%,#c9a35a)"],
-  ["mono", "모노 미니멀", "linear-gradient(140deg,#111,#2b2b2b 55%,#4a4a4a)"]];
+  ["mono", "모노 미니멀", "linear-gradient(140deg,#111,#2b2b2b 55%,#4a4a4a)"],
+  ["portal", "그린 포털 (네이버풍)", "linear-gradient(90deg,#03c75a 0 50%,#f5f6f7 50%)"], ["clean", "클린 화이트 (구글풍)", "linear-gradient(90deg,#fff 0 55%,#1a73e8 55% 70%,#fff 70%)"]];
 // 글꼴: body = 본문(--sans), head = 제목(--serif, 없으면 본문과 같게). gf = Google Fonts 패밀리 지정, css = 그 밖의 CSS 주소
 const FB = `-apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif`;
 const PRET = `"Pretendard Variable", Pretendard, ${FB}`;
@@ -1225,7 +1250,7 @@ function renderSettings() {
 // 페어링 모듈(pairing.js)이 쓰는 공통 함수
 window.SulApp = { $, view, esc, enc, go, store, setChrome, pagedList, itemRow, bindItems };
 $("#setBtn").onclick = () => go("#/settings");
-const APP_VERSION = "2026.11-v62";
+const APP_VERSION = "2026.11-v64";
 var CELLAR; window.SulApp.cellar = () => CELLAR;
 CELLAR = setupCellar({ store, $, view, esc, enc, toast, go, setChrome, bottle: window.bottle, CATS, findById, search, usdOf, fmtUSDv, fxRate, shrink, cse, cseOn, inferFromName, render: () => render() });
 loadFX().then(() => { if (/#\/(item|browse|ranking)/.test(location.hash)) render(); });

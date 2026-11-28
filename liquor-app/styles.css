@@ -491,3 +491,59 @@ h1, h2, h3, .panel h3, .section-title, .hero h2, .sheet-h, .lgh b, .dgh b { lett
 .setlab { font-size: calc(13px * var(--fs)); color: var(--muted); margin: 14px 0 6px; font-weight: 600; }
 .setlab:first-of-type { margin-top: 2px; }
 :root[data-style] .pair-hero, :root[data-style] .home-hero, :root[data-style] .cellar-hero.cat-wine { background: var(--g-hero); }
+
+/* ── 포털 검색 스타일 (그린 포털 · 클린 화이트) — 평평한 카드, 큰 검색창, 장식 최소화 ── */
+:root[data-style="portal"] { --bg: #f5f6f7; --paper: #ffffff; --ink: #222222; --ink-2: #404040; --muted: #767678; --line: #e4e8eb;
+  --accent: #03c75a; --accent-2: #00a84f; --accent-soft: #e8f8ef; --gold: #00a84f; --gold-soft: #e8f8ef; --chip: #f1f3f5; --on-accent: #fff;
+  --g-hero: #03c75a; --radius: 10px; --shadow: none; }
+@media (prefers-color-scheme: dark) { :root[data-style="portal"]:not([data-theme="light"]) { --bg: #101112; --paper: #1b1c1e; --ink: #ececec; --ink-2: #cfcfcf; --muted: #9a9a9c; --line: #2c2e31;
+  --accent: #2fd27a; --accent-2: #5fe19a; --accent-soft: #15301f; --gold: #2fd27a; --gold-soft: #15301f; --chip: #242629; --on-accent: #0b1a10; --g-hero: #0d8f44; } }
+:root[data-style="portal"][data-theme="dark"] { --bg: #101112; --paper: #1b1c1e; --ink: #ececec; --ink-2: #cfcfcf; --muted: #9a9a9c; --line: #2c2e31;
+  --accent: #2fd27a; --accent-2: #5fe19a; --accent-soft: #15301f; --gold: #2fd27a; --gold-soft: #15301f; --chip: #242629; --on-accent: #0b1a10; --g-hero: #0d8f44; }
+
+:root[data-style="clean"] { --bg: #ffffff; --paper: #ffffff; --ink: #202124; --ink-2: #3c4043; --muted: #5f6368; --line: #dadce0;
+  --accent: #1a73e8; --accent-2: #1967d2; --accent-soft: #e8f0fe; --gold: #188038; --gold-soft: #e6f4ea; --chip: #f1f3f4; --on-accent: #fff;
+  --g-hero: #ffffff; --radius: 12px; --shadow: none; }
+@media (prefers-color-scheme: dark) { :root[data-style="clean"]:not([data-theme="light"]) { --bg: #202124; --paper: #2a2b2e; --ink: #e8eaed; --ink-2: #c8cacd; --muted: #9aa0a6; --line: #3c4043;
+  --accent: #8ab4f8; --accent-2: #aecbfa; --accent-soft: #283142; --gold: #81c995; --gold-soft: #1f3326; --chip: #303134; --on-accent: #202124; --g-hero: #2a2b2e; } }
+:root[data-style="clean"][data-theme="dark"] { --bg: #202124; --paper: #2a2b2e; --ink: #e8eaed; --ink-2: #c8cacd; --muted: #9aa0a6; --line: #3c4043;
+  --accent: #8ab4f8; --accent-2: #aecbfa; --accent-soft: #283142; --gold: #81c995; --gold-soft: #1f3326; --chip: #303134; --on-accent: #202124; --g-hero: #2a2b2e; }
+
+/* 공통: 평평한 레이아웃 */
+:root:is([data-style="portal"], [data-style="clean"]) body { background-image: none; }
+:root:is([data-style="portal"], [data-style="clean"]) .topbar { background: var(--paper); backdrop-filter: none; -webkit-backdrop-filter: none; border-bottom: 1px solid var(--line); }
+:root:is([data-style="portal"], [data-style="clean"]) :is(.item, .card, .panel) { box-shadow: none; border: 1px solid var(--line); border-radius: var(--radius); }
+:root:is([data-style="portal"], [data-style="clean"]) .item:active { transform: none; background: var(--chip); }
+:root:is([data-style="portal"], [data-style="clean"]) :is(.hero, .home-hero, .pair-hero) { border-radius: var(--radius); box-shadow: none; }
+:root:is([data-style="portal"], [data-style="clean"]) :is(.home-hero, .hero)::after { display: none; }
+:root:is([data-style="portal"], [data-style="clean"]) .btn { box-shadow: none; border-radius: 8px; background: var(--accent); color: var(--on-accent); }
+:root:is([data-style="portal"], [data-style="clean"]) .chip.active { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+:root:is([data-style="portal"], [data-style="clean"]) .tabbar { background: var(--paper); backdrop-filter: none; -webkit-backdrop-filter: none; border-top: 1px solid var(--line); }
+:root:is([data-style="portal"], [data-style="clean"]) .item .score b { font-family: var(--sans); }
+
+/* 그린 포털: 초록 테두리 검색창, 단색 초록 헤더 */
+:root[data-style="portal"] .searchbox input { border: 2px solid var(--accent); border-radius: 8px; box-shadow: none; }
+:root[data-style="portal"] .searchbox input:focus { border-color: var(--accent-2); box-shadow: none; }
+:root[data-style="portal"] .home-hero .searchbox input { border: 2px solid #fff; }
+:root[data-style="portal"] :is(.hero, .home-hero, .pair-hero, .cellar-hero) { background: var(--g-hero) !important; }
+:root[data-style="portal"] .hero .glyph { opacity: .12; }
+
+/* 클린 화이트: 둥근 알약 검색창 + 흰 바탕 헤더(어두운 글자) */
+:root[data-style="clean"] .searchbox input { border: 1px solid var(--line); border-radius: 24px; box-shadow: 0 1px 6px rgba(32,33,36,.12); }
+:root[data-style="clean"] .searchbox input:focus { border-color: transparent; box-shadow: 0 1px 8px rgba(32,33,36,.28); }
+:root[data-style="clean"] :is(.hero, .home-hero, .pair-hero, .cellar-hero) { background: var(--paper) !important; color: var(--ink) !important; border: 1px solid var(--line); }
+:root[data-style="clean"] .hero .kind, :root[data-style="clean"] .hero .kind .cst { background: var(--accent-soft); color: var(--accent); }
+:root[data-style="clean"] .hero .stat { background: var(--chip); border-color: var(--line); }
+:root[data-style="clean"] .hero .glyph, :root[data-style="clean"] .hero .glyph .btl { color: var(--accent); opacity: .08; }
+:root[data-style="clean"] .hero .names { opacity: 1; color: var(--muted); }
+:root[data-style="clean"] .hero h2 { color: var(--ink); }
+:root[data-style="clean"] .home-hero .searchbox input { border: 1px solid var(--line); }
+/* 밀어서 탭 이동 애니메이션 */
+@keyframes swl { from { transform: translateX(28px); opacity: .35; } to { transform: none; opacity: 1; } }
+@keyframes swr { from { transform: translateX(-28px); opacity: .35; } to { transform: none; opacity: 1; } }
+#view.swipe-l { animation: swl .22s ease-out; }
+#view.swipe-r { animation: swr .22s ease-out; }
+@media (prefers-reduced-motion: reduce) { #view.swipe-l, #view.swipe-r { animation: none; } }
+:root:is([data-style="portal"], [data-style="clean"]) .cam-btn { background: var(--accent); color: var(--on-accent); box-shadow: none; }
+:root:is([data-style="portal"], [data-style="clean"]) :is(.dtabs button.active, .seg3 button.active) { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+:root:is([data-style="portal"], [data-style="clean"]) .topbar h1 .seal { background: var(--accent); }
