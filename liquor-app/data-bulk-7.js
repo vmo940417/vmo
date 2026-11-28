@@ -440,6 +440,31 @@
       desc: "오크빌에서 드물게 소량 생산되는 소비뇽 블랑. 리치·흰 복숭아 향에 오크 숙성에서 오는 부드러운 질감이 어우러진다." },
   ].forEach((o) => window.BULK.add({ cat: "wine", country: "미국", region: "캘리포니아 나파 밸리 오크빌", producer: "Tench Vineyards", ...o,
     abv: o.style.startsWith("화이트") ? "13.5%" : "14.5%" }));
+  // 다나 에스테이트 (나파 밸리 러더퍼드) — 사용자 요청 추가. G20 서울정상회의 만찬주
+  [
+    { ko: "다나 에스테이트 로터스 빈야드 까베르네 소비뇽", en: "Dana Estates Lotus Vineyard Cabernet Sauvignon", aliases: ["로터스", "다나 로터스", "lotus"],
+      region: "캘리포니아 나파 밸리 캘리스토가", style: "레드 · 싱글 빈야드 까베르네 소비뇽", g: "CS", usd: [350, 500], p: "redIcon",
+      desc: "다나 에스테이트의 싱글 빈야드 까베르네 중 하나. 캘리스토가 산기슭 로터스 포도밭의 개성을 담은 플래그십급 레드." },
+    { ko: "다나 에스테이트 헬름스 빈야드 까베르네 소비뇽", en: "Dana Estates Helms Vineyard Cabernet Sauvignon", aliases: ["헬름스", "다나 헬름스", "helms"],
+      region: "캘리포니아 나파 밸리 러더퍼드", style: "레드 · 싱글 빈야드 까베르네 소비뇽", g: "CS", usd: [300, 450], p: "redIcon",
+      desc: "러더퍼드 헬름스 포도밭의 싱글 빈야드 까베르네. 러더퍼드 특유의 흙내음(러더퍼드 더스트)과 단단한 탄닌." },
+    { ko: "다나 에스테이트 허쉬 빈야드 까베르네 소비뇽", en: "Dana Estates Hershey Vineyard Cabernet Sauvignon", aliases: ["허쉬", "다나 허쉬", "hershey"],
+      region: "캘리포니아 나파 밸리 하웰 마운틴", style: "레드 · 싱글 빈야드 까베르네 소비뇽", g: "CS", usd: [300, 450], p: "redIcon",
+      desc: "하웰 마운틴 고지대 허쉬 포도밭의 싱글 빈야드 까베르네. 산지 와인다운 농축감과 긴 숙성력." },
+    { ko: "다나 에스테이트 온다", en: "Dana Estates Onda", aliases: ["온다", "onda"],
+      region: "캘리포니아 나파 밸리", style: "레드 · 까베르네 소비뇽 블렌드", g: "CS", usd: [120, 180], p: "redFull",
+      desc: "다나 에스테이트의 블렌드 레드. 여러 포도밭의 까베르네를 섞어 싱글 빈야드보다 일찍 즐기기 좋다." },
+    { ko: "다나 에스테이트 바소 까베르네 소비뇽", en: "Dana Estates Vaso Cabernet Sauvignon", aliases: ["바소", "vaso"],
+      region: "캘리포니아 나파 밸리", style: "레드 · 까베르네 소비뇽", g: "CS", usd: [70, 110], p: "redFull",
+      desc: "다나 에스테이트의 바소 라인 레드. 나파 까베르네의 진한 과실을 비교적 부담 없는 가격에 담은 엔트리." },
+    { ko: "다나 에스테이트 허쉬 빈야드 소비뇽 블랑", en: "Dana Estates Hershey Vineyard Sauvignon Blanc", aliases: ["허쉬 소비뇽 블랑"],
+      region: "캘리포니아 나파 밸리 하웰 마운틴", style: "화이트 · 소비뇽 블랑", g: "SB", usd: [70, 110], p: "whiteCrisp",
+      desc: "허쉬 포도밭의 소비뇽 블랑. 고지대 포도의 또렷한 산도와 농축된 과실." },
+    { ko: "다나 에스테이트 바소 소비뇽 블랑", en: "Dana Estates Vaso Sauvignon Blanc", aliases: ["바소 소비뇽 블랑"],
+      region: "캘리포니아 나파 밸리", style: "화이트 · 소비뇽 블랑", g: "SB", usd: [35, 55], p: "whiteCrisp",
+      desc: "바소 라인의 소비뇽 블랑. 상큼한 시트러스와 열대 과일 향의 데일리 나파 화이트." },
+  ].forEach(({ g, usd, ...o }) => window.BULK.add({ cat: "wine", country: "미국", producer: "Dana Estates (다나 에스테이트)", ...o,
+    abv: g === "SB" ? "13.8%" : "14.8%", ingredients: [{ name: g === "SB" ? "Sauvignon Blanc" : "Cabernet Sauvignon" }], price: { usd, note: "미국 소매 근사치" } }));
   // 국가 칸이 '기타'인 항목은 산지 첫 단어를 국가로
   window.LIQUORS.forEach((x) => { if (x.bulk && x.country === "기타" && x.region) { const [c, ...r] = x.region.split(" "); x.country = c; x.region = r.join(" "); } });
 })();

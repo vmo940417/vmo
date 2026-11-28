@@ -1,5 +1,5 @@
 // 오늘술상(구 술사전) 서비스워커 — 앱 셸 오프라인 캐시 (API 호출은 캐시하지 않음)
-const CACHE = "sulsajeon-v32";
+const CACHE = "sulsajeon-v33";
 const SHELL = ["./", "index.html", "styles.css", "app.js", "cellar.js", "icons.js", "data.js", "data-extra.js", "data-bulk-1.js", "data-bulk-2.js", "data-bulk-3.js", "data-bulk-4.js", "data-bulk-5.js", "data-bulk-6.js", "data-bulk-7.js", "data-scores.js", "data-price.js", "pairing-engine.js", "pairing-data.js", "pairing.js", "pairing.css", "label-ocr.js", "manifest.webmanifest", "icon.svg", "icon-192.png", "icon-512.png", "apple-touch-icon.png"];
 self.addEventListener("install", (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL))); self.skipWaiting(); });
 self.addEventListener("activate", (e) => {
