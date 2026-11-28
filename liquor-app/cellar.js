@@ -49,7 +49,7 @@ export function setupCellar(ctx) {
   /* ───────── 시음 적기 추정 ───────── */
   const RE = {
     spark: /champagne|샴페인|스파클링|sparkling|cava|까바|prosecco|프로세코|crémant|cremant|크레망|spumante|franciacorta|sekt/i,
-    sweet: /sauternes|소테른|barsac|tokaj|토카이|ice ?wine|아이스 ?와인|beerenauslese|trockenbeeren|yquem|이켐|vin santo/i,
+    sweet: /아이스바인|eiswein|sauternes|소테른|barsac|tokaj|토카이|ice ?wine|아이스 ?와인|beerenauslese|trockenbeeren|yquem|이켐|vin santo/i,
     port: /\bport\b|porto|포트 와인|vintage port|madeira|마데이라/i,
     rose: /로제|rosé|\brose\b|rosado|rosato/i,
     nouveau: /nouveau|누보/i,
@@ -61,6 +61,7 @@ export function setupCellar(ctx) {
     const it = itemOf(b), cat = catOf(b);
     const buyY = +(b.buyDate || today()).slice(0, 4);
     const t = `${it?.en || ""} ${it?.ko || ""} ${it?.style || ""} ${it?.region || ""} ${b.name || ""}`;
+    if (cat === "sake" && /숙성주|熟成|古酒|고슈/.test(t)) return { from: buyY, to: buyY + 5, why: "숙성주(古酒) — 병 숙성이 완만해 구매 후 5년 내 권장" };
     if (cat === "sake" || cat === "beer" || cat === "makgeolli") return { from: buyY, to: buyY + 1, why: "신선할 때 마시는 술 — 구매 후 1년 이내" };
     if (cat !== "wine") return { from: null, to: null, why: "증류주는 병 숙성이 거의 없어 언제든 (개봉 후 1~2년 내 권장)" };
     if (RE.nouveau.test(t)) return { from: buyY, to: buyY + 1, why: "누보 — 출시 직후" };
@@ -73,7 +74,7 @@ export function setupCellar(ctx) {
     else if (RE.rose.test(t)) { [s, e] = [0, 2]; why = "로제 — 어릴 때"; }
     else if (RE.white.test(t)) {
       const longW = RE.long.test(t) || usd >= 80 || /riesling|리슬링/i.test(t) && usd >= 40;
-      [s, e] = longW ? [Math.max(2, Math.round(s * 0.6)), Math.max(10, Math.round(e * 0.7))] : [Math.round(s * 0.4), Math.max(3, Math.round(e * 0.5))];
+      [s, e] = longW ? [Math.max(2, Math.round(s * 0.6)), Math.max(10, Math.round(e * 0.7))] : [Math.round(s * 0.4), Math.max(4, Math.round(e * 0.6))];
       why = longW ? "장기 숙성형 화이트" : "화이트 — 과실이 살아 있을 때";
     } else if (RE.long.test(t) && usd >= 40) { s = Math.max(s, 5); e = Math.max(e, 20); why = "장기 숙성형 산지·생산자"; }
     if (!b.vintage) return { from: buyY, to: buyY + Math.max(2, Math.round(e / 3)), why: why + " · 빈티지 미입력이라 구매일 기준" };

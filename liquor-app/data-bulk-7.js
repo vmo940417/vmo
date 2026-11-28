@@ -507,6 +507,19 @@
     ["초타르 비토브스카", "Čotar Vitovska", "슬로베니아", "슬로베니아 카르스트", "Čotar", "화이트 · 오렌지 (스킨 컨택트)", "", "Vitovska", "whiteCrisp", [40, 65], "카르스트 지방 토착 품종 비토브스카로 빚는 오렌지(스킨 컨택트) 화이트. 단단한 미네랄감과 은은한 탄닌."],
   ].forEach(([ko, en, country, region, producer, style, abv, g, p, usd, desc]) => window.BULK.add({ cat: "wine", ko, en, country, region, producer, style, abv, p, desc,
     ingredients: g.split("/").map((name) => ({ name })), price: { usd, note: "미국 소매 근사치" } }));
+  // 사용자 요청 추가 (라벨 기준) — 샴페인·스위트·샤르도네·숙성 사케
+  [
+    ["wine", "레어 샹파뉴 밀레짐", "Rare Champagne Millésime", "프랑스", "샹파뉴", "Rare Champagne (Piper-Heidsieck)", "스파클링 · 빈티지 프레스티지", "12%", "Chardonnay/Pinot Noir", "bubbly", [200, 320], "피페르 하이직 계열의 프레스티지 빈티지 샴페인 '레어'. 샤르도네 중심의 섬세함과 화려한 장식 보틀이 특징."],
+    ["wine", "보 조이 브뤼 스페셜 퀴베", "Beau Joie Brut Special Cuvée", "프랑스", "샹파뉴 에페르네", "Champagne Bertrand Senécourt", "스파클링 · 샴페인", "12%", "Chardonnay/Pinot Noir/Pinot Meunier", "bubbly", [55, 90], "에페르네의 베르트랑 세네쿠르가 만드는 샴페인. 구리빛 철망 케이지 보틀로 유명하다."],
+    ["wine", "자크송 퀴베 748", "Jacquesson Cuvée 748", "프랑스", "샹파뉴", "Jacquesson", "스파클링 · 샴페인 (엑스트라 브뤼)", "12.5%", "Chardonnay/Pinot Noir/Pinot Meunier", "bubbly", [75, 115], "자크송의 번호 시리즈 퀴베. 베이스 빈티지 위에 리저브 와인을 더한 엑스트라 브뤼 스타일로 도자주(당 첨가)를 최소화했다."],
+    ["wine", "마크 에브라르 스페셜 클럽", "Marc Hébrart Special Club Premier Cru", "프랑스", "샹파뉴 마뢰이 쉬르 아이", "Marc Hébrart", "스파클링 · 스페셜 클럽 (프리미에 크뤼)", "12.5%", "Chardonnay/Pinot Noir", "bubbly", [90, 140], "마뢰이 쉬르 아이의 재배농 샴페인 에브라르의 스페셜 클럽 퀴베. 샹파뉴 재배농 조합 '스페셜 클럽'의 엄선 빈티지 샴페인."],
+    ["wine", "블루 넌 아이스바인 프레디카츠바인", "Blue Nun Eiswein Prädikatswein", "독일", "독일", "Blue Nun", "스위트 · 아이스바인", "", "", "sweet", [25, 45], "얼린 포도로 만드는 독일 아이스바인. 농축된 단맛과 산미의 균형이 특징이며 하프 보틀(375ml)로 흔히 유통된다."],
+    ["wine", "올리비에 르플레브 푸이 퓌세", "Olivier Leflaive Pouilly-Fuissé", "프랑스", "부르고뉴 마코네", "Olivier Leflaive", "화이트 · 푸이 퓌세", "13%", "Chardonnay", "whiteCrisp", [40, 65], "마코네의 푸이 퓌세. 잘 익은 과실과 신선한 산도가 어우러지는 샤르도네."],
+    ["wine", "피에르 지라르댕 부르고뉴 샤르도네 에클라 드 칼케르", "Pierre Girardin Bourgogne Chardonnay Éclat de Calcaire", "프랑스", "부르고뉴 뫼르소", "Pierre Girardin", "화이트 · 부르고뉴 샤르도네", "13%", "Chardonnay", "whiteCrisp", [28, 45], "뫼르소의 피에르 지라르댕이 만드는 부르고뉴 샤르도네. 이름 그대로 석회질(칼케르) 토양의 광물감을 살린 스타일."],
+    ["sake", "무유 숙성주 2015 (농약 불사용미)", "Muyu Aged Sake 2015|無有 熟成", "일본", "일본", "확인 필요 (라벨: 全量農薬不使用米)", "숙성주 (농약 불사용미 전량)", "", "농약 불사용미", "sakeJunmai", [40, 80], "농약을 쓰지 않은 쌀 전량으로 빚어 2015년부터 숙성한 사케. 라벨만으로 양조장을 특정하지 못해 생산자 정보는 직접 확인이 필요하다."],
+  ].forEach(([cat, ko, en, country, region, producer, style, abv, g, p, usd, desc]) => { const [e, orig] = en.split("|");
+    window.BULK.add({ cat, ko, en: e, ...(orig ? { ja: orig } : {}), country, region, producer, style, abv, p, desc,
+      ingredients: g ? g.split("/").map((name) => ({ name })) : [], price: { usd, note: "근사치" } }); });
   // 폰토디 플라치아넬로 델라 피에베 — 라벨 기준 정보 보강 (사용자 요청)
   const fl = window.LIQUORS.find((x) => x.en === "Fontodi Flaccianello della Pieve");
   if (fl) Object.assign(fl, {
