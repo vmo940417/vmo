@@ -427,6 +427,19 @@
     ["까시예로 델 디아블로 레세르바 프리바다 까베르네", "Casillero del Diablo Reserva Privada Cabernet Sauvignon", "레드 · 까베르네 소비뇽", 14, "칠레", "마이포", "Concha y Toro", 25000, "Cabernet Sauvignon"],
     ["까시예로 델 디아블로 데블스 컬렉션 레드", "Casillero del Diablo Devil's Collection Red", "레드 · 블렌드", 13.5, "칠레", "센트럴 밸리", "Concha y Toro", 18000, "Cabernet Sauvignon/Syrah/Carmenère"],
   ]);
+  // 텐치 빈야드 (나파 밸리 오크빌) — 사용자 요청 추가
+  [
+    { ko: "텐치 빈야드 까베르네 소비뇽", en: "Tench Vineyards Cabernet Sauvignon", price: { usd: [140, 190], note: "미국 소매 근사치" }, aliases: ["텐치 까베르네", "tench cabernet", "텐치"],
+      style: "레드 · 까베르네 소비뇽", ingredients: [{ name: "Cabernet Sauvignon" }], p: "redFull",
+      desc: "나파 밸리 오크빌 동쪽 텐치 빈야드의 대표 레드. 블랙베리·카시스 같은 진한 과실 향과 탄탄한 구조감이 특징인 오크빌 까베르네." },
+    { ko: "텐치 더블 티 까베르네 소비뇽", en: "Tench Vineyards Double T Cabernet Sauvignon", price: { usd: [65, 90], note: "미국 소매 근사치" }, aliases: ["더블티", "double t"],
+      style: "레드 · 까베르네 소비뇽", ingredients: [{ name: "Cabernet Sauvignon" }], p: "redFull",
+      desc: "텐치 빈야드의 세컨드 성격 까베르네. 같은 오크빌 포도로 만들어 더 일찍 마시기 좋은 스타일." },
+    { ko: "텐치 소비뇽 블랑 오크빌", en: "Tench Vineyards Sauvignon Blanc Oakville", price: { usd: [45, 65], note: "미국 소매 근사치" }, aliases: ["텐치 소비뇽 블랑", "tench sauvignon blanc"],
+      style: "화이트 · 소비뇽 블랑", ingredients: [{ name: "Sauvignon Blanc" }], p: "whiteCrisp",
+      desc: "오크빌에서 드물게 소량 생산되는 소비뇽 블랑. 리치·흰 복숭아 향에 오크 숙성에서 오는 부드러운 질감이 어우러진다." },
+  ].forEach((o) => window.BULK.add({ cat: "wine", country: "미국", region: "캘리포니아 나파 밸리 오크빌", producer: "Tench Vineyards", ...o,
+    abv: o.style.startsWith("화이트") ? "13.5%" : "14.5%" }));
   // 국가 칸이 '기타'인 항목은 산지 첫 단어를 국가로
   window.LIQUORS.forEach((x) => { if (x.bulk && x.country === "기타" && x.region) { const [c, ...r] = x.region.split(" "); x.country = c; x.region = r.join(" "); } });
 })();
